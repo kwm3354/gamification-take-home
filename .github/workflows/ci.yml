@@ -1,0 +1,22 @@
+name: ci
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The ledger tests use the TigerBeetle server from docker-compose.yml (the official image).
+      - run: docker compose up -d --wait tigerbeetle
+      - run: npm run verify
+        env:
+          TB_ADDRESS: 127.0.0.1:30009
+      - if: always()
+        run: docker compose logs tigerbeetle | tail -n 50
