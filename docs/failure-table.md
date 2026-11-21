@@ -1,10 +1,17 @@
-# Failure table: the bonus store
+# Failure table
 
-What goes wrong, what the system does, and which test proves it. Test names are the names in
-`test/store.test.ts`. "Not tested" means nobody ran it.
+What goes wrong, what the system does, and which test proves it. A test name without a file is in
+`test/store.test.ts`; other rows name their file. "Not tested" means nobody ran it.
 
 | What goes wrong | What the system does | Proved by |
 |---|---|---|
+| The casino sends the same deposit twice, or ten times at once | One event row, one spin; the repeats are answered as duplicates. | `test/intake.test.ts` `2. the same deposit twice in a row: duplicate, still one spin`, `3. ten identical deposits at once: exactly one spin` |
+| A deposit event has a bad signature, a stale timestamp or an altered body | 401, nothing stored, one `webhook_rejected` audit record. | `test/intake.test.ts` `5. bad signature on A and B: 401, nothing stored, one webhook_rejected audit row each`, `6. A: stale timestamp and an altered body are rejected` |
+| A signed event has the wrong shape | 400, nothing stored. | `test/intake.test.ts` `7. signed but invalid payloads are 400 and store nothing` |
+| The player presses Spin twenty times at once | The same answer twenty times, exactly one prize in the ledger. | `test/wheel.test.ts` `2. twenty identical requests at once: same body, exactly one prize in the ledger, one use in the audit` |
+| The client tries to choose the prize | The request body is ignored; the result equals the server's computation. | `test/wheel.test.ts` `4. the HTTP result equals pickSegment from the seeded secret, spin id and table`, `5. the client cannot choose the outcome` |
+| The ledger is away when the player spins | The spin answers 200; a job credits the prize later, once. | `test/wheel.test.ts` `7. the ledger is away at spin time: still 200, the queued job credits later` |
+| A player uses another player's spin, or another casino's | 404; the spin stays available. | `test/wheel.test.ts` `8. someone else's spin is a 404 and stays available`; `test/tenant-isolation.test.ts` |
 | The player sends the same redemption twice, one after the other | The second call returns the first redemption with 200 and changes nothing, even if the body names another item. | `3. the same Idempotency-Key twice: 201 then 200, one redemption, charged once; a new key is a new redemption` |
 | The player sends the same redemption ten times at once | One request creates it, the other nine get the same redemption; one grant, coins taken once. | `4. ten identical requests at once: one redemption id in every answer, one grant, charged once` |
 | The player does not have enough coins | The ledger refuses the reserve, the redemption ends `insufficient`, and the platform is never called. | `5. not enough coins: insufficient, nothing reserved, the platform is never called` |
@@ -23,7 +30,7 @@ What goes wrong, what the system does, and which test proves it. Test names are 
 | A reward webhook has a bad signature, comes for platform A, arrives for another tenant's redemption, or arrives too early | 401 plus an audit row; 400; 404 with nothing changed; ignored and recorded. | `17. reward webhook: bad signature, other tenant, platform A, and a notice too early` |
 | A player of one tenant reads or redeems in another tenant | 404; the item list shows only the player's own tenant. | `18. tenant isolation on the player API` |
 | The request has no token, no Idempotency-Key, or an unknown item | 401, 400, 404, and no redemption is created. | `19. a missing Idempotency-Key is 400, a missing token is 401` |
-| The outbox timer and the request both try to run one redemption | Whoever claims the job first runs it; the other finds a live lease and returns without running. Only one request reaches platform B. | `21. the timer and the request never run one redemption at the same time (B has no idempotency)` |
+| The outbox timer and the request both try to run one redemption | Whoever claims the job first runs it; the other finds a live lease and returns without running. Only one request reaches platform B. | `21a. while the request holds the lease, the timer's runner skips the job (B has no idempotency)`, `21b. the request and a runDue started together: one grant, one settle` |
 | A worker dies while running a job | Its claim stays until `claimed_until`; then the job is due again and another worker runs it (handlers are safe to repeat). | `outbox > a lease that ran out: the second worker runs the job and the slow first worker is fenced out` |
 | A slow worker finishes after its lease was taken over | Its result is not written (the write is fenced by the claim token); `outbox.lease_lost` is logged; the row shows the new worker's outcome. | `outbox > a lease that ran out: ...` |
 | A job is enqueued again while a worker runs it | The claim is left alone and `rerun` is set; after the first run the job runs once more, never at the same time. | `outbox > an enqueue while the handler runs leads to exactly one more run, ...` |
@@ -61,7 +68,7 @@ Test names are in `test/admin.test.ts` and `test/alerts.test.ts`.
 
 | What goes wrong | What the system does | Proved by |
 |---|---|---|
-| Someone calls the admin API without the key, with a wrong key, with another tenant's key, or for an unknown tenant | 401 with the same body each time; nothing is read. | `admin API > 1. auth: ...` |
+| Someone calls the back office API without a token, with a bad token, as another casino's manager, or for an unknown casino | 401 without a valid token; 404 for another casino's or an unknown casino's path (the same answer, so the caller cannot tell which casinos exist); nothing is read. | `test/admin.test.ts` `1. auth: no token, a bad token and another tenant's manager are refused; the right manager works`; `test/tenant-isolation.test.ts` |
 | A casino accepts a reward and then goes silent (no error anywhere) | The redemption is listed as stuck once it is older than the tenant's limit, with its age and its last platform call; the alert `redemption_pending_too_long` fires on age, not on errors. | `admin API > 3. stuck: ...`, `alerts > redemption_pending_too_long: ...` |
 | The outcome cannot be learned at all | An admin resolves it by hand through the same `confirm` as every answer; the admin is the actor in the audit trail with the note; the ledger settles normally. | `admin API > 4. resolve as issued: ...`, `5. resolve as refused: ...` |
 | An admin decides "issued" and the casino never granted | Our books say issued, the casino has nothing. The judge reports it. This is the cost of a manual decision, written down in the test. | `admin API > 4. resolve as issued: ...` |
