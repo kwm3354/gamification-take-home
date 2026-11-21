@@ -37,6 +37,12 @@ What goes wrong, what the system does, and which test proves it. Test names are 
 | An operator wants to revoke a reward after it was issued | Not built. The redemption is final once issued. | Not tested (not built) |
 | The same pending reserve is captured and also released | The ledger refuses the second one (LedgerConflict) and the job retries and goes dead, visible in the outbox. | Not tested in this file (ledger tests cover the conflict) |
 
+## Processes and the schema
+
+| What goes wrong | What the system does | Proved by |
+|---|---|---|
+| A process starts (a worker is added, a container restarts) while others are busy | It applies the schema only if the schema text changed (hash in `schema_state`), so it takes no table lock and cannot deadlock with live requests. Before this fix the schema script took exclusive table locks even when nothing changed: the new process died with `deadlock detected` and a redemption request got a 500 (found by `test/processes.test.ts`, 6 runs of 11). A deploy that changes the schema still takes those locks once. | `migrate under load > a schema that is already applied does not wait for a transaction that has written to the tables` |
+
 ## Random faults
 
 Test name is in `test/properties.test.ts`.
