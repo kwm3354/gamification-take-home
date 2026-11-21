@@ -165,8 +165,15 @@ CREATE TABLE IF NOT EXISTS outbox (
   last_error  text,
   done_at     timestamptz,
   dead_at     timestamptz,                             -- gave up; stays visible
+  claimed_until timestamptz,                           -- a worker runs this job until then (the lease)
+  claim_token uuid,                                    -- who holds the lease; only the holder may write the outcome
+  rerun       boolean NOT NULL DEFAULT false,          -- enqueued again while a worker held the lease: run once more
   UNIQUE (kind, ref_id)
 );
+-- For a database made before the lease existed. A no-op on a new one.
+ALTER TABLE outbox ADD COLUMN IF NOT EXISTS claimed_until timestamptz;
+ALTER TABLE outbox ADD COLUMN IF NOT EXISTS claim_token uuid;
+ALTER TABLE outbox ADD COLUMN IF NOT EXISTS rerun boolean NOT NULL DEFAULT false;
 CREATE INDEX IF NOT EXISTS outbox_due ON outbox (run_at) WHERE done_at IS NULL AND dead_at IS NULL;
 
 -- Append-only trail of every create, update and delete, written in the same transaction as the change.

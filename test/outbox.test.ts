@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, test } from "vitest";
 import { FakeClock } from "../src/clock.ts";
-import { transaction } from "../src/db.ts";
+import { type Db, transaction } from "../src/db.ts";
 import { Log, MemorySink } from "../src/logging/log.ts";
 import { Outbox } from "../src/outbox/outbox.ts";
 import { freshDb } from "./harness.ts";
@@ -179,9 +179,9 @@ describe("outbox", () => {
     });
     await enqueue();
     const first = outbox.runDue();
-    await handlerStarted; // the first run holds the row lock now
-    // If the second run waits for the lock instead of skipping it, this watchdog frees the first run
-    // so the test can fail instead of hanging. It does not fire when the claim skips locked rows.
+    await handlerStarted; // the first run holds the lease now
+    // If the second run waited for the first, this watchdog frees the first run so the test can
+    // fail instead of hanging. It does not fire when the claim skips a job that has a live lease.
     let watchdogFired = false;
     const watchdog = setTimeout(() => {
       watchdogFired = true;
@@ -238,6 +238,178 @@ describe("outbox", () => {
     expect(rows[0].done_at).not.toBeNull();
   });
 
+  /** Sessions of this database that sit "idle in transaction", and row or table locks on outbox held by other sessions. */
+  async function holdings(db: Db) {
+    const idle = await db.query(
+      `SELECT pid FROM pg_stat_activity
+       WHERE datname = current_database() AND state LIKE 'idle in transaction%' AND pid <> pg_backend_pid()`,
+    );
+    const locks = await db.query(
+      `SELECT l.mode FROM pg_locks l JOIN pg_class c ON c.oid = l.relation
+       WHERE c.relname = 'outbox' AND l.pid <> pg_backend_pid()`,
+    );
+    return { idle: idle.rowCount, locks: locks.rowCount };
+  }
+
+  /** A promise the test resolves by hand. */
+  function latch() {
+    let open!: () => void;
+    const promise = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    return { promise, open };
+  }
+
+  /** Waits for `promise` but fails the test after 3 s of real time instead of hanging. */
+  async function within3s(promise: Promise<unknown>, what: string) {
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`timeout: ${what}`)), 3000);
+    });
+    try {
+      await Promise.race([promise, timeout]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  test("while a handler runs, no session is idle in a transaction and no lock on outbox is held", async () => {
+    const { db, outbox, enqueue } = await setup();
+    const gate = latch();
+    const inside = latch();
+    outbox.handle("k", async () => {
+      inside.open();
+      await gate.promise;
+      return "done";
+    });
+    await enqueue();
+    const run = outbox.runDue();
+    try {
+      await within3s(inside.promise, "handler start");
+      expect(await holdings(db)).toEqual({ idle: 0, locks: 0 });
+    } finally {
+      gate.open(); // so a failing run does not leave the handler hanging
+    }
+    expect(await run).toBe(1);
+  });
+
+  test("ten due jobs run at the same time", async () => {
+    const { db, outbox, clock } = await setup();
+    const gate = latch();
+    const allIn = latch();
+    let entered = 0;
+    let atOnce = 0;
+    let maxAtOnce = 0;
+    outbox.handle("k", async () => {
+      entered++;
+      atOnce++;
+      maxAtOnce = Math.max(maxAtOnce, atOnce);
+      if (entered === 10) allIn.open();
+      await gate.promise;
+      atOnce--;
+      return "done";
+    });
+    for (let i = 0; i < 10; i++) {
+      await transaction(db, (tx) => outbox.enqueue(tx, { tenantId: "t1", kind: "k", refId: randomUUID() }));
+    }
+    const run = outbox.runDue();
+    try {
+      await within3s(allIn.promise, "all ten handlers inside");
+      expect(maxAtOnce).toBe(10);
+    } finally {
+      gate.open();
+    }
+    expect(await run).toBe(10);
+    expect(clock.now()).toBeInstanceOf(Date);
+  });
+
+  test("a lease that ran out: the second worker runs the job and the slow first worker is fenced out", async () => {
+    const { db, clock, enqueue, row, refId } = await setup();
+    const sink = new MemorySink();
+    const log = new Log(sink, clock, () => "info");
+    const a = new Outbox(db, clock, log, { leaseMs: 60_000 });
+    const b = new Outbox(db, clock, log, { leaseMs: 60_000 });
+    const gate = latch();
+    const inside = latch();
+    a.handle("k", async () => {
+      inside.open();
+      await gate.promise;
+      return { retryInMs: 5000 }; // what A would write if it were not fenced out
+    });
+    let bRuns = 0;
+    b.handle("k", async () => {
+      bRuns++;
+      return "done";
+    });
+    await enqueue();
+    const runA = a.runDue();
+    await within3s(inside.promise, "A inside");
+    expect(await b.runDue()).toBe(0); // the claim is live
+    clock.advance(60_001);
+    expect(await b.runDue()).toBe(1);
+    expect(bRuns).toBe(1);
+    const afterB = await row();
+    expect(afterB.done_at).not.toBeNull();
+    gate.open();
+    await runA;
+    const after = await row();
+    expect(after.done_at).not.toBeNull(); // B's outcome stands
+    expect(after.attempts).toBe(0); // A's retry was not written
+    const lost = sink.lines
+      .map((l) => JSON.parse(l) as Record<string, unknown>)
+      .filter((e) => e.event === "outbox.lease_lost");
+    expect(lost).toEqual([expect.objectContaining({ level: "warn", kind: "k", refId })]);
+  });
+
+  test("an enqueue while the handler runs leads to exactly one more run, after it, never at the same time", async () => {
+    const { db, outbox, enqueue, row } = await setup();
+    const gates = [latch(), latch()];
+    const inside = [latch(), latch()];
+    let runs = 0;
+    let atOnce = 0;
+    let maxAtOnce = 0;
+    outbox.handle("k", async () => {
+      const n = runs++;
+      atOnce++;
+      maxAtOnce = Math.max(maxAtOnce, atOnce);
+      inside[n]?.open();
+      await gates[n]?.promise;
+      atOnce--;
+      return "done";
+    });
+    await enqueue();
+    const first = outbox.runDue();
+    await within3s(inside[0]?.promise as Promise<void>, "first run");
+    await enqueue(); // a new request for the same job, while it runs
+    expect(await outbox.runDue()).toBe(0); // the live claim keeps everybody else out
+    expect(runs).toBe(1);
+    expect((await row()).rerun).toBe(true);
+    gates[0]?.open();
+    // The first runDue loops until nothing is due, so it runs the second round itself.
+    await within3s(inside[1]?.promise as Promise<void>, "second run");
+    gates[1]?.open();
+    expect(await first).toBe(2);
+    expect(runs).toBe(2);
+    expect(maxAtOnce).toBe(1);
+    const after = await row();
+    expect(after.done_at).not.toBeNull();
+    expect(after.rerun).toBe(false);
+    expect(await outbox.runDue()).toBe(0);
+    expect(db).toBeDefined();
+  });
+
+  test("claimOne and finish: a request runs its own job under the same lease", async () => {
+    const { outbox, enqueue, row } = await setup();
+    await enqueue();
+    const mine = await outbox.claimOne("k", (await row()).ref_id);
+    expect(mine).not.toBeNull();
+    expect(await outbox.claimOne("k", (await row()).ref_id)).toBeNull(); // held
+    expect(await outbox.runDue()).toBe(0);
+    expect(await outbox.finish(mine as NonNullable<typeof mine>, "done")).toBe(true);
+    expect((await row()).done_at).not.toBeNull();
+    expect((await row()).claim_token).toBeNull();
+  });
+
   test("the claim query can use the outbox_due index", async () => {
     const { db, clock } = await setup();
     // The planner picks by table size, so the sequential scan is switched off for this check.
@@ -247,7 +419,8 @@ describe("outbox", () => {
       await tx.query("SET LOCAL enable_seqscan = off");
       const { rows } = await tx.query(
         `EXPLAIN SELECT id FROM outbox WHERE done_at IS NULL AND dead_at IS NULL AND run_at <= $1
-         ORDER BY run_at, id LIMIT 1 FOR UPDATE SKIP LOCKED`,
+           AND (claimed_until IS NULL OR claimed_until <= $1)
+         ORDER BY run_at, id LIMIT 16 FOR UPDATE SKIP LOCKED`,
         [clock.now()],
       );
       const plan = rows.map((r) => r["QUERY PLAN"]).join("\n");
