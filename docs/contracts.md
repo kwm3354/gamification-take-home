@@ -125,8 +125,7 @@ signed token.
 | `POST /store/redemptions` with header `Idempotency-Key`, body `{ "itemId" }` | 201 (first time) or 200 (repeat) `{ "id", "status", "costCoins", "reward", "reason" }`; 400 without the key; 404 unknown item |
 | `GET /store/redemptions/:id` | the same object; 404 if not this player's |
 
-Admin, `X-Admin-Key` = the tenant's `admin_key`: `GET /admin/:tenantId/audit?entityId=` returns the
-audit rows of that tenant for one entity.
+Admin calls: see "Admin and operations", "Back office API" and "Admin sign-in and roles" below.
 
 ## Wheel outcome
 
@@ -326,10 +325,9 @@ Code: `src/admin/` (guard, controller, plain logic in `stuck.ts`, `resolve.ts`, 
 `src/alerts/` (`alerts.ts`, `ops-policy.ts`). The playbook for the daily digest agent is
 `docs/monitoring-playbook.md`.
 
-Auth for every admin call: header `X-Admin-Key` equals the `admin_key` of the tenant in the path
-(timing-safe compare). An unknown tenant and a wrong key both give 401 with the same body. Header
-`X-Admin-Name` (optional, `[a-z0-9._-]{1,40}`, default `admin`) makes the actor `admin/<name>`.
-Every query filters by the tenant in the path.
+Auth for every admin call: see "Admin sign-in and roles" below. There are no key headers. The
+actor in the audit trail is `admin/<user id>`, taken from the signed token, never from a header or
+the body. Every query filters by the tenant in the path, and the token must give access to it.
 
 | Call | Answers |
 |---|---|
@@ -365,9 +363,8 @@ monitoring system would poll.
 
 ## Back office API
 
-Read endpoints for the back office, plus the change of wheel settings. Same auth as above
-(`X-Admin-Key` of the tenant in the path, `X-Admin-Name`). Every query filters by the tenant in the
-path. Lists are newest first and take `limit` (1..100, default 50) and `before` (the `cursor` of the
+Read endpoints for the back office, plus the change of wheel settings. Auth: a signed admin token
+(next section). Every query filters by the tenant in the path. Lists are newest first and take `limit` (1..100, default 50) and `before` (the `cursor` of the
 last row of the previous page); they answer `{ items: [...], nextCursor: string | null }`. Coins are
 strings. Times are ISO strings. Ids of rows that have a detail endpoint are our uuids.
 
@@ -392,14 +389,60 @@ policy decides whether it is applied at once or waits for us; only we can approv
 
 Table `settings_changes`: `id`, `tenant_id`, `kind` (`wheel_config`), `proposed` (jsonb), `status`
 (`proposed`, `applied`, `rejected`), `expected_prize_coins` (numeric), `limit_coins` (numeric),
-`proposed_by` (actor), `decided_by` (actor or `policy/ops-v<N>`), `decision_note`, `result_id`
+`proposed_by` (actor `admin/<user id>`), `decided_by` (actor `admin/<user id>` or `policy/ops-v<N>`), `decision_note`, `result_id`
 (the new `wheel_configs` row), `created_at`, `decided_at`. Written through the audit functions.
 
 | Call | Answers |
 |---|---|
-| `POST /admin/:tenantId/settings/wheel` body `{ segments: [{ label, coins, weight }] }` | Validates (2..24 segments; `label` 1..40 chars; `coins` integer 1..1000000; `weight` integer 1..1000000). Computes the expected prize. If it is at most `maxExpectedPrizeCoins` of the newest ops policy: creates the next `wheel_configs` version and answers 201 `{ change: { ..., status: "applied" }, wheelVersion }` with `decided_by` `policy/ops-v<N>`. Otherwise stores the change and answers 202 `{ change: { ..., status: "proposed" } }`. 400 for invalid segments; 409 when the tenant has no ops policy |
-| `POST /platform/settings-changes/:id/approve` and `.../reject`, header `X-Platform-Key` (env `PLATFORM_ADMIN_KEY`, demo default `demo-platform-key`), optional `X-Admin-Name`, body `{ note }` (5..500 chars) | Only for a change in status `proposed` (else 409). Approve creates the next wheel version and sets `applied`; reject sets `rejected`. Actor `platform/<name>`. The tenant's own admin key cannot approve: 401 |
-| `GET /platform/settings-changes?status=proposed` with `X-Platform-Key` | every tenant's waiting changes, oldest first |
+| `POST /admin/:tenantId/settings/wheel` body `{ segments: [{ label, coins, weight }] }` | Roles `tenant_admin` and `platform_admin`. Validates (2..24 segments; `label` 1..40 chars; `coins` integer 1..1000000; `weight` integer 1..1000000). Computes the expected prize. If it is at most `maxExpectedPrizeCoins` of the newest ops policy: creates the next `wheel_configs` version and answers 201 `{ change: { ..., status: "applied" }, wheelVersion }` with `decided_by` `policy/ops-v<N>`. Otherwise stores the change and answers 202 `{ change: { ..., status: "proposed" } }`. 400 for invalid segments; 409 when the tenant has no ops policy |
+| `POST /platform/settings-changes/:id/approve` and `.../reject`, body `{ note }` (5..500 chars) | Role `platform_admin` only. Only for a change in status `proposed` (else 409). Approve creates the next wheel version and sets `applied`; reject sets `rejected`. A tenant's own admin cannot approve: 403 |
+| `GET /platform/settings-changes?status=proposed` | Role `platform_admin` only: every tenant's waiting changes, oldest first |
+| `GET /platform/tenants` | Role `platform_admin`: `[{ id, name, platform }]`. Other roles get only their own tenant |
 
 Spins already granted keep the wheel version they were granted with. Two approvals of one change at
 once apply it once.
+
+## Admin sign-in and roles
+
+The back office has real sign-in. A player is identified by a token the casino signs; an admin is
+identified by a token WE sign after a password check.
+
+Table `admin_users`: `id` uuid, `email` (unique, lower case), `name`, `password_hash`, `role`
+(`platform_admin`, `tenant_admin`, `tenant_viewer`), `tenant_id` (null only for `platform_admin`),
+`failed_logins`, `locked_until`, `disabled`, `created_at`. Written through the audit functions; the
+hash is masked in the audit trail like the tenant secrets.
+
+- Passwords: scrypt (`node:crypto`), a random salt per user, stored as `scrypt$N$r$p$salt$hash`,
+  compared in constant time. A sign-in for an unknown email does the same amount of work.
+- `POST /admin/auth/login` body `{ email, password }` -> 200 `{ token, expiresAt, user: { id, email,
+  name, role, tenantId } }`; 401 with one fixed body for an unknown email, a wrong password, a
+  disabled or a locked user. Five failures in a row lock the user for 15 minutes (by the injected
+  clock); a success resets the count. Every attempt is an audit `record` (`admin_login`,
+  `admin_login_failed`, with the email and no password).
+- The token: JWT, HS256, signed with `ADMIN_TOKEN_SECRET` (env, required, at least 32 characters; the
+  compose file sets a demo value). Claims: `sub` (user id), `role`, `tid` (tenant id or null),
+  `name`, `iat`, `exp` (30 minutes), `aud` = `backoffice`. Sent as `Authorization: Bearer <token>`.
+  A player token is not an admin token and the reverse: different secret, and `aud` is checked.
+  On every request the user is loaded again: a disabled user's token stops working at once.
+- `GET /admin/auth/me` -> the `user` object. There is no refresh; the page signs in again.
+
+Roles (the check is one function, `can(admin, action, tenantId)`, in one file):
+
+| Action | tenant_viewer | tenant_admin | platform_admin |
+|---|---|---|---|
+| Read anything of the own tenant | yes | yes | yes, any tenant |
+| Resolve a stuck redemption | no | yes | yes |
+| Propose a wheel change | no | yes | yes |
+| Approve or reject a waiting change | no | no | yes |
+| See another tenant | no | no | yes |
+
+A token for tenant A on a path of tenant B answers 404 (the same as an unknown tenant), not 403, so
+the existence of a tenant does not leak. A missing or bad token answers 401. A known user without
+the right answers 403.
+
+Demo users (created by the demo seed; passwords are in `src/tenants/demo-tenants.ts` and the README):
+`ops@demo.local` (platform_admin), `manager@alpha.demo` (tenant_admin, alpha-casino),
+`viewer@alpha.demo` (tenant_viewer, alpha-casino), `manager@beta.demo` (tenant_admin, beta-casino).
+
+The column `tenants.admin_key` and the headers `X-Admin-Key`, `X-Admin-Name`, `X-Platform-Key` are
+removed.
