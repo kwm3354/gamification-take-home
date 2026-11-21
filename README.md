@@ -69,7 +69,9 @@ those two. Rules 1, 2 and 7 are checked by ordinary tests of the intake and the 
 The coin ledger is **TigerBeetle**, a database built only for double-entry accounting. PostgreSQL
 keeps everything else. This is the most unusual decision in the project.
 
-**Why.** Coins behave like money: they are won, reserved, spent, given back. A ledger written by
+**Why.** A ledger is a ledger: it is a solved problem, and solved very well. I would rather take
+a finished one than reinvent it, all the more because this area is rich in traps and carries real
+responsibility. Coins behave like money: they are won, reserved, spent, given back. A ledger written by
 hand in SQL is where such products get their worst bugs (a balance column updated twice, a debit
 without its credit, a race that goes below zero). TigerBeetle guarantees a correct ledger by
 construction, has headroom far above this load, and removed most of the work of writing a ledger
