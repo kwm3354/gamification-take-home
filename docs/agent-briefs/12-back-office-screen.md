@@ -69,5 +69,60 @@ Branch and commit hashes; the sections built; what was driven in a real browser 
 ## The agent's report
 
 ````text
-Quick first look: start mock, sign in, shoot overview.
+The back office rebuild and the player-page reframe are finished in three commits. Everything was checked against my mock server (`web/dev/mock-server.mjs`), not the real backend. Nothing was pushed or merged.
+
+**Branch:** `worktree-agent-a92cf70fc34ee0c3f`
+- `db95f4e` shell: sign-in, roles, routes, overview
+- `6debe67` all the sections
+- `5395216` player page reframe
+- `npm run verify:web` is green (99 unit tests).
+
+**What was built**
+- **Sign-in:** the back office has a real sign-in screen with a note listing the four demo users as buttons.
+- **Layout:** left sidebar, top bar with tenant, user and sign-out, and a collapsible Requests panel. Hash routes carry the filters.
+- **Sections:** all of them are built: overview, alerts, redemptions (detail plus resolve form), stuck, players, events, spins, settings (wheel proposal form with live expected prize), waiting changes, outbox, audit.
+- **Isolation:** the admin route never mounts the player store, and the old session-based admin page is deleted.
+- **Player page:** now sits inside a mock casino site with a casino top bar. The deposit button is the casino's, and our widget is a framed panel labelled "Wheel of Fortune - a gamification widget".
+- **Wheel:** draws any number of segments from 2 to 24, checked with 8, 12 and 24.
+- **Behind the scenes:** the call to the casino now reads "us -> casino".
+- **README:** the Run it section and `docs/ai-log.md` are updated, one row per commit.
+
+**Driven in headless Chrome with the mock**
+- Wrong password gives the 401 message. All four demo users signed in.
+- The alpha manager resolved a stuck redemption, proposed a wheel within the limit (applied as v2) and one above it (waiting).
+- The viewer saw no resolve or propose controls, and a direct call got 403.
+- The beta manager got 404 on alpha's tenant and "ledger not answering" on its own overview.
+- The platform admin approved the waiting change (v3) and switched tenants.
+- "Load more" ran through 130 players, and filters from the hash worked. A bad token returned to sign-in with "Your session ended".
+- Player page: first open inside the frame, deposit from the casino bar, spin, win, redeem, "In your casino account". No console errors, apart from the 401/403/404 I triggered on purpose.
+- Screenshots are in `<scratch>/bo/shots/`:
+  - `1440-*`, `1024-*`, `390-*` and `*d-*` (dark) for the back office.
+  - `play-<width>-<segments>-*` for the player page.
+  - `flow-*` for the interactive steps.
+  - I read them and fixed what I saw.
+
+**What the backend must provide beyond the spec**
+- `GET /app-config.json` must include `demoAdmins: [{ email, password, role, tenantId }]`. Without it the page shows no demo buttons. No passwords are in the bundle.
+- The fake casino's `/control/config` may keep or drop `adminKey` in its tenants. The page ignores it.
+
+**Spec was unclear, so I assumed this (likely mismatches):**
+- **`GET /admin/{t}/settings` `changes[]` and `GET /platform/settings-changes`:** the item shape is not defined. I assumed camelCase of the `settings_changes` columns (`id, tenantId, status, proposed, expectedPrizeCoins, limitCoins, proposedBy, decidedBy, decisionNote, createdAt, decidedAt`). `proposed` may be a bare segments array or `{ segments }`. The platform endpoint may return a bare array or `{ items }` / `{ changes }`. The numeric fields may be numbers or strings.
+- **Audit `changes`:** shown as `field: from -> to` if it is `{field: {from, to}}` or `[{field, from, to}]`. Anything else is shown as `key: value` lines. Please check what `audited.ts` really writes.
+- **Stuck `lastPlatformCall`:** shape not defined. Shown as one JSON line, cut at 80 characters.
+- **Audit with `recent=1`:** I assumed rows carry `cursor` and the response is `{ items, nextCursor }`. With `entityId` I assumed a bare array.
+- **`GET /admin/{t}/redemptions/:id` `reward`:** shown as raw JSON.
+- **`playerId` filters:** I assumed they take our uuid, not the external id.
+- **Events `kind` filter:** the values are unknown, so it is a text field.
+- **Outbox row state:** derived client-side from `deadAt`, `doneAt` and `runAt`.
+- **Expected prize:** computed in the page from segments with integer sums and compared to `maxExpectedPrizeCoins`. The server's number should agree.
+- **Players list:** I assumed `{ id, externalId, createdAt, spinsAvailable, spinsUsed, redemptions }` as in the spec, and balance in the detail as `{ available, reserved }`.
+- **Wallet:** the casino wallet in EUR is a demo figure in the page, starting at 0.00 and adding 20.00 per deposit. No server value feeds it.
+- **Tenant list:** `/platform/tenants` is called for every role, to get the tenant name.
+
+**Not tested**
+- Nothing against the real backend: field names, the demo users and the `app-config.json` field are checked only against my mock.
+- Lockout after repeated failures (the backend's job) and the 10-second auto-refresh over a long time.
+- Tab order and screen readers.
+- Beta's wheel in the dark theme, and the 1024 px player page beyond one shot.
+- No lint run, because biome is not installed at the root.
 ````

@@ -63,5 +63,73 @@ One addition to commit 1, needed by the frontend agent: `GET /app-config.json` (
 ## The agent's report
 
 ````text
-Now logging test, outbox test, audit test.
+The back office server side is done: sign-in and roles, the read endpoints, and the settings-change intent. Branch `worktree-agent-abf6f3d643baa0ab0` has three commits on top of `0981d87`, and nothing was pushed or merged:
+- `b3c9cc3`: sign-in and roles
+- `b743dc0`: read endpoints
+- `fbeb4c1`: settings-change intent
+
+`npm run verify` shows 265 tests, up from 226. The last full runs were green three times in a row. One earlier run had a one-off failure of the overview test, which I then fixed.
+
+**What each commit does and what catches a break**
+- **Commit 1.**
+  - What changed: scrypt passwords, HS256 tokens we sign (30 minutes, `aud` backoffice), `can()` in `src/admin/permissions.ts`, lockout after 5 failures for 15 minutes, and login records in the audit trail with no password. The key headers and `tenants.admin_key` are gone. The control panel keeps one link to the back office, and `/app-config.json` lists the demo users only when the seed is on.
+  - What can break: the role table, token checks or lockout, or the password check.
+  - Which tests catch it: `test/admin-auth.test.ts` (all 15 tests) and `test/admin.test.ts`.
+- **Commit 2.**
+  - What changed: overview, lists with cursor paging, details, settings, and `GET /platform/tenants`. Each resource has its own plain query file under `src/admin/`.
+  - What can break: a missing tenant filter, a cut or repeated row at a page border, or a 500 on a bad filter.
+  - Which tests catch it: `test/backoffice.test.ts`. It walks 120 rows in pages of 50 with inserts between pages, checks isolation on every list and detail, and checks that a ledger outage gives null.
+- **Commit 3.**
+  - What changed: propose, approve, reject and the waiting list; a policy applies a wheel within the limit at once. The `settings_changes` table is new.
+  - What can break: the limit check, who may approve, or two changes getting the same wheel version.
+  - Which tests catch it: `test/settings-change.test.ts`. Its 12 tests include 8 simultaneous proposals, 4 simultaneous approvals and a spin granted before a change.
+
+**Mutation checks (each restored)**
+- (a) `can` always true: 3 tests fail.
+- (b) `aud` check removed: the token test fails.
+- (c) password comparison removed: 2 tests fail.
+- (d) tenant filter removed from the redemptions list: the isolation test fails. Removing it from the players list is caught the same way.
+- (e) limit ignored: 7 tests fail.
+- (f) tenant admin allowed to approve: 2 tests fail.
+- Also checked: removing the version lock fails the concurrent-apply test.
+
+**Demo users**
+
+| Email | Role | Tenant | Password |
+|---|---|---|---|
+| `ops@demo.local` | platform_admin | none | `demo-ops-password-1` |
+| `manager@alpha.demo` | tenant_admin | alpha-casino | `demo-alpha-manager-1` |
+| `viewer@alpha.demo` | tenant_viewer | alpha-casino | `demo-alpha-viewer-1` |
+| `manager@beta.demo` | tenant_admin | beta-casino | `demo-beta-manager-1` |
+
+**curl for the README** (compose app on port 30080):
+```
+TOKEN=$(curl -s -X POST localhost:30080/admin/auth/login -H 'content-type: application/json' \
+  -d '{"email":"manager@alpha.demo","password":"demo-alpha-manager-1"}' | jq -r .token)
+curl -s localhost:30080/admin/alpha-casino/redemptions -H "authorization: Bearer $TOKEN" | jq
+```
+
+**DEVIATIONS**
+1. The `settings_changes` table is in commit 2's schema, because the settings read lists its rows; the write calls came in commit 3.
+2. `GET /platform/settings-changes` with no `status` returns the waiting ones (`proposed`); any of the three statuses can be asked for.
+3. A locked user's counter resets to 0 when the lock is set, so five more failures are needed after unlock.
+4. The audit actor for a failed login is `unknown`, and a missing email is stored as the empty string.
+5. Contract line for log events: I added `admin.login` and `admin.login_failed` because the old "only these events" statement became false. The playbook has them too.
+6. `vitest.config.ts` now caps parallel test files at 8. With the new files, `test/health.test.ts` failed 3 of 3 runs on this busy machine; the same suite without them passed 2 of 2.
+7. `test/web.test.ts` now accepts 503 from `/health` where it checked for 200, the way the neighbouring test in that file already did.
+8. The backoffice test app has a 15 s ledger time limit so a slow ledger does not turn a number into null.
+
+**Noticed elsewhere, not fixed**
+- `docs/architecture.md` and `docs/img/diagrams.py` still mention `X-Admin-Key`.
+- `web/src/state.ts`, `web/src/actions.ts` and `web/src/pages/AdminPage.tsx` still use `adminKey` (the frontend agent's files).
+- Outbox rows for inline-run jobs stay not-done until the next `runDue`, so "due" counts them until then.
+- The settings `changes` list is newest-first by `created_at`, then random uuid, so rows in the same millisecond have no stable order.
+- `/tmp/tb-UXwdgt` is a leftover TigerBeetle directory, probably not mine, so I left it.
+
+**Not tested**
+- Real browsers, and the compose stack (no docker run on this machine).
+- The `ADMIN_TOKEN_SECRET` length check in `loadConfig`: no test covers it.
+- A tampered token with a valid signature but extra claims.
+- Behaviour on a database that already has the old `admin_key` column.
+- The Playground page's new link in a browser (only static checks).
 ````
