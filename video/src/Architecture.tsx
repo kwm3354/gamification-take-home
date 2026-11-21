@@ -122,7 +122,7 @@ export const ArchitectureScene: React.FC = () => {
         <Line>{tr("→ submitting")}</Line>
         <Line>{tr("→ issued | refused")}</Line>
         <Line color={C.text} mono>
-          one confirm()
+          {tr("one confirm()")}
         </Line>
         <Line>{tr("the only way to a final status")}</Line>
       </Box>
@@ -173,7 +173,7 @@ export const ArchitectureScene: React.FC = () => {
         <Line>{tr("by webhook, no")}</Line>
         <Line>{tr("idempotency key ")}</Line>
       </Box>
-      <Box x={290} y={660} w={285} h={130} at={88} tone="adapter">
+      <Box x={290} y={700} w={285} h={130} at={88} tone="adapter">
         <Title size={26} color={C.accent}>
           HTTP API
         </Title>
@@ -187,10 +187,10 @@ export const ArchitectureScene: React.FC = () => {
         <Title size={24}>{tr("Casino Beta")}</Title>
         <Line>{tr("simulated")}</Line>
       </Box>
-      <div style={{ position: "absolute", left: 20, top: 580, width: 230, fontSize: 22, color: C.muted, lineHeight: 1.3, opacity: fadeIn(f, 118) }}>
+      <div style={{ position: "absolute", left: 20, top: 585, width: 250, fontSize: 22, color: C.muted, lineHeight: 1.3, opacity: fadeIn(f, 118) }}>
         {tr("events in; reward request and look-up out")}
       </div>
-      <Box x={20} y={670} w={215} h={110} at={118} tone="outside">
+      <Box x={20} y={710} w={215} h={110} at={118} tone="outside">
         <Title size={24}>{tr("Player page")}</Title>
         <Line>{tr("Back office")}</Line>
       </Box>
@@ -239,8 +239,8 @@ export const ArchitectureScene: React.FC = () => {
         <Arrow d="M 575 325 L 593 325" at={90} />
         <Arrow d="M 575 510 L 593 510" at={92} />
         {/* player page -> HTTP API -> domain */}
-        <Arrow d="M 235 725 L 288 725" at={120} />
-        <Arrow d="M 575 725 L 833 725" at={94} />
+        <Arrow d="M 235 765 L 288 765" at={120} />
+        <Arrow d="M 575 765 L 833 765" at={94} />
         {/* CoinLedger port -> TigerBeetle adapter -> TigerBeetle */}
         <Arrow d="M 1525 347 L 1558 347" at={126} />
         <Arrow d="M 1725 395 L 1725 428" at={132} />
