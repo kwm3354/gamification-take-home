@@ -51,6 +51,7 @@ export async function startApp(
   const clock = new FakeClock(new Date().toISOString());
   const config: Config = {
     databaseUrl: "replaced by the DB override",
+    dbPoolMax: 5,
     tbAddress: tb.address,
     port: 0,
     ledgerTimeoutMs: 2000,

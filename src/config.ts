@@ -2,6 +2,8 @@ import { Global, Module } from "@nestjs/common";
 
 export interface Config {
   databaseUrl: string;
+  /** Largest number of PostgreSQL connections in this process's pool. */
+  dbPoolMax: number;
   /** TigerBeetle address, `host:port`. The host may be a name; it is resolved at start. */
   tbAddress: string;
   port: number;
@@ -45,6 +47,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   return {
     databaseUrl: need("DATABASE_URL"),
     tbAddress: need("TB_ADDRESS"),
+    dbPoolMax: Number(env.DB_POOL_MAX ?? 20),
     port: Number(env.PORT ?? 3000),
     ledgerTimeoutMs: Number(env.LEDGER_TIMEOUT_MS ?? 2000),
     platformTimeoutMs: Number(env.PLATFORM_TIMEOUT_MS ?? 2000),
