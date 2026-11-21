@@ -101,6 +101,77 @@ describe.skipIf(!running)("deposit intake", () => {
     expect(await count("spins", "tenant_id = 'beta-casino'")).toBe(1);
   });
 
+  test("4b. one id reported as pending and then as completed gives one spin, on both platforms, in any order", async () => {
+    const alphaEvent = (type: string) =>
+      JSON.stringify({ ...JSON.parse(alphaDeposit("evt-pend", "p-pend")), type });
+    expect((await postAlpha(alphaEvent("deposit.pending"))).json).toEqual({
+      accepted: 0,
+      duplicates: 0,
+      ignored: 1,
+    });
+    expect((await postAlpha(alphaEvent("deposit.pending"))).json).toEqual({
+      accepted: 0,
+      duplicates: 1,
+      ignored: 0,
+    });
+    expect((await postAlpha(alphaEvent("deposit.succeeded"))).json).toEqual({
+      accepted: 1,
+      duplicates: 0,
+      ignored: 0,
+    });
+    expect((await postAlpha(alphaEvent("deposit.succeeded"))).json).toEqual({
+      accepted: 0,
+      duplicates: 1,
+      ignored: 0,
+    });
+    expect((await me(alphaToken("p-pend"))).json.spins).toHaveLength(1);
+    // Out of order: completed first, then pending. No change.
+    const ok = await postAlpha(
+      alphaEvent("deposit.succeeded").replace("evt-pend", "evt-late").replace("p-pend", "p-late"),
+    );
+    expect(ok.json.accepted).toBe(1);
+    const late = alphaEvent("deposit.pending").replace("evt-pend", "evt-late").replace("p-pend", "p-late");
+    expect((await postAlpha(late)).json.accepted).toBe(0);
+    expect((await me(alphaToken("p-late"))).json.spins).toHaveLength(1);
+
+    const pendingB = { transactions: [betaTxn("T-pend", "b-pend", { state: "PENDING" })] };
+    const doneB = { transactions: [betaTxn("T-pend", "b-pend")] };
+    expect((await postBeta(pendingB)).json).toEqual({ accepted: 0, duplicates: 0, ignored: 1 });
+    expect((await postBeta(pendingB)).json).toEqual({ accepted: 0, duplicates: 1, ignored: 0 });
+    expect((await postBeta(doneB)).json).toEqual({ accepted: 1, duplicates: 0, ignored: 0 });
+    expect((await postBeta(doneB)).json).toEqual({ accepted: 0, duplicates: 1, ignored: 0 });
+    expect(await count("spins s JOIN players p ON p.id = s.player_id", "p.external_id = 'b-pend'")).toBe(1);
+    const lateB = {
+      transactions: [betaTxn("T-late", "b-late"), betaTxn("T-late", "b-late", { state: "PENDING" })],
+    };
+    expect((await postBeta(lateB)).json.accepted).toBe(1);
+    expect(await count("spins s JOIN players p ON p.id = s.player_id", "p.external_id = 'b-late'")).toBe(1);
+  });
+
+  test("4c. a timestamp out of the date range is a 400 with a webhook_invalid audit row, on both platforms", async () => {
+    const before = await count("audit_log", "action = 'webhook_invalid'");
+    const huge = await postBeta({ transactions: [betaTxn("T-huge", "b-huge", { completedAt: 1e20 })] });
+    expect(huge.status).toBe(400);
+    const farA = alphaDeposit("evt-far", "p-far").replace("2026-11-21T08:00:00Z", "+275760-09-14T00:00:00Z");
+    expect((await postAlpha(farA)).status).toBe(400);
+    expect(await count("audit_log", "action = 'webhook_invalid'")).toBe(before + 2);
+    expect(await count("inbound_events", "external_event_id IN ('T-huge', 'evt-far')")).toBe(0);
+  });
+
+  test("4d. ids longer than 200 characters: 400 on both platforms, nothing stored; a token with a long sub is 401", async () => {
+    const long = "x".repeat(201);
+    const players = await count("players");
+    const events = await count("inbound_events");
+    expect((await postAlpha(alphaDeposit("evt-long", long))).status).toBe(400);
+    expect((await postAlpha(alphaDeposit(long, "p-long"))).status).toBe(400);
+    expect((await postBeta({ transactions: [betaTxn("T-long", long)] })).status).toBe(400);
+    expect((await postBeta({ transactions: [betaTxn(long, "b-long")] })).status).toBe(400);
+    expect(await count("players")).toBe(players);
+    expect(await count("inbound_events")).toBe(events);
+    expect((await me(alphaToken(long))).status).toBe(401);
+    expect((await me(alphaToken("x".repeat(200)))).status).toBe(200);
+  });
+
   test("5. bad signature on A and B: 401, nothing stored, one webhook_rejected audit row each", async () => {
     const before = {
       players: await count("players"),

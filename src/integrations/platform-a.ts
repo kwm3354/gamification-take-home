@@ -9,7 +9,14 @@ import {
   type RewardRequest,
   type TenantConnection,
 } from "../domain/casino-platform.ts";
-import { hmacMatchesAny, isNonEmptyString, isObject, parseJson, verifyingSecrets } from "./hmac.ts";
+import {
+  hmacMatchesAny,
+  isExternalId,
+  isNonEmptyString,
+  isObject,
+  parseJson,
+  verifyingSecrets,
+} from "./hmac.ts";
 import { callPlatform, unexpectedAnswer } from "./http.ts";
 
 const MAX_SKEW_SECONDS = 300;
@@ -38,12 +45,14 @@ export class PlatformA implements CasinoPlatform {
       throw new InvalidPayload("not JSON");
     }
     if (!isObject(body)) throw new InvalidPayload("not an object");
-    if (!isNonEmptyString(body.event_id)) throw new InvalidPayload("event_id");
+    if (!isExternalId(body.event_id)) throw new InvalidPayload("event_id");
     if (typeof body.type !== "string") throw new InvalidPayload("type");
     if (body.type !== "deposit.succeeded") {
-      return [{ kind: "ignored", externalEventId: body.event_id, why: `type ${body.type}` }];
+      return [
+        { kind: "ignored", externalEventId: `${body.event_id}:${body.type}`, why: `type ${body.type}` },
+      ];
     }
-    if (!isNonEmptyString(body.player_id)) throw new InvalidPayload("player_id");
+    if (!isExternalId(body.player_id)) throw new InvalidPayload("player_id");
     if (!Number.isSafeInteger(body.amount_minor) || (body.amount_minor as number) <= 0) {
       throw new InvalidPayload("amount_minor");
     }

@@ -21,6 +21,9 @@ export const isObject = (v: unknown): v is Record<string, unknown> =>
 
 export const isNonEmptyString = (v: unknown): v is string => typeof v === "string" && v !== "";
 
+/** An id that comes from outside: not empty, at most 200 characters. */
+export const isExternalId = (v: unknown): v is string => isNonEmptyString(v) && v.length <= 200;
+
 /** True when ANY of the secrets gives the signature. Each check is constant time; all are always run. */
 export function hmacMatchesAny(
   secrets: string[],

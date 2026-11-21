@@ -22,6 +22,7 @@ import {
   type RewardRequest,
 } from "../domain/casino-platform.ts";
 import { type CoinLedger, LedgerUnavailable } from "../domain/coin-ledger.ts";
+import { isUuid } from "../domain/uuid.ts";
 import type { Log } from "../logging/log.ts";
 import type { Outbox } from "../outbox/outbox.ts";
 import { type Tenant, findTenant } from "../tenants/tenants.ts";
@@ -128,7 +129,7 @@ export async function findRedemption(
   id: string,
   playerId?: string,
 ): Promise<RedemptionRow | null> {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  if (!isUuid(id)) return null;
   const { rows } = await db.query(
     "SELECT * FROM redemptions WHERE id = $1 AND tenant_id = $2 AND ($3::uuid IS NULL OR player_id = $3)",
     [id, tenantId, playerId ?? null],
@@ -161,7 +162,7 @@ export async function createRedemption(
   const first = await existing();
   if (first) return { row: first, created: false };
 
-  const item = /^[0-9a-f-]{36}$/i.test(input.itemId)
+  const item = isUuid(input.itemId)
     ? (
         await deps.db.query(
           "SELECT id, cost_coins, reward FROM store_items WHERE id = $1 AND tenant_id = $2 AND active",
@@ -357,11 +358,17 @@ async function observed<T extends RewardOutcome | "not_found">(
     outcome: result === "not_found" ? "not_found" : result.kind,
     ms: ms(),
   });
-  await fact({
+  const seen = {
     call,
     outcome: result === "not_found" ? "not_found" : result.kind,
     ...(result !== "not_found" && result.kind === "refused" ? { reason: result.reason } : {}),
-  });
+  };
+  // The first look is kept; a look that saw the same as the last one adds no row.
+  const last = await deps.db.query(
+    "SELECT changes FROM audit_log WHERE action = 'platform_call' AND entity_id = $1 ORDER BY id DESC LIMIT 1",
+    [w.row.id],
+  );
+  if (JSON.stringify(last.rows[0]?.changes) !== JSON.stringify(seen)) await fact(seen);
   return result;
 }
 
@@ -402,7 +409,8 @@ async function submittingStep(deps: StoreDeps, w: Work, opts: StepOptions): Prom
           ),
         );
       }
-      return { retryInMs: PENDING_RETRY_MS };
+      // Not the 2 s loop forever: wait longer and longer, up to the backoff cap.
+      return { retryInMs: Math.max(PENDING_RETRY_MS, backoffMs(opts.attempts)) };
     }
     await confirm(deps, w.tenant.id, w.row.id, outcome, opts.actor, { rearm: false });
     return "again";

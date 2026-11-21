@@ -358,6 +358,27 @@ describe.skipIf(!running)("bonus store", () => {
     finals.set("callback-lost-B", await final(p, r.json.id));
   });
 
+  test("12b. B, a stuck redemption: over one hour the look-ups are bounded and the audit rows do not grow per look", async () => {
+    const p = await newPlayer(BETA, 500n);
+    const r = await redeem(p, await itemId(BETA, "bonus-1-eur"));
+    const rows = () =>
+      app().db.query(
+        "SELECT count(*)::int AS n FROM audit_log WHERE action = 'platform_call' AND entity_id = $1",
+        [r.json.id],
+      );
+    for (let i = 0; i < 360; i++) await later(10_000); // one hour; the 2 s loop would look 360 times
+    const job = await app().db.query(
+      "SELECT attempts FROM outbox WHERE kind = 'redemption_advance' AND ref_id = $1",
+      [r.json.id],
+    );
+    expect(job.rows[0].attempts).toBeLessThanOrEqual(80);
+    expect((await rows()).rows[0].n).toBeLessThanOrEqual(4);
+    expect((await getRedemption(p, r.json.id)).json.status).toBe("submitting");
+    await deliver(); // the callback finally arrives
+    expect((await getRedemption(p, r.json.id)).json).toMatchObject({ status: "issued", settled: true });
+    expect(await verdict(p)).toEqual([]);
+  });
+
   test("13. B, callback twice: the second changes nothing, one capture", async () => {
     const p = await newPlayer(BETA, 500n);
     await fault("b.callback", "twice");
@@ -510,6 +531,20 @@ describe.skipIf(!running)("bonus store", () => {
     } finally {
       coins.capture = real;
     }
+  });
+
+  test("16b. an id of 36 hyphens is not a redemption or an item: 404 or 400, never 500", async () => {
+    const p = await newPlayer(BETA, 500n);
+    const crafted = "-".repeat(36);
+    expect((await getRedemption(p, crafted)).status).toBe(404);
+    expect([400, 404]).toContain((await redeem(p, crafted)).status);
+    const body = JSON.stringify({ requestId: "r_x", externalRef: crafted, state: "GRANTED" });
+    const r = await fetch(`${app().url}/webhooks/${BETA}/rewards`, {
+      method: "POST",
+      headers: signBeta(tenantOf(BETA).webhookSecret, body),
+      body,
+    });
+    expect([400, 404]).toContain(r.status);
   });
 
   test("17. reward webhook: bad signature, other tenant, platform A, and a notice too early", async () => {

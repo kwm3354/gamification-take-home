@@ -8,7 +8,14 @@ import {
   type RewardRequest,
   type TenantConnection,
 } from "../domain/casino-platform.ts";
-import { hmacMatchesAny, isNonEmptyString, isObject, parseJson, verifyingSecrets } from "./hmac.ts";
+import {
+  hmacMatchesAny,
+  isExternalId,
+  isNonEmptyString,
+  isObject,
+  parseJson,
+  verifyingSecrets,
+} from "./hmac.ts";
 import { callPlatform, unexpectedAnswer } from "./http.ts";
 
 /** 500 -> "5.00", 5 -> "0.05". Integer arithmetic only. */
@@ -62,21 +69,27 @@ export class PlatformB implements CasinoPlatform {
     if (!Array.isArray(list) || list.length === 0) throw new InvalidPayload("transactions");
     // Every entry is checked before any is returned: one bad entry fails the whole batch.
     return list.map((entry): PlatformEvent => {
-      if (!isObject(entry) || !isNonEmptyString(entry.txnId)) throw new InvalidPayload("txnId");
+      if (!isObject(entry) || !isExternalId(entry.txnId)) throw new InvalidPayload("txnId");
       if (entry.kind !== "DEPOSIT" || entry.state !== "COMPLETED") {
         return {
           kind: "ignored",
-          externalEventId: entry.txnId,
+          // The state is part of the key, so a pending entry does not take the key of the completed one.
+          externalEventId: `${entry.txnId}:${String(entry.kind)}:${String(entry.state)}`,
           why: `${String(entry.kind)} ${String(entry.state)}`,
         };
       }
       const customer = entry.customer;
-      if (!isObject(customer) || !isNonEmptyString(customer.id)) throw new InvalidPayload("customer.id");
+      if (!isObject(customer) || !isExternalId(customer.id)) throw new InvalidPayload("customer.id");
       const amountMinor = toMinor(entry.amount);
       if (typeof entry.currencyCode !== "string" || !/^[A-Za-z]{3}$/.test(entry.currencyCode)) {
         throw new InvalidPayload("currencyCode");
       }
-      if (typeof entry.completedAt !== "number" || !Number.isFinite(entry.completedAt)) {
+      // A date outside what JavaScript can print (about year 275760) would make toISOString throw.
+      if (
+        typeof entry.completedAt !== "number" ||
+        !Number.isFinite(entry.completedAt * 1000) ||
+        Math.abs(entry.completedAt * 1000) > 8.64e15
+      ) {
         throw new InvalidPayload("completedAt");
       }
       return {
@@ -98,7 +111,7 @@ export class PlatformB implements CasinoPlatform {
   ): RewardNotice {
     checkSignature(conn, headers, rawBody);
     const b = body(rawBody);
-    if (!isNonEmptyString(b.requestId) || !isNonEmptyString(b.externalRef)) throw new InvalidPayload("ids");
+    if (!isExternalId(b.requestId) || !isExternalId(b.externalRef)) throw new InvalidPayload("ids");
     if (b.state === "GRANTED") {
       return { redemptionId: b.externalRef, outcome: { kind: "issued", platformRef: b.requestId } };
     }

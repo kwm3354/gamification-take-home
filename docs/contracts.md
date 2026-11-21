@@ -228,7 +228,9 @@ version 1: `{ "minAmountMinor": 1, "currencies": null, "spinsPerDeposit": 1 }`.
   check and one more test row.
 - Intake: the event is stored first. Then `deposit.ts` reads the newest policy and creates the spins
   with `ordinal` 1..n, all in the event's transaction. `UNIQUE (source_event_id, ordinal)` and the
-  event dedup keep a repeated deposit from adding spins. With 0 spins the event still counts as
+  event dedup keep a repeated deposit from adding spins. The dedup key is (tenant, external event id).
+  An ignored event (a pending or failed deposit) is stored under `<id>:<type or kind:state>`, so it never
+  takes the key that the successful deposit with the same id will use. With 0 spins the event still counts as
   accepted and one audit `record` is written: action `spin_not_granted`, entity type `inbound_event`,
   entity id the event row id, changes `{ reason, grantPolicyId }`.
 - Not built: conditions that need history (spins per player per day), an API or admin screen to
