@@ -13,6 +13,8 @@ import { type FakeState, type Reply, World, isoNow, toMinor } from "./state.ts";
 export interface FakeCasinoOptions {
   port?: number;
   appUrl?: string;
+  /** The app's address as the browser sees it, for the playground page. Default http://localhost:30080. */
+  publicAppUrl?: string;
   /** Deliver platform B callbacks by timer. Null or missing: only by hand. */
   autoDeliverMs?: number | null;
 }
@@ -77,6 +79,7 @@ export async function startFakeCasino(options: FakeCasinoOptions = {}): Promise<
   const world = new World();
   const faults = new Faults();
   const appUrl = (options.appUrl ?? "http://app:3000").replace(/\/$/, "");
+  const publicAppUrl = (options.publicAppUrl ?? "http://localhost:30080").replace(/\/$/, "");
   const timers = new Set<NodeJS.Timeout>();
   let closed = false;
 
@@ -189,6 +192,22 @@ export async function startFakeCasino(options: FakeCasinoOptions = {}): Promise<
       return;
     }
 
+    // For the playground page. The admin keys are demo values.
+    if (method === "GET" && path === "/control/config") {
+      return send(res, {
+        status: 200,
+        body: {
+          appUrl: publicAppUrl,
+          tenants: demoTenants.map((t) => ({
+            id: t.id,
+            name: t.name,
+            platform: t.platform,
+            adminKey: t.adminKey,
+          })),
+        },
+      });
+    }
+
     // Platform A
     if (method === "POST" && path === "/a/bonuses") {
       const tenant = tenantForApi(req, "A");
@@ -234,6 +253,11 @@ export async function startFakeCasino(options: FakeCasinoOptions = {}): Promise<
       world.reset();
       faults.clear();
       return send(res, { status: 200, body: { ok: true } });
+    }
+    if (method === "POST" && path === "/control/faults/clear") {
+      await readBody(req);
+      faults.clear();
+      return send(res, { status: 200, body: faults.list() });
     }
     if (method === "POST" && path === "/control/faults") {
       const body = parseJson(await readBody(req));

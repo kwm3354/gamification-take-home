@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gamification playground</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #1c2330; --muted: #5d6778; --line: #d9dde5;
+  --accent: #1f5fbf; --accent-ink: #ffffff; --ok: #1b7a3d; --ok-bg: #e3f4e9;
+  --bad: #b3261e; --bad-bg: #fbe5e3; --warn: #8a5a00; --warn-bg: #fdf1d6; --code: #eef0f4;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171c; --panel: #1c2027; --ink: #e5e8ee; --muted: #9aa4b5; --line: #323946;
+    --accent: #6ea3ee; --accent-ink: #0c1a30; --ok: #6fd08f; --ok-bg: #173323;
+    --bad: #ff8a80; --bad-bg: #3a1c1a; --warn: #f0c36a; --warn-bg: #36290e; --code: #252a33;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 1180px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 20px; margin: 0 0 4px; }
+h2 { font-size: 15px; margin: 0 0 10px; }
+h2 .n { display: inline-block; min-width: 22px; color: var(--muted); }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; margin: 12px 0; }
+p { margin: 4px 0 8px; }
+.muted { color: var(--muted); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+.step { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 6px 12px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.step:first-of-type { border-top: 0; }
+button, select, input { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 5px 9px; }
+input[type="range"] { padding: 0; }
+button { cursor: pointer; background: var(--code); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+label { color: var(--muted); }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; }
+code, pre { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+pre { background: var(--code); padding: 8px; border-radius: 4px; overflow: auto; max-height: 280px; margin: 4px 0; white-space: pre-wrap; word-break: break-all; }
+.tag { display: inline-block; padding: 0 7px; border-radius: 9px; font-size: 12px; border: 1px solid var(--line); }
+.tag.ok { color: var(--ok); background: var(--ok-bg); border-color: transparent; }
+.tag.bad { color: var(--bad); background: var(--bad-bg); border-color: transparent; }
+.tag.warn { color: var(--warn); background: var(--warn-bg); border-color: transparent; }
+.result { margin-top: 8px; padding: 6px 10px; background: var(--code); border-radius: 4px; min-height: 30px; white-space: pre-wrap; }
+.verdict-line { display: flex; gap: 10px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.verdict-line .ids { color: var(--muted); font-size: 12px; word-break: break-all; }
+.log-entry { border-bottom: 1px solid var(--line); padding: 3px 0; }
+.log-entry summary { cursor: pointer; display: grid; grid-template-columns: 70px 190px 52px 1fr 60px; gap: 8px; align-items: baseline; }
+.log-entry summary .path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.s2 { color: var(--ok); } .s4, .s5, .s0 { color: var(--bad); }
+.timeline { list-style: none; margin: 6px 0; padding: 0 0 0 14px; border-left: 2px solid var(--line); }
+.timeline li { margin: 6px 0; }
+progress { width: 220px; }
+@media (max-width: 760px) { .step { grid-template-columns: 1fr; } .log-entry summary { grid-template-columns: 60px 1fr 50px; } .log-entry summary .who, .log-entry summary .method { display: none; } }
+</style>
+</head>
+<body>
+<main>
+<h1>Gamification playground</h1>
+<p class="muted">This page plays the casino and the player. It calls our API and the fake casino's control API from your browser. Every call is in the request log at the bottom.</p>
+
+<section id="s-context" aria-labelledby="h-context">
+  <h2 id="h-context"><span class="n">1</span>Context</h2>
+  <div class="row">
+    <label for="tenant">Tenant</label>
+    <select id="tenant"></select>
+    <label for="player">Player id</label>
+    <input id="player" size="22" autocomplete="off" spellcheck="false">
+    <button id="newPlayer" type="button">New random player</button>
+  </div>
+  <p id="platformNote" class="muted"></p>
+  <p class="muted">Platform B has no idempotency key, so after an unclear answer we must look before we repeat. Platform A has one.</p>
+</section>
+
+<section id="s-player" aria-labelledby="h-player">
+  <h2 id="h-player"><span class="n">2</span>Player</h2>
+  <div class="row"><button id="refresh" type="button">Refresh</button><span id="meLine" class="muted"></span></div>
+  <div class="row"><strong>Balance</strong> available <code id="balAvail">-</code> reserved <code id="balRes">-</code> coins</div>
+  <div class="row"><strong>Spins</strong> <span id="spinsLine" class="muted">-</span></div>
+  <table id="spinsTable"><thead><tr><th>Spin id</th><th>Status</th><th>Prize</th></tr></thead><tbody></tbody></table>
+  <p><strong>Redemptions made in this session</strong></p>
+  <table id="redTable"><thead><tr><th>Id</th><th>Item</th><th>Cost</th><th>Status</th><th>Reason</th></tr></thead><tbody></tbody></table>
+</section>
+
+<section id="s-steps" aria-labelledby="h-steps">
+  <h2 id="h-steps"><span class="n">3</span>Steps</h2>
+  <div class="step"><div><button id="bDeposit" type="button" class="primary">Deposit 20.00</button></div><div class="muted">The casino sends a signed deposit event to us. The player gets one spin.</div></div>
+  <div class="step"><div><button id="bDepositAgain" type="button">Send the same deposit again</button></div><div class="muted">Same event id as the last deposit. We must answer as a duplicate and give no second spin.</div></div>
+  <div class="step"><div><button id="bDepositBad" type="button">Deposit with a bad signature</button></div><div class="muted">The signature is wrong. We must answer 401 and change nothing.</div></div>
+  <div class="step"><div><button id="bSpin" type="button" class="primary">Spin</button></div><div class="muted">Uses the oldest available spin. The prize goes to the coin ledger.</div></div>
+  <div class="step"><div><button id="bSpinTwice" type="button">Spin twice at once</button></div><div class="muted">Two parallel requests for one spin. Both answers must be the same, and the prize is paid once.</div></div>
+  <div class="step"><div><strong>Store</strong></div><div><table id="itemsTable"><thead><tr><th>Item</th><th>Price</th><th></th></tr></thead><tbody></tbody></table></div></div>
+  <div class="step"><div><button id="bRedeemAgain" type="button">Redeem the same request again</button></div><div class="muted">Same Idempotency-Key as the last redemption. We must return the same redemption and charge nothing new.</div></div>
+  <div class="step"><div><button id="bRedeemTwice" type="button">Redeem twice at once</button></div><div class="muted">Two parallel requests with one Idempotency-Key for the cheapest item you can afford. One redemption must come out.</div></div>
+  <div class="step" id="deliverStep"><div><button id="bDeliver" type="button">Deliver platform B's answers now</button></div><div class="muted">Platform B reports results by webhook. A timer does this every second; this button does it now.</div></div>
+  <div id="stepResult" class="result" role="status" aria-live="polite">Nothing done yet.</div>
+</section>
+
+<section id="s-faults" aria-labelledby="h-faults">
+  <h2 id="h-faults"><span class="n">4</span>Faults</h2>
+  <p class="muted">Arm a fault for the next calls at a point of the tenant's platform. <code>lost_answer</code>: the casino does the work, we never get the answer.</p>
+  <table id="faultTable"><thead><tr><th>Call point</th><th>Fault</th><th>Times</th><th></th></tr></thead><tbody></tbody></table>
+  <div class="row"><button id="clearFaults" type="button">Clear all</button><button id="reloadFaults" type="button">Reload</button></div>
+  <p><strong>Armed now</strong></p>
+  <pre id="armed">-</pre>
+</section>
+
+<section id="s-run" aria-labelledby="h-run">
+  <h2 id="h-run"><span class="n">5</span>Run many players</h2>
+  <p class="muted">Each player deposits, gets a token, spins every spin, and redeems the cheapest item if the balance allows. Faults are random (seeded) during the run and switched off when the run is done, so recovery can finish.</p>
+  <div class="row">
+    <label for="runN">Players</label><input id="runN" type="number" min="1" max="200" value="30" style="width:80px">
+    <label for="runDeposits">Deposits each</label><input id="runDeposits" type="number" min="1" max="5" value="3" style="width:60px">
+    <label for="runSeed">Seed</label><input id="runSeed" type="number" value="1" style="width:90px">
+    <label for="runRate">Fault rate</label><input id="runRate" type="range" min="0" max="40" value="20"><output id="runRateOut">20 %</output>
+    <button id="runGo" type="button" class="primary">Run</button>
+  </div>
+  <div class="row"><progress id="runProgress" max="100" value="0"></progress><span id="runStatus" class="muted">Not started.</span></div>
+  <pre id="runSummary">-</pre>
+</section>
+
+<section id="s-verdict" aria-labelledby="h-verdict">
+  <h2 id="h-verdict"><span class="n">6</span>Verdict</h2>
+  <p class="muted">The verdict trusts the casino's own record of rewards and the coin balances. It does not trust our redemption status on its own. It covers every player this page used in this session.</p>
+  <div class="row"><button id="verdictGo" type="button">Check the session's players</button><span id="verdictInfo" class="muted"></span></div>
+  <div id="verdictLines"></div>
+</section>
+
+<section id="s-ops" aria-labelledby="h-ops">
+  <h2 id="h-ops"><span class="n">7</span>Operations</h2>
+  <p class="muted">Admin endpoints for the tenant, called with the tenant's demo admin key. If an endpoint is missing, the page says so.</p>
+  <div class="row">
+    <button id="opsAlerts" type="button">Alerts</button>
+    <button id="opsStuck" type="button">Stuck redemptions</button>
+    <label for="auditId">Entity id</label><input id="auditId" size="38" autocomplete="off" spellcheck="false">
+    <button id="opsAudit" type="button">Audit trail</button>
+  </div>
+  <div id="opsOut" class="muted">Nothing loaded.</div>
+</section>
+
+<section id="s-log" aria-labelledby="h-log">
+  <h2 id="h-log"><span class="n">8</span>Request log</h2>
+  <div class="row"><button id="logClear" type="button">Clear log</button><span id="logCount" class="muted"></span></div>
+  <div id="logList"></div>
+</section>
+</main>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const STATE = {
+  cfg: null, tenant: null, items: [], me: null, tokens: new Map(), players: new Map(),
+  lastEventId: null, lastRedeem: null, lastSpinId: null, lastRedemptionId: null, seenRequests: 0, log: [],
+  busy: false, armed: [],
+};
+const FINAL = ['issued', 'refused', 'insufficient'];
+const FAULTS = {
+  'a.grant': ['error_500', 'rate_limit', 'refuse', 'lost_request', 'lost_answer', 'slow_answer'],
+  'a.find': ['error_500', 'rate_limit', 'lost_request', 'slow_answer'],
+  'b.grant': ['error_500', 'rate_limit', 'refuse', 'lost_request', 'lost_answer', 'slow_answer'],
+  'b.find': ['error_500', 'rate_limit', 'lost_request', 'slow_answer'],
+  'b.callback': ['lost', 'twice', 'delay'],
+};
+const POINTS = { A: ['a.grant', 'a.find'], B: ['b.grant', 'b.find', 'b.callback'] };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === 'class') el.className = v;
+    else if (k === 'text') el.textContent = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (v !== false && v !== null && v !== undefined) el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat()) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+const randId = (n) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');
+const uuid = () => crypto.randomUUID();
+const pretty = (v) => (typeof v === 'string' ? v : JSON.stringify(v, null, 2));
+
+/* ---------- request log ---------- */
+let logTimer = null;
+function addLog(entry) {
+  STATE.log.unshift(entry);
+  if (STATE.log.length > 300) STATE.log.length = 300;
+  if (!logTimer) logTimer = setTimeout(() => { logTimer = null; renderLog(); }, 150);
+}
+function shq(s) { return "'" + String(s).replace(/'/g, "'\\''") + "'"; }
+function curlOf(method, url, headers, body) {
+  let c = 'curl -X ' + method + ' ' + shq(url);
+  for (const [k, v] of Object.entries(headers || {})) c += ' -H ' + shq(k + ': ' + v);
+  if (body !== undefined && body !== null) c += ' -d ' + shq(typeof body === 'string' ? body : JSON.stringify(body));
+  return c;
+}
+function renderLog() {
+  const list = $('logList');
+  list.replaceChildren();
+  for (const e of STATE.log) {
+    const cls = 's' + Math.floor((Number(e.status) || 0) / 100);
+    const d = h('details', { class: 'log-entry' },
+      h('summary', {},
+        h('span', { class: 'muted', text: e.time }),
+        h('span', { class: 'who', text: e.who }),
+        h('span', { class: 'method', text: e.method }),
+        h('span', { class: 'path', title: e.path, text: e.path }),
+        h('span', { class: cls, text: String(e.status) })));
+    d.addEventListener('toggle', () => {
+      if (!d.open || d.dataset.built) return;
+      d.dataset.built = '1';
+      d.append(h('div', { class: 'muted', text: 'Request' }), h('pre', { text: e.req === undefined ? '(no body)' : pretty(e.req) }),
+        h('div', { class: 'muted', text: 'Response' }), h('pre', { text: pretty(e.res) }));
+      if (e.curl) {
+        d.append(h('button', { type: 'button', onclick: async (ev) => {
+          try { await navigator.clipboard.writeText(e.curl); ev.target.textContent = 'Copied'; } catch { ev.target.textContent = 'Copy failed'; }
+        }, text: 'Copy as curl' }));
+      }
+    });
+    list.append(d);
+  }
+  $('logCount').textContent = STATE.log.length + ' entries, newest first (at most 300)';
+}
+function timeNow() { return new Date().toTimeString().slice(0, 8); }
+
+async function http(who, method, url, opts) {
+  const o = opts || {};
+  const headers = { ...(o.headers || {}) };
+  const init = { method, headers };
+  if (o.body !== undefined) { headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(o.body); }
+  let status = 0, text = '';
+  try {
+    const r = await fetch(url, init);
+    status = r.status;
+    text = await r.text();
+  } catch (e) { text = 'network error: ' + e.message; }
+  let body = text;
+  try { body = JSON.parse(text); } catch { /* keep text */ }
+  const u = new URL(url, location.href);
+  addLog({ time: timeNow(), who, method, path: u.pathname + u.search, status, req: o.body, res: body, curl: curlOf(method, url, headers, init.body) });
+  return { status, body };
+}
+const control = (method, path, body) => http('page -> fake casino control', method, path, { body });
+
+/* Calls the fake casino made to us, or we made to it, are known only from its state. */
+const POINT_PATH = {
+  'a.grant': ['POST', '/a/bonuses'], 'a.find': ['GET', '/a/bonuses?reference='],
+  'b.grant': ['POST', '/b/v2/rewards/grant'], 'b.find': ['GET', '/b/v2/rewards/requests?externalRef='],
+  'b.callback': ['POST', '/webhooks/<tenant>/rewards'],
+};
+async function syncCasino() {
+  const r = await fetch('/control/state').then((x) => x.json()).catch(() => null);
+  if (!r) return null;
+  if (r.requests.length < STATE.seenRequests) STATE.seenRequests = 0;
+  for (const q of r.requests.slice(STATE.seenRequests)) {
+    const [method, path] = POINT_PATH[q.point] || ['?', q.point];
+    addLog({ time: q.at.slice(11, 19), who: 'us -> casino', method, path: path + (q.reference || ''), status: q.fault ? 'fault: ' + q.fault : 'ok', req: { tenantId: q.tenantId, reference: q.reference }, res: q, curl: null });
+  }
+  STATE.seenRequests = r.requests.length;
+  return r;
+}
+
+/* ---------- player calls ---------- */
+async function getToken(tenantId, playerId, fresh) {
+  const key = tenantId + '|' + playerId;
+  const hit = STATE.tokens.get(key);
+  if (hit && !fresh && hit.until > Date.now()) return hit.token;
+  const r = await control('POST', '/control/token', { tenantId, playerId });
+  if (r.status !== 200) throw new Error('could not get a token: ' + pretty(r.body));
+  STATE.tokens.set(key, { token: r.body.token, until: Date.now() + 9 * 60000 });
+  return r.body.token;
+}
+async function pcall(tenantId, playerId, method, path, opts) {
+  const o = opts || {};
+  let r = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const token = await getToken(tenantId, playerId, attempt > 0);
+    r = await http('player -> us', method, STATE.cfg.appUrl + path, { headers: { Authorization: 'Bearer ' + token, ...(o.headers || {}) }, body: o.body });
+    if (r.status !== 401) return r;
+  }
+  return r;
+}
+function ctx() { return { t: $('tenant').value, p: $('player').value.trim() }; }
+function touchPlayer(t, p) {
+  const k = t + '|' + p;
+  if (!STATE.players.has(k)) STATE.players.set(k, { tenantId: t, playerId: p, redemptions: [] });
+  return STATE.players.get(k);
+}
+
+/* ---------- rendering of sections 1 and 2 ---------- */
+function platformOf(id) { return STATE.cfg.tenants.find((t) => t.id === id); }
+function renderContext() {
+  const t = platformOf($('tenant').value);
+  $('platformNote').textContent = t.platform === 'A'
+    ? 'Platform A answers a reward request at once: issued or refused in the same call.'
+    : 'Platform B answers "accepted" and reports the result later by webhook. The redemption stays "submitting" until then.';
+  $('deliverStep').hidden = t.platform !== 'B';
+  renderFaultRows();
+}
+async function refreshPlayer() {
+  const { t, p } = ctx();
+  if (!p) return;
+  const me = await pcall(t, p, 'GET', '/me');
+  STATE.me = me.status === 200 ? me.body : null;
+  if (!STATE.items.length || STATE.itemsTenant !== t) {
+    const it = await pcall(t, p, 'GET', '/store/items');
+    STATE.items = it.status === 200 ? it.body : [];
+    STATE.itemsTenant = t;
+  }
+  const pl = STATE.players.get(t + '|' + p);
+  if (pl) {
+    for (const r of pl.redemptions) {
+      if (FINAL.includes(r.status) && r.checkedFinal) continue;
+      const got = await pcall(t, p, 'GET', '/store/redemptions/' + r.id);
+      if (got.status === 200) { r.status = got.body.status; r.reason = got.body.reason; r.costCoins = got.body.costCoins; r.checkedFinal = FINAL.includes(r.status); }
+    }
+  }
+  await syncCasino();
+  renderPlayer();
+}
+function renderPlayer() {
+  const me = STATE.me;
+  $('balAvail').textContent = me && me.balance ? me.balance.available : (me ? 'ledger not answering' : '-');
+  $('balRes').textContent = me && me.balance ? me.balance.reserved : '-';
+  const spins = me ? me.spins : [];
+  const avail = spins.filter((s) => s.status === 'available');
+  $('spinsLine').textContent = me ? avail.length + ' available, ' + (spins.length - avail.length) + ' used' : '-';
+  const tb = $('spinsTable').tBodies[0];
+  tb.replaceChildren(...spins.map((s) => h('tr', {}, h('td', {}, h('code', { text: s.id })), h('td', { text: s.status }), h('td', { text: s.status === 'available' ? '' : s.coins + ' coins' }))));
+  const { t, p } = ctx();
+  const pl = STATE.players.get(t + '|' + p);
+  $('redTable').tBodies[0].replaceChildren(...(pl ? pl.redemptions : []).map((r) => h('tr', {},
+    h('td', {}, h('code', { text: r.id })), h('td', { text: r.itemName }), h('td', { text: r.costCoins }),
+    h('td', {}, statusTag(r.status)), h('td', { text: r.reason || '' }))));
+  const items = $('itemsTable').tBodies[0];
+  const available = me && me.balance ? Number(me.balance.available) : 0;
+  items.replaceChildren(...STATE.items.map((it) => h('tr', {},
+    h('td', { text: it.name }), h('td', { text: it.costCoins + ' coins' }),
+    h('td', {}, h('button', { type: 'button', disabled: STATE.busy || available < Number(it.costCoins), title: available < Number(it.costCoins) ? 'Not enough coins' : '', onclick: () => redeem(it), text: 'Redeem' })))));
+  const noBusy = !STATE.busy;
+  $('bDeposit').disabled = !noBusy;
+  $('bDepositBad').disabled = !noBusy;
+  $('bDepositAgain').disabled = !noBusy || !STATE.lastEventId;
+  $('bSpin').disabled = !noBusy || !avail.length;
+  $('bSpinTwice').disabled = !noBusy || !avail.length;
+  $('bRedeemAgain').disabled = !noBusy || !STATE.lastRedeem;
+  $('bRedeemTwice').disabled = !noBusy || !cheapestAffordable();
+  $('bDeliver').disabled = !noBusy;
+}
+function statusTag(s) {
+  const cls = s === 'issued' ? 'ok' : s === 'refused' || s === 'insufficient' ? 'bad' : 'warn';
+  return h('span', { class: 'tag ' + cls, text: s });
+}
+function cheapestAffordable() {
+  const a = STATE.me && STATE.me.balance ? Number(STATE.me.balance.available) : 0;
+  return [...STATE.items].sort((x, y) => x.costCoins - y.costCoins).find((it) => Number(it.costCoins) <= a) || null;
+}
+function say(text) { $('stepResult').textContent = text; }
+
+/* A step: stops other steps while it runs, then refreshes the panels. */
+async function step(fn) {
+  if (STATE.busy) return;
+  STATE.busy = true;
+  renderPlayer();
+  try { await fn(); } catch (e) { say('Error: ' + e.message); }
+  STATE.busy = false;
+  try { await refreshPlayer(); } catch (e) { say($('stepResult').textContent + '\nRefresh failed: ' + e.message); }
+}
+
+/* ---------- section 3 ---------- */
+async function sendDeposit(extra, label) {
+  const { t, p } = ctx();
+  const tenant = platformOf(t);
+  touchPlayer(t, p);
+  const r = await control('POST', '/control/deposit', { tenantId: t, platform: tenant.platform, playerId: p, amount: '20.00', ...extra });
+  if (r.status !== 200) { say(label + ': the fake casino refused the request: ' + pretty(r.body)); return null; }
+  for (const s of r.body.sent) {
+    addLog({ time: timeNow(), who: 'casino -> us', method: 'POST', path: '/webhooks/' + t + '/events', status: s.status, req: '(built and signed by the fake casino, event ' + r.body.eventId + ')', res: s.body, curl: null });
+  }
+  return r.body;
+}
+function describe(sent) { return sent.map((s) => 'HTTP ' + s.status + ' ' + JSON.stringify(s.body)).join('\n'); }
+async function doDeposit() {
+  const b = await sendDeposit({}, 'Deposit');
+  if (!b) return;
+  STATE.lastEventId = b.eventId;
+  say('Deposit event ' + b.eventId + ' sent.\n' + describe(b.sent));
+}
+async function doDepositAgain() {
+  const b = await sendDeposit({ eventId: STATE.lastEventId }, 'Repeat');
+  if (b) say('Same event ' + b.eventId + ' sent again.\n' + describe(b.sent) + '\nExpected: "duplicates": 1 and no new spin.');
+}
+async function doDepositBad() {
+  const b = await sendDeposit({ tamper: 'signature' }, 'Bad signature');
+  if (b) say('Event with a wrong signature sent.\n' + describe(b.sent) + '\nExpected: 401 and no new spin.');
+}
+async function doSpin(times) {
+  const { t, p } = ctx();
+  const spin = (STATE.me ? STATE.me.spins : []).find((s) => s.status === 'available');
+  if (!spin) { say('No spin available.'); return; }
+  STATE.lastSpinId = spin.id;
+  $('auditId').value = spin.id;
+  const path = '/wheel/spins/' + spin.id + '/spin';
+  const rs = await Promise.all(Array.from({ length: times }, () => pcall(t, p, 'POST', path)));
+  const texts = rs.map((r) => 'HTTP ' + r.status + ' ' + JSON.stringify(r.body));
+  const same = rs.every((r) => JSON.stringify(r.body) === JSON.stringify(rs[0].body));
+  say('Spin ' + spin.id + '\n' + texts.join('\n') + (times > 1 ? '\n' + (same ? 'Both answers are the same.' : 'The answers differ. This is a bug.') : ''));
+}
+async function redeem(item, opts) {
+  const o = opts || {};
+  await step(async () => {
+    const { t, p } = ctx();
+    const pl = touchPlayer(t, p);
+    const key = o.key || uuid();
+    const n = o.times || 1;
+    STATE.lastRedeem = { key, item };
+    const rs = await Promise.all(Array.from({ length: n }, () => pcall(t, p, 'POST', '/store/redemptions', { headers: { 'Idempotency-Key': key }, body: { itemId: item.id } })));
+    for (const r of rs) {
+      if ((r.status === 200 || r.status === 201) && !pl.redemptions.some((x) => x.id === r.body.id)) {
+        pl.redemptions.push({ id: r.body.id, itemName: item.name, costCoins: r.body.costCoins, status: r.body.status, reason: r.body.reason });
+        STATE.lastRedemptionId = r.body.id;
+        $('auditId').value = r.body.id;
+      }
+    }
+    const ids = new Set(rs.filter((r) => r.body && r.body.id).map((r) => r.body.id));
+    say('Redeem ' + item.name + ' with key ' + key + '\n' + rs.map((r) => 'HTTP ' + r.status + ' ' + JSON.stringify(r.body)).join('\n') +
+      (n > 1 ? '\n' + (ids.size === 1 ? 'One redemption came out.' : 'More than one redemption came out. This is a bug.') : ''));
+  });
+}
+async function doRedeemAgain() {
+  const last = STATE.lastRedeem;
+  await redeem(last.item, { key: last.key });
+}
+async function doRedeemTwice() {
+  const it = cheapestAffordable();
+  if (it) await redeem(it, { times: 2 });
+}
+async function doDeliver() {
+  const r = await control('POST', '/control/b/deliver');
+  say('HTTP ' + r.status + ' ' + JSON.stringify(r.body));
+}
+
+/* ---------- section 4 ---------- */
+function renderFaultRows() {
+  const platform = platformOf($('tenant').value).platform;
+  $('faultTable').tBodies[0].replaceChildren(...POINTS[platform].map((pt) => {
+    const sel = h('select', { 'aria-label': 'Fault at ' + pt }, FAULTS[pt].map((f) => h('option', { value: f, text: f })));
+    const times = h('input', { type: 'number', min: '1', value: '1', style: 'width:70px', 'aria-label': 'Times at ' + pt });
+    return h('tr', {}, h('td', {}, h('code', { text: pt })), h('td', {}, sel), h('td', {}, times),
+      h('td', {}, h('button', { type: 'button', onclick: async () => {
+        const r = await control('POST', '/control/faults', { point: pt, fault: sel.value, times: Number(times.value) || 1, tenantId: $('tenant').value });
+        say('Arm ' + pt + ' ' + sel.value + ' x' + times.value + ': HTTP ' + r.status);
+        await loadFaults();
+      }, text: 'Arm' })));
+  }));
+}
+async function loadFaults() {
+  const r = await fetch('/control/faults').then((x) => x.json()).catch(() => null);
+  $('armed').textContent = r && r.length ? r.map((f) => f.point + '  ' + f.fault + '  x' + f.times + (f.tenantId ? '  (' + f.tenantId + ')' : '')).join('\n') : 'Nothing armed.';
+}
+
+/* ---------- verdict ---------- */
+/* verdict:start */
+function judgeVerdict(input) {
+  const grants = input.grants || [];
+  const players = input.players || [];
+  const known = new Map();
+  for (const p of players) for (const r of p.redemptions) known.set(p.tenantId + '|' + r.id, { p, r });
+  const count = new Map();
+  const mine = [];
+  for (const g of grants) {
+    const k = g.tenantId + '|' + g.reference;
+    if (!known.has(k)) continue;
+    mine.push(g);
+    count.set(k, (count.get(k) || 0) + 1);
+  }
+  const twice = [...count].filter((e) => e[1] > 1).map((e) => e[0].split('|')[1]);
+  const wrongPlayer = mine.filter((g) => known.get(g.tenantId + '|' + g.reference).p.playerId !== g.playerId).map((g) => g.reference);
+  const refusedButGranted = [...new Set(mine
+    .filter((g) => ['refused', 'insufficient'].includes(known.get(g.tenantId + '|' + g.reference).r.status))
+    .map((g) => g.reference))];
+  const issuedNoGrant = [];
+  let notFinal = 0;
+  for (const [k, v] of known) {
+    if (v.r.status === 'issued' && !count.has(k)) issuedNoGrant.push(v.r.id);
+    if (!['issued', 'refused', 'insufficient'].includes(v.r.status)) notFinal += 1;
+  }
+  const negative = [];
+  const mismatch = [];
+  for (const p of players) {
+    const b = p.balance;
+    if (!b) continue;
+    const who = p.tenantId + '/' + p.playerId;
+    if (b.available < 0 || b.reserved < 0) negative.push(who);
+    const quiet = b.reserved === 0 && p.redemptions.every((r) => ['issued', 'refused', 'insufficient'].includes(r.status));
+    if (!quiet) continue;
+    const spent = p.redemptions.filter((r) => r.status === 'issued').reduce((sum, r) => sum + r.costCoins, 0);
+    if (b.available !== p.creditedCoins - spent) mismatch.push(who + ' has ' + b.available + ', expected ' + (p.creditedCoins - spent));
+  }
+  const lines = [
+    { key: 'twice', label: 'Rewards issued twice', ids: twice },
+    { key: 'wrongPlayer', label: 'Rewards sent to the wrong player', ids: wrongPlayer },
+    { key: 'issuedNoGrant', label: 'Issued by us but not by the casino', ids: issuedNoGrant },
+    { key: 'refusedButGranted', label: 'Issued by the casino but refused by us', ids: refusedButGranted },
+    { key: 'negative', label: 'Balances below zero', ids: negative },
+    { key: 'mismatch', label: 'Coins that do not add up (settled players)', ids: mismatch },
+  ];
+  return { ok: lines.every((l) => l.ids.length === 0), lines, notFinal, redemptions: known.size };
+}
+/* verdict:end */
+
+async function pool(items, size, fn) {
+  let next = 0;
+  const workers = Array.from({ length: Math.min(size, items.length) }, async () => {
+    while (next < items.length) { const i = next++; await fn(items[i], i); }
+  });
+  await Promise.all(workers);
+}
+async function gatherPlayers() {
+  const players = [...STATE.players.values()].filter((p) => p.redemptions.length || true);
+  const out = [];
+  await pool(players, 8, async (pl) => {
+    const me = await pcall(pl.tenantId, pl.playerId, 'GET', '/me');
+    const reds = [];
+    for (const r of pl.redemptions) {
+      const got = await pcall(pl.tenantId, pl.playerId, 'GET', '/store/redemptions/' + r.id);
+      if (got.status === 200) { r.status = got.body.status; r.reason = got.body.reason; r.costCoins = got.body.costCoins; reds.push({ id: r.id, status: got.body.status, costCoins: Number(got.body.costCoins) }); }
+      else reds.push({ id: r.id, status: 'unreadable', costCoins: Number(r.costCoins) });
+    }
+    const ok = me.status === 200 && me.body.balance;
+    out.push({
+      tenantId: pl.tenantId, playerId: pl.playerId, redemptions: reds,
+      balance: ok ? { available: Number(me.body.balance.available), reserved: Number(me.body.balance.reserved) } : null,
+      creditedCoins: me.status === 200 ? me.body.spins.filter((s) => s.status === 'used').reduce((a, s) => a + Number(s.coins || 0), 0) : 0,
+    });
+  });
+  return out;
+}
+async function runVerdict() {
+  $('verdictInfo').textContent = 'Checking...';
+  const players = await gatherPlayers();
+  const state = await syncCasino();
+  if (!state) { $('verdictInfo').textContent = 'The fake casino did not answer.'; return null; }
+  const v = judgeVerdict({ grants: state.grants, players });
+  const box = $('verdictLines');
+  box.replaceChildren(...v.lines.map((l) => h('div', { class: 'verdict-line' },
+    h('span', { class: 'tag ' + (l.ids.length ? 'bad' : 'ok'), text: l.ids.length ? 'FAIL' : 'ok' }),
+    h('span', { text: l.label + ': ' + l.ids.length }),
+    h('span', { class: 'ids', text: l.ids.slice(0, 20).join(', ') + (l.ids.length > 20 ? ' ...' : '') }))));
+  box.append(h('div', { class: 'verdict-line' }, h('span', { class: 'tag ' + (v.notFinal ? 'warn' : 'ok'), text: v.notFinal ? 'open' : 'ok' }), h('span', { text: 'Redemptions not final yet: ' + v.notFinal + ' of ' + v.redemptions }), h('span', { class: 'ids', text: 'A visible state, not an error.' })));
+  $('verdictInfo').textContent = (v.ok ? 'All rules hold' : 'A rule is broken') + ' for ' + players.length + ' players, ' + v.redemptions + ' redemptions, ' + state.grants.length + ' grants at the casino.';
+  return v;
+}
+
+/* ---------- section 5 ---------- */
+function chaosRates(platform, rate) {
+  const r = rate / 100;
+  const grant = { lost_answer: 0.3 * r, lost_request: 0.2 * r, error_500: 0.2 * r, rate_limit: 0.15 * r, refuse: 0.15 * r };
+  const find = { error_500: 0.5 * r, rate_limit: 0.25 * r, lost_request: 0.25 * r };
+  return platform === 'A' ? { 'a.grant': grant, 'a.find': find } : { 'b.grant': grant, 'b.find': find, 'b.callback': { lost: 0.5 * r, twice: 0.5 * r } };
+}
+async function runMany() {
+  if (STATE.busy) return;
+  STATE.busy = true;
+  renderPlayer();
+  $('runGo').disabled = true;
+  const t = $('tenant').value;
+  const platform = platformOf(t).platform;
+  const n = Math.max(1, Math.min(200, Number($('runN').value) || 30));
+  const deposits = Math.max(1, Math.min(5, Number($('runDeposits').value) || 1));
+  const seed = Number($('runSeed').value) || 0;
+  const rate = Number($('runRate').value);
+  const runId = randId(4);
+  const ids = Array.from({ length: n }, (_, i) => 'run' + runId + '-' + (i + 1));
+  const summary = { tenant: t, players: n, depositsEach: deposits, seed, faultRate: rate + ' %' };
+  const prog = $('runProgress');
+  prog.max = n * 3; prog.value = 0;
+  const bump = () => { prog.value += 1; };
+  try {
+    $('runStatus').textContent = 'Switching faults on...';
+    await control('POST', '/control/chaos', { seed, rates: rate > 0 ? chaosRates(platform, rate) : {} });
+    $('runStatus').textContent = 'Players are depositing, spinning and redeeming...';
+    await pool(ids, 6, async (pid) => {
+      const pl = touchPlayer(t, pid);
+      for (let d = 0; d < deposits; d++) {
+        const r = await control('POST', '/control/deposit', { tenantId: t, platform, playerId: pid, amount: '20.00' });
+        for (const s of (r.body.sent || [])) addLog({ time: timeNow(), who: 'casino -> us', method: 'POST', path: '/webhooks/' + t + '/events', status: s.status, req: '(signed by the fake casino, event ' + r.body.eventId + ')', res: s.body, curl: null });
+      }
+      bump();
+      const me = await pcall(t, pid, 'GET', '/me');
+      for (const s of me.body.spins.filter((x) => x.status === 'available')) await pcall(t, pid, 'POST', '/wheel/spins/' + s.id + '/spin');
+      bump();
+      const after = await pcall(t, pid, 'GET', '/me');
+      const items = (await pcall(t, pid, 'GET', '/store/items')).body;
+      const cheapest = [...items].sort((a, b) => a.costCoins - b.costCoins)[0];
+      if (cheapest && after.body.balance && Number(after.body.balance.available) >= Number(cheapest.costCoins)) {
+        const r = await pcall(t, pid, 'POST', '/store/redemptions', { headers: { 'Idempotency-Key': uuid() }, body: { itemId: cheapest.id } });
+        if (r.status === 200 || r.status === 201) pl.redemptions.push({ id: r.body.id, itemName: cheapest.name, costCoins: r.body.costCoins, status: r.body.status, reason: r.body.reason });
+      }
+      bump();
+    });
+    await control('POST', '/control/chaos', { seed: null });
+    await syncCasino();
+    const mine = ids.map((id) => STATE.players.get(t + '|' + id)).filter((p) => p.redemptions.length);
+    const total = mine.reduce((a, p) => a + p.redemptions.length, 0);
+    summary.redemptionsMade = total;
+    $('runStatus').textContent = 'Faults are off. Waiting for ' + total + ' redemptions to finish...';
+    const started = Date.now();
+    let open = total;
+    while (Date.now() - started < 60000) {
+      if (platform === 'B') await control('POST', '/control/b/deliver');
+      open = 0;
+      await pool(mine, 8, async (pl) => {
+        for (const r of pl.redemptions) {
+          if (!FINAL.includes(r.status)) {
+            const got = await pcall(t, pl.playerId, 'GET', '/store/redemptions/' + r.id);
+            if (got.status === 200) { r.status = got.body.status; r.reason = got.body.reason; }
+          }
+        }
+        const me = await pcall(t, pl.playerId, 'GET', '/me');
+        const reserved = me.body.balance ? Number(me.body.balance.reserved) : 1;
+        if (pl.redemptions.some((r) => !FINAL.includes(r.status)) || reserved !== 0) open += 1;
+      });
+      $('runStatus').textContent = 'Waiting: ' + open + ' players not settled, ' + Math.round((Date.now() - started) / 1000) + ' s of 60 s.';
+      if (open === 0) break;
+      await sleep(1500);
+    }
+    const all = mine.flatMap((p) => p.redemptions);
+    summary.issued = all.filter((r) => r.status === 'issued').length;
+    summary.refused = all.filter((r) => r.status === 'refused').length;
+    summary.insufficient = all.filter((r) => r.status === 'insufficient').length;
+    summary.notFinalAfterWait = all.filter((r) => !FINAL.includes(r.status)).length;
+    summary.playersNotSettled = open;
+    summary.waitedSeconds = Math.round((Date.now() - started) / 1000);
+    $('runStatus').textContent = 'Done.';
+  } catch (e) {
+    $('runStatus').textContent = 'Run failed: ' + e.message;
+    await control('POST', '/control/chaos', { seed: null }).catch(() => null);
+  }
+  prog.value = prog.max;
+  $('runSummary').textContent = JSON.stringify(summary, null, 2);
+  STATE.busy = false;
+  $('runGo').disabled = false;
+  const v = await runVerdict();
+  if (v) $('runSummary').textContent += '\n\nVerdict: ' + (v.ok ? 'all rules hold' : 'a rule is broken') + '\n' + v.lines.map((l) => l.label + ': ' + l.ids.length).join('\n') + '\nRedemptions not final yet: ' + v.notFinal;
+  await refreshPlayer().catch(() => null);
+}
+
+/* ---------- section 7 ---------- */
+function adminCall(method, path, body, extra) {
+  const tenant = platformOf($('tenant').value);
+  return http('admin -> us', method, STATE.cfg.appUrl + '/admin/' + tenant.id + path, { headers: { 'X-Admin-Key': tenant.adminKey, 'X-Admin-Name': 'playground', ...(extra || {}) }, body });
+}
+function notAvailable(r) {
+  if (r.status === 404) { $('opsOut').replaceChildren(h('p', { class: 'muted', text: 'Not available yet (the server answered 404).' })); return true; }
+  if (r.status !== 200) { $('opsOut').replaceChildren(h('p', { text: 'HTTP ' + r.status + ' ' + JSON.stringify(r.body) })); return true; }
+  return false;
+}
+async function loadAlerts() {
+  const r = await adminCall('GET', '/alerts');
+  if (notAvailable(r)) return;
+  const a = r.body.alerts || [];
+  $('opsOut').replaceChildren(h('p', { class: 'muted', text: 'At ' + r.body.at + ', policy version ' + r.body.policyVersion + '. ' + a.length + ' alerts.' }),
+    a.length ? h('table', {}, h('thead', {}, h('tr', {}, ['Code', 'Severity', 'Subject', 'Value', 'Limit', 'Detail'].map((x) => h('th', { text: x })))),
+      h('tbody', {}, a.map((x) => h('tr', {}, [x.code, x.severity, x.subject, x.value, x.limit, x.detail].map((c) => h('td', { text: c === undefined || c === null ? '' : String(c) })))))) : null);
+}
+async function loadStuck() {
+  const r = await adminCall('GET', '/redemptions/stuck');
+  if (notAvailable(r)) return;
+  const items = r.body.items || [];
+  $('opsOut').replaceChildren(h('p', { class: 'muted', text: 'Redemptions older than ' + r.body.limitSec + ' s and not settled: ' + items.length + '.' }),
+    ...items.map((it) => {
+      const note = h('input', { type: 'text', size: '30', placeholder: 'Note (why)', 'aria-label': 'Note for ' + it.id });
+      const resolve = (outcome) => async () => {
+        const res = await adminCall('POST', '/redemptions/' + it.id + '/resolve', { outcome, note: note.value });
+        say('Resolve ' + it.id + ' as ' + outcome + ': HTTP ' + res.status + ' ' + JSON.stringify(res.body));
+        await loadStuck();
+      };
+      return h('div', { class: 'row' }, h('code', { text: it.id }),
+        h('span', { text: it.status + (it.settled ? ', settled' : ', not settled') + ', player ' + it.playerExternalId + ', ' + it.costCoins + ' coins, ' + it.ageSec + ' s old' + (it.platformRef ? ', ref ' + it.platformRef : '') }),
+        note, h('button', { type: 'button', onclick: resolve('issued'), text: 'Resolve as issued' }), h('button', { type: 'button', onclick: resolve('refused'), text: 'Resolve as refused' }));
+    }));
+}
+async function loadAudit() {
+  const id = $('auditId').value.trim();
+  if (!id) { $('opsOut').textContent = 'Enter a spin or redemption id.'; return; }
+  const r = await adminCall('GET', '/audit?entityId=' + encodeURIComponent(id));
+  if (notAvailable(r)) return;
+  const rows = Array.isArray(r.body) ? r.body : [];
+  $('opsOut').replaceChildren(h('p', { class: 'muted', text: rows.length + ' audit rows for ' + id + '.' }),
+    h('ul', { class: 'timeline' }, rows.map((x) => h('li', {},
+      h('strong', { text: x.action }), ' ', h('span', { class: 'muted', text: x.entityType + ' by ' + x.actor + ' at ' + x.at }),
+      x.changes ? h('pre', { text: pretty(x.changes) }) : null))));
+}
+
+/* ---------- start ---------- */
+async function init() {
+  const cfg = await fetch('/control/config').then((r) => r.json());
+  STATE.cfg = cfg;
+  $('tenant').replaceChildren(...cfg.tenants.map((t) => h('option', { value: t.id, text: t.name + ' (platform ' + t.platform + ')' })));
+  $('player').value = 'player-' + randId(5);
+  $('tenant').addEventListener('change', () => { STATE.items = []; STATE.lastEventId = null; STATE.lastRedeem = null; renderContext(); refreshPlayer(); });
+  $('player').addEventListener('change', () => { STATE.lastEventId = null; STATE.lastRedeem = null; refreshPlayer(); });
+  $('newPlayer').addEventListener('click', () => { $('player').value = 'player-' + randId(5); STATE.lastEventId = null; STATE.lastRedeem = null; refreshPlayer(); });
+  $('refresh').addEventListener('click', () => refreshPlayer());
+  $('bDeposit').addEventListener('click', () => step(doDeposit));
+  $('bDepositAgain').addEventListener('click', () => step(doDepositAgain));
+  $('bDepositBad').addEventListener('click', () => step(doDepositBad));
+  $('bSpin').addEventListener('click', () => step(() => doSpin(1)));
+  $('bSpinTwice').addEventListener('click', () => step(() => doSpin(2)));
+  $('bRedeemAgain').addEventListener('click', doRedeemAgain);
+  $('bRedeemTwice').addEventListener('click', doRedeemTwice);
+  $('bDeliver').addEventListener('click', () => step(doDeliver));
+  $('clearFaults').addEventListener('click', async () => { await control('POST', '/control/faults/clear'); say('All armed faults and random faults cleared.'); await loadFaults(); });
+  $('reloadFaults').addEventListener('click', loadFaults);
+  $('runRate').addEventListener('input', () => { $('runRateOut').textContent = $('runRate').value + ' %'; });
+  $('runGo').addEventListener('click', runMany);
+  $('verdictGo').addEventListener('click', runVerdict);
+  $('opsAlerts').addEventListener('click', loadAlerts);
+  $('opsStuck').addEventListener('click', loadStuck);
+  $('opsAudit').addEventListener('click', loadAudit);
+  $('logClear').addEventListener('click', () => { STATE.log = []; renderLog(); });
+  renderContext();
+  await loadFaults();
+  await refreshPlayer().catch((e) => say('Could not reach our API at ' + cfg.appUrl + ': ' + e.message));
+  renderLog();
+}
+init().catch((e) => { document.body.prepend(h('p', { class: 'result', text: 'The page could not start: ' + e.message })); });
+</script>
+</body>
+</html>

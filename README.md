@@ -15,7 +15,12 @@ docker compose up -d --build --wait
 curl http://127.0.0.1:30080/health
 ```
 
-The answer is `{"ok":true,"postgres":"ok","ledger":"ok"}`. Stop and delete the data:
+The answer is `{"ok":true,"postgres":"ok","ledger":"ok"}`.
+
+Then open http://localhost:30081/ in a browser. It is a playground page that plays the casino
+and the player, can inject faults and shows a verdict. Sample requests are in `docs/samples.md`.
+
+Stop and delete the data:
 
 ```
 docker compose down -v

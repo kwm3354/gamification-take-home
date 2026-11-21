@@ -10,7 +10,7 @@
     "lint": "biome check src test",
     "test": "vitest run",
     "verify": "npm run typecheck && npm run lint && npm test",
-    "build": "tsc -p tsconfig.build.json && cp src/schema.sql dist/",
+    "build": "tsc -p tsconfig.build.json && cp src/schema.sql dist/ && cp -r src/fake-casino/public dist/fake-casino/",
     "start": "node dist/main.js",
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down -v"
