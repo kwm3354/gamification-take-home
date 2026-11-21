@@ -1,0 +1,35 @@
+# Failure table: the bonus store
+
+What goes wrong, what the system does, and which test proves it. Test names are the names in
+`test/store.test.ts`. "Not tested" means nobody ran it.
+
+| What goes wrong | What the system does | Proved by |
+|---|---|---|
+| The player sends the same redemption twice, one after the other | The second call returns the first redemption with 200 and changes nothing, even if the body names another item. | `3. the same Idempotency-Key twice: 201 then 200, one redemption, charged once; a new key is a new redemption` |
+| The player sends the same redemption ten times at once | One request creates it, the other nine get the same redemption; one grant, coins taken once. | `4. ten identical requests at once: one redemption id in every answer, one grant, charged once` |
+| The player does not have enough coins | The ledger refuses the reserve, the redemption ends `insufficient`, and the platform is never called. | `5. not enough coins: insufficient, nothing reserved, the platform is never called` |
+| Eight requests at once for a balance that pays five | Exactly five are issued and three are `insufficient`; the balance ends at zero, never below. | `6. eight requests at once for a balance that pays five: five issued, three insufficient, never below zero` |
+| The platform refuses the reward (A: 422, B: DECLINED callback) | The redemption ends `refused` with the reason, and the reserve is released so the coins are back in full. | `7a. platform A refuses: refused with the reason, coins back in full, settled`, `7b. platform B declines by callback: refused, coins back in full, settled` |
+| Platform A grants but the answer is lost | The redemption stays `submitting`; the next run looks first, finds the grant, and settles; the platform has one grant and one request. | `8. A, lost answer: the grant exists, we are told nothing; the look finds it; still one grant` |
+| Platform A never gets the request (lost request) | The redemption stays `submitting`; the next run looks, finds nothing, issues once. | `9. A, lost request: no grant yet; the look finds nothing; then it is issued; one grant` |
+| Platform A answers slower than our time limit | The call is cancelled at the limit, the request returns `submitting` in time, and the next run finds the grant. | `10. A, answer slower than the time limit: the request returns in time, recovery gives one grant` |
+| Platform B accepts the grant but the answer is lost (B has no idempotency key) | The next run looks before it issues, sees the accepted request, and does not send a second one. | `11. B, lost answer (B has no idempotency): recovery looks first, so only one request exists` |
+| Platform B's callback is lost | The redemption stays `submitting` and the periodic look sees GRANTED and finishes it. | `12. B, callback lost: stays submitting until the next look sees GRANTED` |
+| Platform B sends the callback twice, or a late one that contradicts the final state | Only a `submitting` redemption can be finished; later notices change nothing and coins are taken once. | `13. B, callback twice: the second changes nothing, one capture` |
+| The platform answers 500 or 429 | The redemption is never refused; it stays `submitting`, the delay grows (1 s, 2 s, 4 s) or follows Retry-After, and it ends issued with one grant. | `14a. A, three 500s and one 429 at grant: stays submitting, honours Retry-After, ends issued with one grant` |
+| The platform cannot answer our lookup | We do not issue blind; no grant request is sent until a lookup works. | `14b. A, the look fails: no blind re-issue while we cannot look` |
+| We die after the ledger reserve, after the platform accepted, or after the capture | The job runs the step again: the ledger repeats are harmless (fixed ids) and the platform is looked at first; the result equals a clean run. | `15. crash points: the step ran, the process died, the job runs again` (platform A and platform B) |
+| The ledger does not answer while settling | The redemption shows `issued` with `settled` false; the next run captures; coins are taken once. | `16. ledger away while settling: shows issued but not settled; settles on the next run; charged once` |
+| A reward webhook has a bad signature, comes for platform A, arrives for another tenant's redemption, or arrives too early | 401 plus an audit row; 400; 404 with nothing changed; ignored and recorded. | `17. reward webhook: bad signature, other tenant, platform A, and a notice too early` |
+| A player of one tenant reads or redeems in another tenant | 404; the item list shows only the player's own tenant. | `18. tenant isolation on the player API` |
+| The request has no token, no Idempotency-Key, or an unknown item | 401, 400, 404, and no redemption is created. | `19. a missing Idempotency-Key is 400, a missing token is 401` |
+| The outbox timer and the request both try to run one redemption | The one that takes the job row lock runs; the other skips it. Only one request reaches platform B. | `21. the timer and the request never run one redemption at the same time (B has no idempotency)` |
+| Runs with faults end somewhere else than a clean run | They all end in the same state (status, settled, balance, grant count). | `20. differential: every run with faults ends where the clean run of the same input ends` |
+| The judge is blind to a violation | The judge reports a double grant, a missing grant, a negative balance, coins held after settling, a grant for a refused redemption and a grant to the wrong player. | `the judge can say no` (6 tests) |
+| TigerBeetle is down when the redemption is created | The request still returns 201 with `created`; the job retries with a growing delay and never dies on this error. | Not tested (the capture case in test 16 covers only the settle step) |
+| The process dies between the PostgreSQL commit and the ledger call with a real SIGKILL | The job is due again and repeats the step. Simulated by repeating the side effects, not by killing a process. | Not tested with a real kill |
+| Platform B takes a long time to decide | The redemption stays `submitting` for as long as it takes, asked every 2 s; the coins stay reserved and visible. | Not tested for a long wait (only the short paths) |
+| Platform B's lookup does not show a request that B accepted a moment ago | We would issue a second grant. This is an assumption written in the contract. | Not tested, cannot be handled from our side |
+| A and B outcomes disagree (lookup says GRANTED, a late callback says DECLINED) | The first final answer wins; the later notice is ignored. | Partly: `13. B, callback twice: ...` (late contradicting notice after GRANTED) |
+| An operator wants to revoke a reward after it was issued | Not built. The redemption is final once issued. | Not tested (not built) |
+| The same pending reserve is captured and also released | The ledger refuses the second one (LedgerConflict) and the job retries and goes dead, visible in the outbox. | Not tested in this file (ledger tests cover the conflict) |

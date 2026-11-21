@@ -9,6 +9,14 @@ import {
   type TenantConnection,
 } from "../domain/casino-platform.ts";
 import { hmacMatches, isNonEmptyString, isObject, parseJson } from "./hmac.ts";
+import { callPlatform, unexpectedAnswer } from "./http.ts";
+
+/** 500 -> "5.00", 5 -> "0.05". Integer arithmetic only. */
+function toDecimal(minor: number): string {
+  if (!Number.isSafeInteger(minor) || minor <= 0) throw new Error(`bad amount ${minor}`);
+  const whole = Math.trunc(minor / 100);
+  return `${whole}.${String(minor % 100).padStart(2, "0")}`;
+}
 
 function checkSignature(
   conn: TenantConnection,
@@ -100,13 +108,55 @@ export class PlatformB implements CasinoPlatform {
     throw new InvalidPayload("state");
   }
 
-  issueReward(_conn: TenantConnection, _request: RewardRequest): Promise<RewardOutcome> {
-    // Added by a later agent (outbound half).
-    throw new Error("not implemented yet");
+  async issueReward(conn: TenantConnection, request: RewardRequest): Promise<RewardOutcome> {
+    // B has no idempotency key: a second call with the same externalRef makes a second grant.
+    // The caller must have looked first (findReward) before it calls this.
+    const reply = await callPlatform(conn, "POST", "/b/v2/rewards/grant", {
+      headers: { "x-api-key": conn.platformKey },
+      json: {
+        customerId: request.externalPlayerId,
+        reward: {
+          type: request.reward.type.toUpperCase(),
+          value: toDecimal(request.reward.amountMinor),
+          currency: request.reward.currency,
+        },
+        externalRef: request.redemptionId,
+      },
+    });
+    const b = reply.body;
+    if (reply.status === 202 && isObject(b) && b.state === "ACCEPTED" && isNonEmptyString(b.requestId)) {
+      return { kind: "pending", platformRef: b.requestId };
+    }
+    throw unexpectedAnswer("issue", reply);
   }
 
-  findReward(_conn: TenantConnection, _redemptionId: string): Promise<RewardOutcome | "not_found"> {
-    // Added by a later agent (outbound half).
-    throw new Error("not implemented yet");
+  async findReward(conn: TenantConnection, redemptionId: string): Promise<RewardOutcome | "not_found"> {
+    const reply = await callPlatform(
+      conn,
+      "GET",
+      `/b/v2/rewards/requests?externalRef=${encodeURIComponent(redemptionId)}`,
+      { headers: { "x-api-key": conn.platformKey } },
+    );
+    const b = reply.body;
+    if (reply.status !== 200 || !isObject(b) || !Array.isArray(b.items))
+      throw unexpectedAnswer("find", reply);
+    if (b.items.length === 0) return "not_found";
+    const items = b.items.map((item: unknown) => {
+      if (!isObject(item) || !isNonEmptyString(item.requestId)) {
+        throw unexpectedAnswer("find (bad item)", reply);
+      }
+      if (item.state !== "GRANTED" && item.state !== "ACCEPTED" && item.state !== "DECLINED") {
+        throw unexpectedAnswer("find (unknown state)", reply);
+      }
+      return { requestId: item.requestId, state: item.state, reason: item.reason };
+    });
+    // There can be several requests for one reference (B does not deduplicate). A real grant must
+    // not be hidden by a duplicate, so GRANTED wins over ACCEPTED, and ACCEPTED over DECLINED.
+    const granted = items.find((i) => i.state === "GRANTED");
+    if (granted) return { kind: "issued", platformRef: granted.requestId };
+    const accepted = items.find((i) => i.state === "ACCEPTED");
+    if (accepted) return { kind: "pending", platformRef: accepted.requestId };
+    const reason = items[0]?.reason;
+    return { kind: "refused", reason: isNonEmptyString(reason) ? reason : "declined" };
   }
 }
