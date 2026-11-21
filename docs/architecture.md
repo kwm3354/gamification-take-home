@@ -402,7 +402,8 @@ tests against the official image and then starts the whole compose stack. The de
 is an old desktop without AVX2 and uses a local build (`scripts/tb-old-cpu.sh`); this is a quirk of
 that machine, not a hardware requirement worth planning for.
 
-Not built: a real casino platform, an API to create grant and ops policy versions, a password
+Outside the task, and not built (none of this is in the task's workflow or failure cases; the list
+marks where the prototype ends): a real casino platform, an API to create grant and ops policy versions, a password
 change or reset and a token refresh for admins, database-enforced tenant isolation (by choice, see
 above), a queue in front of the intake, the real-time gateway, missions and other mechanics, coin
 expiry, revoking a reward, deposit reversals, alert delivery, metrics, the digest agent run, rate

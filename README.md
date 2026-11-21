@@ -23,8 +23,9 @@
   by count.
 - **How it was made.** One engineer in one working day. I made the decisions; AI agents wrote the
   code from written briefs; every decision and every AI mistake is in `docs/ai-log.md`.
-- **What is not there.** Both casinos are simulated. No database-level tenant isolation, no
-  secrets store, no migrations, no real integration.
+- **Where the prototype ends.** The task asks for simulated casinos, and both are simulated.
+  Everything the task lists in its workflow and its failure cases is built and tested. What is
+  named as "not built" below lies outside the task: it marks the edge of the prototype.
 
 Run it: `docker compose up -d --build --wait`, then open http://localhost:30080/app/ (details in
 "Run it" below). A two-minute presentation: [`docs/video/presentation.mp4`](docs/video/presentation.mp4).
@@ -165,13 +166,23 @@ piece had to come back with what can break, which test catches it, and what happ
 was broken on purpose. Every decision is in `docs/ai-log.md` with who made it and how it was
 checked, including where the AI was wrong. More in "How this was made" below.
 
-### 7. What is not there
+### 7. Where the prototype ends
 
-Both casinos are simulated, and one of the simulation's assumptions is kind: that platform B's
-look-up shows a request at once. Tenant isolation is enforced in code and by a test that walks
-every route, with no second lock in the database. Secrets are plain text in the database. There
-are no schema migrations yet. The prototype is wider than the task asked; the part I know best is
-the path of a coin. The full list is in "What is real, what is simulated, what is not built".
+Everything in the task's workflow (deposit, spin, coins, redemption, final status on two
+platforms) and every failure case it names (duplicates, concurrency, timeouts, failed issuance,
+retries, tenant isolation, invalid events) is built and has a test.
+
+**Simulated, as the task asks:** both casino platforms. One assumption of the simulation is kind:
+that platform B's look-up shows a request at once.
+
+**Outside the task, and not built:** the things a production system needs next. Tenant isolation
+has no second lock in the database; secrets are plain text in the database; there are no schema
+migrations; alerts are raised but not delivered to people. Further mechanics (missions, coin
+expiry, revoking a reward) are product decisions that nobody has made yet. I name them so the edge
+of the prototype is visible, not because they were asked for. The full list is in "What is real,
+what is simulated, what is not built".
+
+The prototype is wider than the task asked; the part I know best is the path of a coin.
 
 ## Run it
 
@@ -296,12 +307,19 @@ simulation is kinder than a real platform in these ways:
   alert; we do not move coins on our own.
 - A deposit is never reversed.
 
-**Not built:** a real casino platform; missions and other mechanics; a queue in front of the event
-intake; the real-time gateway; coin expiry; revoking a reward; deposit reversals; delivery of alerts
-to people; the run of the daily digest agent (its playbook is written: `docs/monitoring-playbook.md`);
-rate limiting; a secrets store (secrets are plain text in the database); schema migrations (the
-schema is applied as one idempotent file); password reset and token refresh for admins; replacing the
-wheel secret and the platform API key; a second lock for tenant isolation inside the database.
+**Outside the task, and not built.** None of this is in the task's workflow or failure cases; the
+list marks where the prototype ends.
+
+- *For production:* a second lock for tenant isolation inside the database; a secrets store
+  (secrets are plain text in the database); schema migrations (the schema is applied as one
+  idempotent file); a queue in front of the event intake; rate limiting; delivery of alerts to
+  people; the run of the daily digest agent (its playbook is written:
+  `docs/monitoring-playbook.md`); the real-time gateway.
+- *Product decisions nobody has made yet:* missions and other mechanics; coin expiry; revoking a
+  reward; deposit reversals.
+- *Back office conveniences:* password reset and token refresh for admins; replacing the wheel
+  secret and the platform API key; an API for new versions of grant and ops policies.
+- *A real casino platform:* the task asks for simulated ones.
 
 **Where it runs:** CI runs the tests and starts the whole compose stack on a GitHub-hosted Linux
 runner with the official images on every push. (Several runs today were red because of one test
