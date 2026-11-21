@@ -358,11 +358,17 @@ async function observed<T extends RewardOutcome | "not_found">(
     outcome: result === "not_found" ? "not_found" : result.kind,
     ms: ms(),
   });
-  await fact({
+  const seen = {
     call,
     outcome: result === "not_found" ? "not_found" : result.kind,
     ...(result !== "not_found" && result.kind === "refused" ? { reason: result.reason } : {}),
-  });
+  };
+  // The first look is kept; a look that saw the same as the last one adds no row.
+  const last = await deps.db.query(
+    "SELECT changes FROM audit_log WHERE action = 'platform_call' AND entity_id = $1 ORDER BY id DESC LIMIT 1",
+    [w.row.id],
+  );
+  if (JSON.stringify(last.rows[0]?.changes) !== JSON.stringify(seen)) await fact(seen);
   return result;
 }
 
@@ -403,7 +409,8 @@ async function submittingStep(deps: StoreDeps, w: Work, opts: StepOptions): Prom
           ),
         );
       }
-      return { retryInMs: PENDING_RETRY_MS };
+      // Not the 2 s loop forever: wait longer and longer, up to the backoff cap.
+      return { retryInMs: Math.max(PENDING_RETRY_MS, backoffMs(opts.attempts)) };
     }
     await confirm(deps, w.tenant.id, w.row.id, outcome, opts.actor, { rearm: false });
     return "again";
