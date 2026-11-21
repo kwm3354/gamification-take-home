@@ -25,36 +25,69 @@
   --r-field: 10px;
   --r-pill: 999px;
 
-  /* Light, for the back office */
-  --bg: #f4f5f3;
-  --surface: #ffffff;
-  --surface-2: #eceeea;
-  --line: #d9ddd6;
-  --text: #171a17;
-  --muted: #555d55;
-  --accent: #2b6b58;
-  --accent-ink: #ffffff;
-  --good: #1d6b3a;
-  --bad: #a3301f;
-  --warn: #8a5a00;
-  --focus: #1b5cd6;
+  /* The palette, defined once. Both pages map their own tokens onto these.
+     One cool neutral ramp, one accent per page (indigo for the back office, violet for the
+     player widget; the same family), and good / bad / warn. No gold. */
+  --n-0: #ffffff;
+  --n-50: #f6f7f9;
+  --n-100: #eceef2;
+  --n-200: #dcdfe6;
+  --n-400: #858b99;
+  --n-500: #575d6c;
+  --n-900: #171a21;
+  --nd-950: #0e1016;
+  --nd-900: #151821;
+  --nd-850: #1c202b;
+  --nd-800: #2a2f3d;
+  --nd-600: #5f6679;
+  --nd-400: #9aa1b2;
+  --nd-100: #e7e9ee;
+
+  --indigo-600: #3a4bd1;
+  --indigo-300: #9aa6ff;
+  --violet-300: #ab97ff;
+  --violet-950: #150b33;
+  --cyan-300: #6cc6e0;
+
+  --green-700: #1b7340;
+  --green-300: #66d394;
+  --red-700: #b42f26;
+  --red-300: #ff8c80;
+  --orange-700: #a04f00;
+  --orange-300: #f2a465;
+
+  /* Semantic, light scheme */
+  --bg: var(--n-50);
+  --surface: var(--n-0);
+  --surface-2: var(--n-100);
+  --line: var(--n-200);
+  --line-strong: var(--n-400);
+  --text: var(--n-900);
+  --muted: var(--n-500);
+  --accent: var(--indigo-600);
+  --accent-ink: var(--n-0);
+  --good: var(--green-700);
+  --bad: var(--red-700);
+  --warn: var(--orange-700);
+  --focus: var(--indigo-600);
   color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f1412;
-    --surface: #171e1b;
-    --surface-2: #202a26;
-    --line: #2f3c36;
-    --text: #e8ece8;
-    --muted: #9aa8a0;
-    --accent: #5fb89c;
-    --accent-ink: #07130e;
-    --good: #6fcf8f;
-    --bad: #ff8a78;
-    --warn: #e8b64c;
-    --focus: #8ab4ff;
+    --bg: var(--nd-950);
+    --surface: var(--nd-900);
+    --surface-2: var(--nd-850);
+    --line: var(--nd-800);
+    --line-strong: var(--nd-600);
+    --text: var(--nd-100);
+    --muted: var(--nd-400);
+    --accent: var(--indigo-300);
+    --accent-ink: var(--nd-950);
+    --good: var(--green-300);
+    --bad: var(--red-300);
+    --warn: var(--orange-300);
+    --focus: var(--indigo-300);
   }
 }
 
@@ -185,7 +218,7 @@ a {
 .btn-secondary {
   background: transparent;
   color: var(--text);
-  border-color: var(--line);
+  border-color: var(--line-strong);
 }
 
 .btn-secondary[aria-pressed="true"] {
@@ -220,7 +253,7 @@ a {
 select {
   min-height: 40px;
   padding: var(--sp-2) var(--sp-3);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--r-field);
   background: var(--surface);
   color: var(--text);

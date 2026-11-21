@@ -3,32 +3,35 @@
    Each casino has one restrained accent. */
 html[data-route="play"],
 html[data-route="play"] body {
-  background: #0d1312;
+  background: var(--nd-950);
 }
 
+/* Always dark. Neutrals come from the shared ramp in base.css; each casino brings one accent.
+   Alpha is violet, Beta is cyan. The wheel's rim is steel, not metal-gold. */
 .game {
-  --bg: #0d1312;
-  --site-bar: #131b19;
-  --surface: #161f1c;
-  --surface-2: #1e2a26;
-  --line: #2b3a35;
-  --text: #e9e7df;
-  --muted: #9bada5;
-  --accent: #c7a24e;
-  --accent-ink: #1b1403;
-  --focus: #f0d58a;
-  --good: #7fd49a;
-  --bad: #ff9a88;
-  --rim-a: #2c2410;
-  --rim-b: #a9894a;
-  --rim-inner: #0e1714;
-  --bulb: #e8d29a;
-  --seg-0: #1d5446;
-  --seg-1: #8a6420;
-  --seg-2: #2a4666;
-  --seg-3: #7a3a49;
-  --seg-4: #2c6a58;
-  --seg-5: #5f4c25;
+  --bg: var(--nd-950);
+  --site-bar: var(--nd-900);
+  --surface: var(--nd-900);
+  --surface-2: var(--nd-850);
+  --line: var(--nd-800);
+  --text: var(--nd-100);
+  --muted: var(--nd-400);
+  --accent: var(--violet-300);
+  --accent-ink: var(--violet-950);
+  --focus: var(--nd-100);
+  --good: var(--green-300);
+  --bad: var(--red-300);
+  --warn: var(--orange-300);
+  --rim-a: #1b1e2a;
+  --rim-b: #6d7290;
+  --rim-inner: #0b0d13;
+  --bulb: #ece8ff;
+  --seg-0: #44378c;
+  --seg-1: #1d6173;
+  --seg-2: #2c4c8f;
+  --seg-3: #6e2f68;
+  --seg-4: #256a5c;
+  --seg-5: #4a437f;
   --fs-md: 0.9375rem;
   --fs-lg: 1.0625rem;
   --fs-xl: 1.375rem;
@@ -40,30 +43,16 @@ html[data-route="play"] body {
 }
 
 .game[data-brand="beta"] {
-  --bg: #0b121c;
-  --site-bar: #101a29;
-  --surface: #131e30;
-  --surface-2: #1a2a42;
-  --line: #29405f;
-  --text: #e8eef7;
-  --muted: #98acc6;
-  --accent: #4fb0d0;
+  --accent: var(--cyan-300);
   --accent-ink: #03141c;
-  --focus: #a9e4f7;
-  --rim-a: #0f2433;
-  --rim-b: #5d9db8;
-  --rim-inner: #0a1624;
-  --bulb: #b6e3f2;
+  --rim-b: #5d8fa8;
+  --bulb: #d4f1fa;
   --seg-0: #175a74;
   --seg-1: #33538f;
   --seg-2: #217476;
   --seg-3: #574a8a;
   --seg-4: #1c4a7d;
   --seg-5: #2b6c88;
-}
-
-html[data-route="play"] body {
-  background: #0d1312;
 }
 
 /* The line of demo scaffolding above the casino. It is not part of the casino or of our widget. */
@@ -73,7 +62,7 @@ html[data-route="play"] body {
   align-items: flex-start;
   gap: var(--sp-3);
   padding: var(--sp-1) var(--sp-4);
-  background: #000;
+  background: var(--bg);
   border-bottom: 1px solid var(--line);
   font-size: var(--fs-xs);
   color: var(--muted);
@@ -140,7 +129,7 @@ html[data-route="play"] body {
   gap: var(--sp-2) var(--sp-5);
   padding: var(--sp-3) var(--sp-4);
   background: var(--site-bar);
-  border-bottom: 2px solid var(--accent);
+  border-bottom: 1px solid var(--line);
 }
 
 .site-name {
@@ -149,8 +138,8 @@ html[data-route="play"] body {
   gap: var(--sp-2);
   font-weight: 800;
   font-size: var(--fs-lg);
-  letter-spacing: 0.02em;
-  color: var(--accent);
+  letter-spacing: 0.01em;
+  color: var(--text);
 }
 
 .site-mark {
@@ -263,7 +252,7 @@ html[data-route="play"] body {
   gap: var(--sp-2);
   padding: var(--sp-1) var(--sp-3);
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--surface-2);
 }
 
@@ -273,7 +262,7 @@ html[data-route="play"] body {
 }
 
 .chip-value {
-  font-size: var(--fs-lg);
+  font-size: var(--fs-xl);
   font-weight: 750;
   font-variant-numeric: tabular-nums;
   color: var(--accent);
@@ -390,7 +379,7 @@ html[data-route="play"] body {
 }
 
 .slice-label {
-  fill: #fff8e8;
+  fill: #ffffff;
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 14px;
@@ -473,7 +462,7 @@ html[data-route="play"] body {
   border-radius: 50%;
   background: radial-gradient(
     circle at 35% 30%,
-    #fff3c4,
+    #ffffff,
     var(--accent) 60%,
     color-mix(in srgb, var(--accent) 50%, #000)
   );
@@ -605,7 +594,7 @@ html[data-route="play"] body {
 }
 
 .reward.is-affordable {
-  border-color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
 }
 
 .reward-top {
@@ -660,8 +649,23 @@ html[data-route="play"] body {
   width: 100%;
 }
 
-.reward.is-best .btn-primary {
-  animation: none;
+.reward .btn-primary {
+  background: transparent;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.reward .btn-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.game .btn-secondary:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+.game .btn-primary:hover:not(:disabled),
+.site-deposit:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 86%, #fff);
 }
 
 .reward-status {
@@ -747,7 +751,7 @@ html[data-route="play"] body {
   top: 3px;
   width: 4px;
   height: 8px;
-  border: solid #07130e;
+  border: solid var(--nd-950);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
@@ -769,7 +773,7 @@ html[data-route="play"] body {
   transform: none;
   display: grid;
   place-items: center;
-  color: #2a0a04;
+  color: var(--nd-950);
   font-weight: 900;
   font-size: 13px;
 }
