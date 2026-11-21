@@ -27,8 +27,8 @@ Then open three pages in a browser:
   redemptions (with the manual resolution of a stuck one), players, events, spins, settings (with a
   proposal for a new wheel), waiting changes for the platform admin, outbox and audit. The player page
   and the back office are one app with two routes and share no state.
-- http://localhost:30081/ is the casino control panel. It plays the casino, can inject faults, runs
-  many players and shows a verdict.
+- http://localhost:30081/ is the casino control panel. It makes the casino misbehave (ten scenarios in plain
+  words), shows what the casino really issued and checks that no bonus was issued twice and no coins were lost.
 
 Demo users of the back office (the demo seed creates them; the sign-in page also lists them):
 

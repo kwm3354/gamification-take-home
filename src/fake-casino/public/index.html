@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gamification playground</title>
+<title>Fake casino: control panel</title>
 <style>
 :root {
   --bg: #f6f7f9; --panel: #ffffff; --ink: #1c2330; --muted: #5d6778; --line: #d9dde5;
@@ -18,445 +18,176 @@
   }
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-main { max-width: 1180px; margin: 0 auto; padding: 16px; }
-h1 { font-size: 20px; margin: 0 0 4px; }
-h2 { font-size: 15px; margin: 0 0 10px; }
-h2 .n { display: inline-block; min-width: 22px; color: var(--muted); }
-section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; margin: 12px 0; }
-p { margin: 4px 0 8px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 22px; margin: 0 0 8px; }
+h2 { font-size: 17px; margin: 0 0 4px; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; margin: 14px 0; }
+p { margin: 4px 0 10px; }
 .muted { color: var(--muted); }
-.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
-.step { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 6px 12px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
-.step:first-of-type { border-top: 0; }
-button, select, input { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 5px 9px; }
-input[type="range"] { padding: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+button, select, input { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; }
+input[type="number"] { width: 64px; }
 button { cursor: pointer; background: var(--code); }
 button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 button:disabled { opacity: .45; cursor: not-allowed; }
-button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-label { color: var(--muted); }
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+a { color: var(--accent); }
+.scenario { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 300px); gap: 8px 20px; padding: 10px 0; border-top: 1px solid var(--line); }
+.scenario h3 { font-size: 14px; margin: 0 0 2px; }
+.scenario p { margin: 2px 0; }
+.scenario .label { color: var(--muted); }
+.scenario .note { color: var(--warn); }
+.state { font-weight: 600; }
+.state.on { color: var(--warn); }
+.group { margin: 14px 0 0; font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.tablewrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; }
-th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-th { color: var(--muted); font-weight: 600; font-size: 12px; }
-code, pre { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-pre { background: var(--code); padding: 8px; border-radius: 4px; overflow: auto; max-height: 280px; margin: 4px 0; white-space: pre-wrap; word-break: break-all; }
-.tag { display: inline-block; padding: 0 7px; border-radius: 9px; font-size: 12px; border: 1px solid var(--line); }
-.tag.ok { color: var(--ok); background: var(--ok-bg); border-color: transparent; }
-.tag.bad { color: var(--bad); background: var(--bad-bg); border-color: transparent; }
-.tag.warn { color: var(--warn); background: var(--warn-bg); border-color: transparent; }
-.result { margin-top: 8px; padding: 6px 10px; background: var(--code); border-radius: 4px; min-height: 30px; white-space: pre-wrap; }
-.verdict-line { display: flex; gap: 10px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--line); }
-.verdict-line .ids { color: var(--muted); font-size: 12px; word-break: break-all; }
-.log-entry { border-bottom: 1px solid var(--line); padding: 3px 0; }
-.log-entry summary { cursor: pointer; display: grid; grid-template-columns: 70px 190px 52px 1fr 60px; gap: 8px; align-items: baseline; }
-.log-entry summary .path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.s2 { color: var(--ok); } .s4, .s5, .s0 { color: var(--bad); }
-.timeline { list-style: none; margin: 6px 0; padding: 0 0 0 14px; border-left: 2px solid var(--line); }
-.timeline li { margin: 6px 0; }
-progress { width: 220px; }
-@media (max-width: 760px) { .step { grid-template-columns: 1fr; } .log-entry summary { grid-template-columns: 60px 1fr 50px; } .log-entry summary .who, .log-entry summary .method { display: none; } }
+th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; white-space: nowrap; }
+td.break { word-break: break-all; }
+code { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.tag { display: inline-block; padding: 0 8px; border-radius: 9px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.tag.ok { color: var(--ok); background: var(--ok-bg); }
+.tag.bad { color: var(--bad); background: var(--bad-bg); }
+.tag.warn { color: var(--warn); background: var(--warn-bg); }
+.check { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.check .ids { color: var(--muted); font-size: 12px; word-break: break-all; }
+.result { margin: 8px 0; padding: 6px 10px; background: var(--code); border-radius: 4px; }
+@media (max-width: 760px) {
+  main { padding: 10px; }
+  .scenario { grid-template-columns: minmax(0, 1fr); }
+}
 </style>
 </head>
 <body>
 <main>
-<h1>Gamification playground</h1>
-<p class="muted">This page plays the casino and the player. It calls our API and the fake casino's control API from your browser. Every call is in the request log at the bottom.</p>
+<h1>Fake casino: control panel</h1>
+<p>This page stands in for the two casino platforms. It lets you make the casino misbehave, and then check that no bonus was issued twice and no coins were lost. Play as a player on the <a id="playLink" href="#">player page</a>. The <a id="adminLink" href="#">back office</a> shows what our system recorded.</p>
 
-<section id="s-context" aria-labelledby="h-context">
-  <h2 id="h-context"><span class="n">1</span>Context</h2>
-  <div class="row">
-    <label for="tenant">Tenant</label>
-    <select id="tenant"></select>
-    <label for="player">Player id</label>
-    <input id="player" size="22" autocomplete="off" spellcheck="false">
-    <button id="newPlayer" type="button">New random player</button>
-  </div>
-  <p id="platformNote" class="muted"></p>
-  <p class="muted">Platform B has no idempotency key, so after an unclear answer we must look before we repeat. Platform A has one.</p>
+<section>
+<h2>1. Make the casino misbehave</h2>
+<p class="muted">Pick a scenario and switch it on. The next requests of that kind will go wrong. Then redeem a bonus on the player page and watch what happens.</p>
+<div class="row">
+  <button id="clearAll" type="button">Switch everything off</button>
+  <span id="clearInfo" class="muted"></span>
+</div>
+<div id="scenarios"></div>
+<div class="group">Platform B result messages</div>
+<p>Platform B does not answer at once. It sends its result later as a separate message. A timer sends these results about one second after each bonus. If you delayed a result, press the button to send it now.</p>
+<div class="row">
+  <button id="deliver" type="button">Deliver platform B's results now</button>
+  <span id="deliverInfo" class="muted"></span>
+</div>
 </section>
 
-<section id="s-player" aria-labelledby="h-player">
-  <h2 id="h-player"><span class="n">2</span>Player</h2>
-  <div class="row"><button id="refresh" type="button">Refresh</button><span id="meLine" class="muted"></span></div>
-  <div class="row"><strong>Balance</strong> available <code id="balAvail">-</code> reserved <code id="balRes">-</code> coins</div>
-  <div class="row"><strong>Spins</strong> <span id="spinsLine" class="muted">-</span></div>
-  <table id="spinsTable"><thead><tr><th>Spin id</th><th>Status</th><th>Prize</th></tr></thead><tbody></tbody></table>
-  <p><strong>Redemptions made in this session</strong></p>
-  <table id="redTable"><thead><tr><th>Id</th><th>Item</th><th>Cost</th><th>Status</th><th>Reason</th></tr></thead><tbody></tbody></table>
+<section>
+<h2>2. What the casino really issued</h2>
+<p>This is the casino's own record. It is the truth the check below compares against.</p>
+<div class="row">
+  <button id="refresh" type="button">Refresh</button>
+  <span id="refreshInfo" class="muted"></span>
+</div>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Time</th><th>Casino</th><th>Player at the casino</th><th>Bonus</th><th>Reference (the key that must not repeat)</th><th>Times requested</th></tr></thead>
+  <tbody id="grants"></tbody>
+</table>
+</div>
+<p id="grantsEmpty" class="muted">The casino has issued no bonus yet.</p>
 </section>
 
-<section id="s-steps" aria-labelledby="h-steps">
-  <h2 id="h-steps"><span class="n">3</span>Steps</h2>
-  <div class="step"><div><button id="bDeposit" type="button" class="primary">Deposit 20.00</button></div><div class="muted">The casino sends a signed deposit event to us. The player gets one spin.</div></div>
-  <div class="step"><div><button id="bDepositAgain" type="button">Send the same deposit again</button></div><div class="muted">Same event id as the last deposit. We must answer as a duplicate and give no second spin.</div></div>
-  <div class="step"><div><button id="bDepositBad" type="button">Deposit with a bad signature</button></div><div class="muted">The signature is wrong. We must answer 401 and change nothing.</div></div>
-  <div class="step"><div><button id="bSpin" type="button" class="primary">Spin</button></div><div class="muted">Uses the oldest available spin. The prize goes to the coin ledger.</div></div>
-  <div class="step"><div><button id="bSpinTwice" type="button">Spin twice at once</button></div><div class="muted">Two parallel requests for one spin. Both answers must be the same, and the prize is paid once.</div></div>
-  <div class="step"><div><strong>Store</strong></div><div><table id="itemsTable"><thead><tr><th>Item</th><th>Price</th><th></th></tr></thead><tbody></tbody></table></div></div>
-  <div class="step"><div><button id="bRedeemAgain" type="button">Redeem the same request again</button></div><div class="muted">Same Idempotency-Key as the last redemption. We must return the same redemption and charge nothing new.</div></div>
-  <div class="step"><div><button id="bRedeemTwice" type="button">Redeem twice at once</button></div><div class="muted">Two parallel requests with one Idempotency-Key for the cheapest item you can afford. One redemption must come out.</div></div>
-  <div class="step" id="deliverStep"><div><button id="bDeliver" type="button">Deliver platform B's answers now</button></div><div class="muted">Platform B reports results by webhook. A timer does this every second; this button does it now.</div></div>
-  <div id="stepResult" class="result" role="status" aria-live="polite">Nothing done yet.</div>
-</section>
-
-<section id="s-faults" aria-labelledby="h-faults">
-  <h2 id="h-faults"><span class="n">4</span>Faults</h2>
-  <p class="muted">Arm a fault for the next calls at a point of the tenant's platform. <code>lost_answer</code>: the casino does the work, we never get the answer.</p>
-  <table id="faultTable"><thead><tr><th>Call point</th><th>Fault</th><th>Times</th><th></th></tr></thead><tbody></tbody></table>
-  <div class="row"><button id="clearFaults" type="button">Clear all</button><button id="reloadFaults" type="button">Reload</button></div>
-  <p><strong>Armed now</strong></p>
-  <pre id="armed">-</pre>
-</section>
-
-<section id="s-run" aria-labelledby="h-run">
-  <h2 id="h-run"><span class="n">5</span>Run many players</h2>
-  <p class="muted">Each player deposits, gets a token, spins every spin, and redeems the cheapest item if the balance allows. Faults are random (seeded) during the run and switched off when the run is done, so recovery can finish.</p>
-  <div class="row">
-    <label for="runN">Players</label><input id="runN" type="number" min="1" max="200" value="30" style="width:80px">
-    <label for="runDeposits">Deposits each</label><input id="runDeposits" type="number" min="1" max="5" value="3" style="width:60px">
-    <label for="runSeed">Seed</label><input id="runSeed" type="number" value="1" style="width:90px">
-    <label for="runRate">Fault rate</label><input id="runRate" type="range" min="0" max="40" value="20"><output id="runRateOut">20 %</output>
-    <button id="runGo" type="button" class="primary">Run</button>
-  </div>
-  <div class="row"><progress id="runProgress" max="100" value="0"></progress><span id="runStatus" class="muted">Not started.</span></div>
-  <pre id="runSummary">-</pre>
-</section>
-
-<section id="s-verdict" aria-labelledby="h-verdict">
-  <h2 id="h-verdict"><span class="n">6</span>Verdict</h2>
-  <p class="muted">The verdict trusts the casino's own record of rewards and the coin balances. It does not trust our redemption status on its own. It covers every player this page used in this session.</p>
-  <div class="row"><button id="verdictGo" type="button">Check the session's players</button><span id="verdictInfo" class="muted"></span></div>
-  <div id="verdictLines"></div>
-</section>
-
-<section id="s-ops" aria-labelledby="h-ops">
-  <h2 id="h-ops"><span class="n">7</span>Back office</h2>
-  <p class="muted">Alerts, stuck redemptions and the audit trail are in <a id="opsLink" href="#">the back office</a> (sign in there).</p>
-</section>
-
-<section id="s-log" aria-labelledby="h-log">
-  <h2 id="h-log"><span class="n">8</span>Request log</h2>
-  <div class="row"><button id="logClear" type="button">Clear log</button><span id="logCount" class="muted"></span></div>
-  <div id="logList"></div>
+<section>
+<h2>3. Check</h2>
+<p>The check compares the casino's record with what our system shows for every player the casino has met: the redemptions and the coin balance.</p>
+<div class="row">
+  <button id="check" type="button" class="primary">Check now</button>
+  <span id="checkInfo" class="muted"></span>
+</div>
+<div id="checks"></div>
 </section>
 </main>
-
 <script>
-'use strict';
 const $ = (id) => document.getElementById(id);
-const STATE = {
-  cfg: null, tenant: null, items: [], me: null, tokens: new Map(), players: new Map(),
-  lastEventId: null, lastRedeem: null, lastSpinId: null, lastRedemptionId: null, seenRequests: 0, log: [],
-  busy: false, armed: [],
-};
-const FINAL = ['issued', 'refused', 'insufficient'];
-const FAULTS = {
-  'a.grant': ['error_500', 'rate_limit', 'refuse', 'lost_request', 'lost_answer', 'slow_answer'],
-  'a.find': ['error_500', 'rate_limit', 'lost_request', 'slow_answer'],
-  'b.grant': ['error_500', 'rate_limit', 'refuse', 'lost_request', 'lost_answer', 'slow_answer'],
-  'b.find': ['error_500', 'rate_limit', 'lost_request', 'slow_answer'],
-  'b.callback': ['lost', 'twice', 'delay'],
-};
-const POINTS = { A: ['a.grant', 'a.find'], B: ['b.grant', 'b.find', 'b.callback'] };
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
 function h(tag, attrs, ...kids) {
-  const el = document.createElement(tag);
+  const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
-    if (k === 'class') el.className = v;
-    else if (k === 'text') el.textContent = v;
-    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
-    else if (v !== false && v !== null && v !== undefined) el.setAttribute(k, v === true ? '' : v);
+    if (k === 'text') e.textContent = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
   }
-  for (const kid of kids.flat()) {
-    if (kid === null || kid === undefined || kid === false) continue;
-    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
-  }
-  return el;
+  e.append(...kids);
+  return e;
 }
-const randId = (n) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');
-const uuid = () => crypto.randomUUID();
-const pretty = (v) => (typeof v === 'string' ? v : JSON.stringify(v, null, 2));
+const DELAY_MS = 5000;
 
-/* ---------- request log ---------- */
-let logTimer = null;
-function addLog(entry) {
-  STATE.log.unshift(entry);
-  if (STATE.log.length > 300) STATE.log.length = 300;
-  if (!logTimer) logTimer = setTimeout(() => { logTimer = null; renderLog(); }, 150);
-}
-function shq(s) { return "'" + String(s).replace(/'/g, "'\\''") + "'"; }
-function curlOf(method, url, headers, body) {
-  let c = 'curl -X ' + method + ' ' + shq(url);
-  for (const [k, v] of Object.entries(headers || {})) c += ' -H ' + shq(k + ': ' + v);
-  if (body !== undefined && body !== null) c += ' -d ' + shq(typeof body === 'string' ? body : JSON.stringify(body));
-  return c;
-}
-function renderLog() {
-  const list = $('logList');
-  list.replaceChildren();
-  for (const e of STATE.log) {
-    const cls = 's' + Math.floor((Number(e.status) || 0) / 100);
-    const d = h('details', { class: 'log-entry' },
-      h('summary', {},
-        h('span', { class: 'muted', text: e.time }),
-        h('span', { class: 'who', text: e.who }),
-        h('span', { class: 'method', text: e.method }),
-        h('span', { class: 'path', title: e.path, text: e.path }),
-        h('span', { class: cls, text: String(e.status) })));
-    d.addEventListener('toggle', () => {
-      if (!d.open || d.dataset.built) return;
-      d.dataset.built = '1';
-      d.append(h('div', { class: 'muted', text: 'Request' }), h('pre', { text: e.req === undefined ? '(no body)' : pretty(e.req) }),
-        h('div', { class: 'muted', text: 'Response' }), h('pre', { text: pretty(e.res) }));
-      if (e.curl) {
-        d.append(h('button', { type: 'button', onclick: async (ev) => {
-          try { await navigator.clipboard.writeText(e.curl); ev.target.textContent = 'Copied'; } catch { ev.target.textContent = 'Copy failed'; }
-        }, text: 'Copy as curl' }));
-      }
-    });
-    list.append(d);
-  }
-  $('logCount').textContent = STATE.log.length + ' entries, newest first (at most 300)';
-}
-function timeNow() { return new Date().toTimeString().slice(0, 8); }
+/* faults:start */
+// Each scenario is one fault of the control API. "kind" says where it applies:
+// grant = the call that asks for the bonus, find = the look-up call, callback = platform B's result message.
+const SCENARIOS = [
+  { id: 'lost_answer', group: 'The casino gets the request', kind: 'grant', fault: 'lost_answer', platforms: ['A', 'B'],
+    title: 'The casino issues the bonus, but its answer is lost',
+    does: 'The player gets the bonus in the casino. We never hear back.',
+    should: 'We ask the casino whether the bonus exists, find it, and mark the redemption issued. The player is charged once.' },
+  { id: 'lost_request', group: 'The casino gets the request', kind: 'grant', fault: 'lost_request', platforms: ['A', 'B'],
+    title: 'The casino does not receive the request',
+    does: 'The connection drops. The casino does nothing.',
+    should: 'We ask the casino, find no bonus, and send the request again. One bonus is issued.',
+    note: { B: 'Checked by a flow test on Alpha Casino only.' } },
+  { id: 'error_500', group: 'The casino gets the request', kind: 'grant', fault: 'error_500', platforms: ['A', 'B'],
+    title: 'The casino answers with an error',
+    does: 'The casino answers "internal error" and does nothing.',
+    should: 'We do not refuse the redemption. We wait, try again, and one bonus is issued.',
+    note: { B: 'Checked by a flow test on Alpha Casino only.' } },
+  { id: 'rate_limit', group: 'The casino gets the request', kind: 'grant', fault: 'rate_limit', platforms: ['A', 'B'],
+    title: 'The casino says: too many requests',
+    does: 'The casino answers "too many requests, wait 1 second" and does nothing.',
+    should: 'We wait as long as the casino asks, try again, and one bonus is issued.',
+    note: { B: 'Checked by a flow test on Alpha Casino only.' } },
+  { id: 'refuse', group: 'The casino gets the request', kind: 'grant', fault: 'refuse', platforms: ['A', 'B'],
+    title: 'The casino refuses the bonus',
+    does: 'Alpha Casino answers "refused". Beta Casino sends a "declined" result message.',
+    should: 'The redemption ends refused with the reason. The coins go back to the player in full. No bonus is issued.' },
+  { id: 'slow_answer', group: 'The casino gets the request', kind: 'grant', fault: 'slow_answer', platforms: ['A', 'B'],
+    title: 'The casino answers slowly',
+    does: 'The casino issues the bonus and answers after 5 seconds. That is later than our time limit.',
+    should: 'We stop waiting, ask the casino later, and find the bonus. One bonus is issued.',
+    note: { B: 'Checked by a flow test on Alpha Casino only.' } },
+  { id: 'find_error', group: 'Our look-up fails', kind: 'find', fault: 'error_500', platforms: ['A', 'B'],
+    title: 'The casino answers with an error when we look up a bonus',
+    does: 'Our "does this bonus exist?" question gets an internal error.',
+    should: 'We do not send the request again while we cannot look. Once a look-up works, we continue.',
+    note: { B: 'Checked by a flow test on Alpha Casino only.' } },
+  { id: 'cb_lost', group: 'Platform B result message', kind: 'callback', fault: 'lost', platforms: ['B'],
+    title: 'Platform B never sends the result',
+    does: 'Beta Casino issues the bonus but the result message is never sent.',
+    should: 'The redemption stays "submitting". Our regular look-up finds the bonus and finishes it. One bonus, charged once.' },
+  { id: 'cb_twice', group: 'Platform B result message', kind: 'callback', fault: 'twice', platforms: ['B'],
+    title: 'Platform B sends the result twice',
+    does: 'Beta Casino sends the same result message two times.',
+    should: 'The second message changes nothing. The player is charged once.' },
+  { id: 'cb_delay', group: 'Platform B result message', kind: 'callback', fault: 'delay', platforms: ['B'],
+    title: 'Platform B sends the result late',
+    does: 'Beta Casino holds the result back until the next delivery. Use the button below to send it.',
+    should: 'The redemption stays "submitting" until the result arrives or our look-up finds the bonus.' },
+];
 
-async function http(who, method, url, opts) {
-  const o = opts || {};
-  const headers = { ...(o.headers || {}) };
-  const init = { method, headers };
-  if (o.body !== undefined) { headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(o.body); }
-  let status = 0, text = '';
-  try {
-    const r = await fetch(url, init);
-    status = r.status;
-    text = await r.text();
-  } catch (e) { text = 'network error: ' + e.message; }
-  let body = text;
-  try { body = JSON.parse(text); } catch { /* keep text */ }
-  const u = new URL(url, location.href);
-  addLog({ time: timeNow(), who, method, path: u.pathname + u.search, status, req: o.body, res: body, curl: curlOf(method, url, headers, init.body) });
-  return { status, body };
-}
-const control = (method, path, body) => http('page -> fake casino control', method, path, { body });
-
-/* Calls the fake casino made to us, or we made to it, are known only from its state. */
-const POINT_PATH = {
-  'a.grant': ['POST', '/a/bonuses'], 'a.find': ['GET', '/a/bonuses?reference='],
-  'b.grant': ['POST', '/b/v2/rewards/grant'], 'b.find': ['GET', '/b/v2/rewards/requests?externalRef='],
-  'b.callback': ['POST', '/webhooks/<tenant>/rewards'],
-};
-async function syncCasino() {
-  const r = await fetch('/control/state').then((x) => x.json()).catch(() => null);
-  if (!r) return null;
-  if (r.requests.length < STATE.seenRequests) STATE.seenRequests = 0;
-  for (const q of r.requests.slice(STATE.seenRequests)) {
-    const [method, path] = POINT_PATH[q.point] || ['?', q.point];
-    addLog({ time: q.at.slice(11, 19), who: 'us -> casino', method, path: path + (q.reference || ''), status: q.fault ? 'fault: ' + q.fault : 'ok', req: { tenantId: q.tenantId, reference: q.reference }, res: q, curl: null });
-  }
-  STATE.seenRequests = r.requests.length;
-  return r;
+// The request the page sends to switch a scenario on. The test sends the same one.
+function armRequest(scenario, tenant, times) {
+  const platform = tenant.platform.toLowerCase();
+  const point = scenario.kind === 'callback' ? 'b.callback' : platform + '.' + scenario.kind;
+  const body = { point, fault: scenario.fault, times, tenantId: tenant.id };
+  if (scenario.fault === 'slow_answer') body.delayMs = 5000;
+  return body;
 }
 
-/* ---------- player calls ---------- */
-async function getToken(tenantId, playerId, fresh) {
-  const key = tenantId + '|' + playerId;
-  const hit = STATE.tokens.get(key);
-  if (hit && !fresh && hit.until > Date.now()) return hit.token;
-  const r = await control('POST', '/control/token', { tenantId, playerId });
-  if (r.status !== 200) throw new Error('could not get a token: ' + pretty(r.body));
-  STATE.tokens.set(key, { token: r.body.token, until: Date.now() + 9 * 60000 });
-  return r.body.token;
+// Which scenario an armed rule belongs to.
+function scenarioOf(rule) {
+  return SCENARIOS.find((s) => s.fault === rule.fault &&
+    (s.kind === 'callback' ? rule.point === 'b.callback' : rule.point.endsWith('.' + s.kind)));
 }
-async function pcall(tenantId, playerId, method, path, opts) {
-  const o = opts || {};
-  let r = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const token = await getToken(tenantId, playerId, attempt > 0);
-    r = await http('player -> us', method, STATE.cfg.appUrl + path, { headers: { Authorization: 'Bearer ' + token, ...(o.headers || {}) }, body: o.body });
-    if (r.status !== 401) return r;
-  }
-  return r;
-}
-function ctx() { return { t: $('tenant').value, p: $('player').value.trim() }; }
-function touchPlayer(t, p) {
-  const k = t + '|' + p;
-  if (!STATE.players.has(k)) STATE.players.set(k, { tenantId: t, playerId: p, redemptions: [] });
-  return STATE.players.get(k);
-}
+/* faults:end */
 
-/* ---------- rendering of sections 1 and 2 ---------- */
-function platformOf(id) { return STATE.cfg.tenants.find((t) => t.id === id); }
-function renderContext() {
-  const t = platformOf($('tenant').value);
-  $('platformNote').textContent = t.platform === 'A'
-    ? 'Platform A answers a reward request at once: issued or refused in the same call.'
-    : 'Platform B answers "accepted" and reports the result later by webhook. The redemption stays "submitting" until then.';
-  $('deliverStep').hidden = t.platform !== 'B';
-  renderFaultRows();
-}
-async function refreshPlayer() {
-  const { t, p } = ctx();
-  if (!p) return;
-  const me = await pcall(t, p, 'GET', '/me');
-  STATE.me = me.status === 200 ? me.body : null;
-  if (!STATE.items.length || STATE.itemsTenant !== t) {
-    const it = await pcall(t, p, 'GET', '/store/items');
-    STATE.items = it.status === 200 ? it.body : [];
-    STATE.itemsTenant = t;
-  }
-  const pl = STATE.players.get(t + '|' + p);
-  if (pl) {
-    for (const r of pl.redemptions) {
-      if (FINAL.includes(r.status) && r.checkedFinal) continue;
-      const got = await pcall(t, p, 'GET', '/store/redemptions/' + r.id);
-      if (got.status === 200) { r.status = got.body.status; r.reason = got.body.reason; r.costCoins = got.body.costCoins; r.checkedFinal = FINAL.includes(r.status); }
-    }
-  }
-  await syncCasino();
-  renderPlayer();
-}
-function renderPlayer() {
-  const me = STATE.me;
-  $('balAvail').textContent = me && me.balance ? me.balance.available : (me ? 'ledger not answering' : '-');
-  $('balRes').textContent = me && me.balance ? me.balance.reserved : '-';
-  const spins = me ? me.spins : [];
-  const avail = spins.filter((s) => s.status === 'available');
-  $('spinsLine').textContent = me ? avail.length + ' available, ' + (spins.length - avail.length) + ' used' : '-';
-  const tb = $('spinsTable').tBodies[0];
-  tb.replaceChildren(...spins.map((s) => h('tr', {}, h('td', {}, h('code', { text: s.id })), h('td', { text: s.status }), h('td', { text: s.status === 'available' ? '' : s.coins + ' coins' }))));
-  const { t, p } = ctx();
-  const pl = STATE.players.get(t + '|' + p);
-  $('redTable').tBodies[0].replaceChildren(...(pl ? pl.redemptions : []).map((r) => h('tr', {},
-    h('td', {}, h('code', { text: r.id })), h('td', { text: r.itemName }), h('td', { text: r.costCoins }),
-    h('td', {}, statusTag(r.status)), h('td', { text: r.reason || '' }))));
-  const items = $('itemsTable').tBodies[0];
-  const available = me && me.balance ? Number(me.balance.available) : 0;
-  items.replaceChildren(...STATE.items.map((it) => h('tr', {},
-    h('td', { text: it.name }), h('td', { text: it.costCoins + ' coins' }),
-    h('td', {}, h('button', { type: 'button', disabled: STATE.busy || available < Number(it.costCoins), title: available < Number(it.costCoins) ? 'Not enough coins' : '', onclick: () => redeem(it), text: 'Redeem' })))));
-  const noBusy = !STATE.busy;
-  $('bDeposit').disabled = !noBusy;
-  $('bDepositBad').disabled = !noBusy;
-  $('bDepositAgain').disabled = !noBusy || !STATE.lastEventId;
-  $('bSpin').disabled = !noBusy || !avail.length;
-  $('bSpinTwice').disabled = !noBusy || !avail.length;
-  $('bRedeemAgain').disabled = !noBusy || !STATE.lastRedeem;
-  $('bRedeemTwice').disabled = !noBusy || !cheapestAffordable();
-  $('bDeliver').disabled = !noBusy;
-}
-function statusTag(s) {
-  const cls = s === 'issued' ? 'ok' : s === 'refused' || s === 'insufficient' ? 'bad' : 'warn';
-  return h('span', { class: 'tag ' + cls, text: s });
-}
-function cheapestAffordable() {
-  const a = STATE.me && STATE.me.balance ? Number(STATE.me.balance.available) : 0;
-  return [...STATE.items].sort((x, y) => x.costCoins - y.costCoins).find((it) => Number(it.costCoins) <= a) || null;
-}
-function say(text) { $('stepResult').textContent = text; }
-
-/* A step: stops other steps while it runs, then refreshes the panels. */
-async function step(fn) {
-  if (STATE.busy) return;
-  STATE.busy = true;
-  renderPlayer();
-  try { await fn(); } catch (e) { say('Error: ' + e.message); }
-  STATE.busy = false;
-  try { await refreshPlayer(); } catch (e) { say($('stepResult').textContent + '\nRefresh failed: ' + e.message); }
-}
-
-/* ---------- section 3 ---------- */
-async function sendDeposit(extra, label) {
-  const { t, p } = ctx();
-  const tenant = platformOf(t);
-  touchPlayer(t, p);
-  const r = await control('POST', '/control/deposit', { tenantId: t, platform: tenant.platform, playerId: p, amount: '20.00', ...extra });
-  if (r.status !== 200) { say(label + ': the fake casino refused the request: ' + pretty(r.body)); return null; }
-  for (const s of r.body.sent) {
-    addLog({ time: timeNow(), who: 'casino -> us', method: 'POST', path: '/webhooks/' + t + '/events', status: s.status, req: '(built and signed by the fake casino, event ' + r.body.eventId + ')', res: s.body, curl: null });
-  }
-  return r.body;
-}
-function describe(sent) { return sent.map((s) => 'HTTP ' + s.status + ' ' + JSON.stringify(s.body)).join('\n'); }
-async function doDeposit() {
-  const b = await sendDeposit({}, 'Deposit');
-  if (!b) return;
-  STATE.lastEventId = b.eventId;
-  say('Deposit event ' + b.eventId + ' sent.\n' + describe(b.sent));
-}
-async function doDepositAgain() {
-  const b = await sendDeposit({ eventId: STATE.lastEventId }, 'Repeat');
-  if (b) say('Same event ' + b.eventId + ' sent again.\n' + describe(b.sent) + '\nExpected: "duplicates": 1 and no new spin.');
-}
-async function doDepositBad() {
-  const b = await sendDeposit({ tamper: 'signature' }, 'Bad signature');
-  if (b) say('Event with a wrong signature sent.\n' + describe(b.sent) + '\nExpected: 401 and no new spin.');
-}
-async function doSpin(times) {
-  const { t, p } = ctx();
-  const spin = (STATE.me ? STATE.me.spins : []).find((s) => s.status === 'available');
-  if (!spin) { say('No spin available.'); return; }
-  STATE.lastSpinId = spin.id;
-  const path = '/wheel/spins/' + spin.id + '/spin';
-  const rs = await Promise.all(Array.from({ length: times }, () => pcall(t, p, 'POST', path)));
-  const texts = rs.map((r) => 'HTTP ' + r.status + ' ' + JSON.stringify(r.body));
-  const same = rs.every((r) => JSON.stringify(r.body) === JSON.stringify(rs[0].body));
-  say('Spin ' + spin.id + '\n' + texts.join('\n') + (times > 1 ? '\n' + (same ? 'Both answers are the same.' : 'The answers differ. This is a bug.') : ''));
-}
-async function redeem(item, opts) {
-  const o = opts || {};
-  await step(async () => {
-    const { t, p } = ctx();
-    const pl = touchPlayer(t, p);
-    const key = o.key || uuid();
-    const n = o.times || 1;
-    STATE.lastRedeem = { key, item };
-    const rs = await Promise.all(Array.from({ length: n }, () => pcall(t, p, 'POST', '/store/redemptions', { headers: { 'Idempotency-Key': key }, body: { itemId: item.id } })));
-    for (const r of rs) {
-      if ((r.status === 200 || r.status === 201) && !pl.redemptions.some((x) => x.id === r.body.id)) {
-        pl.redemptions.push({ id: r.body.id, itemName: item.name, costCoins: r.body.costCoins, status: r.body.status, reason: r.body.reason });
-        STATE.lastRedemptionId = r.body.id;
-      }
-    }
-    const ids = new Set(rs.filter((r) => r.body && r.body.id).map((r) => r.body.id));
-    say('Redeem ' + item.name + ' with key ' + key + '\n' + rs.map((r) => 'HTTP ' + r.status + ' ' + JSON.stringify(r.body)).join('\n') +
-      (n > 1 ? '\n' + (ids.size === 1 ? 'One redemption came out.' : 'More than one redemption came out. This is a bug.') : ''));
-  });
-}
-async function doRedeemAgain() {
-  const last = STATE.lastRedeem;
-  await redeem(last.item, { key: last.key });
-}
-async function doRedeemTwice() {
-  const it = cheapestAffordable();
-  if (it) await redeem(it, { times: 2 });
-}
-async function doDeliver() {
-  const r = await control('POST', '/control/b/deliver');
-  say('HTTP ' + r.status + ' ' + JSON.stringify(r.body));
-}
-
-/* ---------- section 4 ---------- */
-function renderFaultRows() {
-  const platform = platformOf($('tenant').value).platform;
-  $('faultTable').tBodies[0].replaceChildren(...POINTS[platform].map((pt) => {
-    const sel = h('select', { 'aria-label': 'Fault at ' + pt }, FAULTS[pt].map((f) => h('option', { value: f, text: f })));
-    const times = h('input', { type: 'number', min: '1', value: '1', style: 'width:70px', 'aria-label': 'Times at ' + pt });
-    return h('tr', {}, h('td', {}, h('code', { text: pt })), h('td', {}, sel), h('td', {}, times),
-      h('td', {}, h('button', { type: 'button', onclick: async () => {
-        const r = await control('POST', '/control/faults', { point: pt, fault: sel.value, times: Number(times.value) || 1, tenantId: $('tenant').value });
-        say('Arm ' + pt + ' ' + sel.value + ' x' + times.value + ': HTTP ' + r.status);
-        await loadFaults();
-      }, text: 'Arm' })));
-  }));
-}
-async function loadFaults() {
-  const r = await fetch('/control/faults').then((x) => x.json()).catch(() => null);
-  $('armed').textContent = r && r.length ? r.map((f) => f.point + '  ' + f.fault + '  x' + f.times + (f.tenantId ? '  (' + f.tenantId + ')' : '')).join('\n') : 'Nothing armed.';
-}
-
-/* ---------- verdict ---------- */
 /* verdict:start */
 function judgeVerdict(input) {
   const grants = input.grants || [];
@@ -495,183 +226,197 @@ function judgeVerdict(input) {
     if (b.available !== p.creditedCoins - spent) mismatch.push(who + ' has ' + b.available + ', expected ' + (p.creditedCoins - spent));
   }
   const lines = [
-    { key: 'twice', label: 'Rewards issued twice', ids: twice },
-    { key: 'wrongPlayer', label: 'Rewards sent to the wrong player', ids: wrongPlayer },
-    { key: 'issuedNoGrant', label: 'Issued by us but not by the casino', ids: issuedNoGrant },
-    { key: 'refusedButGranted', label: 'Issued by the casino but refused by us', ids: refusedButGranted },
-    { key: 'negative', label: 'Balances below zero', ids: negative },
-    { key: 'mismatch', label: 'Coins that do not add up (settled players)', ids: mismatch },
+    { key: 'twice', label: 'No bonus was issued twice.', ids: twice },
+    { key: 'wrongPlayer', label: 'Every bonus went to the player who asked for it.', ids: wrongPlayer },
+    { key: 'issuedNoGrant', label: 'Every redemption we show as issued has a bonus in the casino’s record.', ids: issuedNoGrant },
+    { key: 'refusedButGranted', label: 'No redemption we show as refused, or as not enough coins, has a bonus in the casino’s record.', ids: refusedButGranted },
+    { key: 'negative', label: 'No player’s balance is below zero.', ids: negative },
+    { key: 'mismatch', label: 'For each player with no open redemption, coins won minus coins spent on issued bonuses equals the balance. Every issued bonus was paid for once.', ids: mismatch },
   ];
   return { ok: lines.every((l) => l.ids.length === 0), lines, notFinal, redemptions: known.size };
 }
 /* verdict:end */
 
+const STATE = { cfg: null, armed: [] };
+const tenantById = (id) => STATE.cfg.tenants.find((t) => t.id === id);
+const platformWord = (t) => t.name + ' (platform ' + t.platform + ')';
+
+async function getJson(url, init) {
+  const r = await fetch(url, init);
+  if (!r.ok) throw new Error(url + ' answered ' + r.status);
+  return r.json();
+}
+const post = (path, body) => getJson(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+
+/* ---------- section 1 ---------- */
+function armedFor(scenario) {
+  return STATE.armed.filter((r) => scenarioOf(r) === scenario);
+}
+function describeArmed(scenario) {
+  const rules = armedFor(scenario);
+  if (!rules.length) return 'Off';
+  return 'Armed: ' + rules.map((r) => r.times + ' left' + (r.tenantId ? ' (' + tenantById(r.tenantId)?.name + ')' : ' (all casinos)')).join(', ');
+}
+function renderStates() {
+  for (const s of SCENARIOS) {
+    const el = document.querySelector('[data-state="' + s.id + '"]');
+    if (!el) continue;
+    const text = describeArmed(s);
+    el.textContent = text;
+    el.className = 'state' + (text === 'Off' ? '' : ' on');
+  }
+}
+async function loadArmed() {
+  STATE.armed = await getJson('/control/faults');
+  renderStates();
+}
+function renderScenarios() {
+  const box = $('scenarios');
+  box.replaceChildren();
+  let group = null;
+  for (const s of SCENARIOS) {
+    if (s.group !== group) { group = s.group; box.append(h('div', { class: 'group', text: s.group })); }
+    const tenants = STATE.cfg.tenants.filter((t) => s.platforms.includes(t.platform));
+    const select = h('select', { 'aria-label': 'Casino for: ' + s.title }, ...tenants.map((t) => h('option', { value: t.id, text: platformWord(t) })));
+    const times = h('input', { type: 'number', min: '1', max: '100', value: '1', 'aria-label': 'Number of requests for: ' + s.title });
+    const note = h('p', { class: 'note' });
+    const chosen = () => tenantById(tenants.length > 1 ? select.value : tenants[0].id);
+    const update = () => { note.textContent = (s.note && s.note[chosen().platform]) || ''; };
+    select.addEventListener('change', update);
+    update();
+    const button = h('button', { type: 'button', text: 'Switch on' });
+    button.addEventListener('click', async () => {
+      const n = Math.max(1, Math.min(100, Math.floor(Number(times.value)) || 1));
+      button.disabled = true;
+      try {
+        await post('/control/faults', armRequest(s, chosen(), n));
+        await loadArmed();
+      } catch (e) { $('clearInfo').textContent = 'Could not switch it on: ' + e.message; }
+      button.disabled = false;
+    });
+    const left = h('div', {},
+      h('h3', { text: s.title }),
+      h('p', {}, h('span', { class: 'label', text: 'The casino: ' }), document.createTextNode(s.does)),
+      h('p', {}, h('span', { class: 'label', text: 'Our system: ' }), document.createTextNode(s.should)),
+      note);
+    const right = h('div', {},
+      h('div', { class: 'row' },
+        tenants.length > 1 ? select : h('span', { text: platformWord(tenants[0]) }),
+        h('label', { class: 'muted' }, document.createTextNode('next '), times, document.createTextNode(' requests')),
+        button),
+      h('div', { class: 'state', 'data-state': s.id, text: 'Off' }));
+    box.append(h('div', { class: 'scenario' }, left, right));
+  }
+  renderStates();
+}
+
+/* ---------- section 2 ---------- */
+const money = (g) => (g.amountMinor / 100).toFixed(2) + ' ' + g.currency;
+function renderGrants(state) {
+  const requested = new Map();
+  for (const q of state.requests) {
+    if (q.point !== 'a.grant' && q.point !== 'b.grant') continue;
+    const k = q.tenantId + '|' + q.reference;
+    requested.set(k, (requested.get(k) || 0) + 1);
+  }
+  const rows = [...state.grants].reverse().map((g) => {
+    const t = tenantById(g.tenantId);
+    return h('tr', {},
+      h('td', { text: g.at.slice(11, 19) }),
+      h('td', { text: t ? t.name : g.tenantId }),
+      h('td', { class: 'break', text: g.playerId }),
+      h('td', { text: money(g) + ' (' + g.platformRef + ')' }),
+      h('td', { class: 'break' }, h('code', { text: g.reference })),
+      h('td', { text: String(requested.get(g.tenantId + '|' + g.reference) || 0) }));
+  });
+  $('grants').replaceChildren(...rows);
+  $('grantsEmpty').hidden = rows.length > 0;
+  $('refreshInfo').textContent = state.grants.length + (state.grants.length === 1 ? ' bonus' : ' bonuses') + ' issued. Updated ' + new Date().toTimeString().slice(0, 8) + '.';
+}
+async function refreshGrants() {
+  try {
+    renderGrants(await getJson('/control/state'));
+  } catch (e) { $('refreshInfo').textContent = 'The fake casino did not answer: ' + e.message; }
+}
+
+/* ---------- section 3 ---------- */
 async function pool(items, size, fn) {
   let next = 0;
-  const workers = Array.from({ length: Math.min(size, items.length) }, async () => {
-    while (next < items.length) { const i = next++; await fn(items[i], i); }
-  });
-  await Promise.all(workers);
+  await Promise.all(Array.from({ length: Math.min(size, items.length) }, async () => {
+    while (next < items.length) { const i = next++; await fn(items[i]); }
+  }));
 }
-async function gatherPlayers() {
-  const players = [...STATE.players.values()].filter((p) => p.redemptions.length || true);
+async function gatherPlayers(met) {
+  const app = STATE.cfg.appUrl;
   const out = [];
-  await pool(players, 8, async (pl) => {
-    const me = await pcall(pl.tenantId, pl.playerId, 'GET', '/me');
-    const reds = [];
-    for (const r of pl.redemptions) {
-      const got = await pcall(pl.tenantId, pl.playerId, 'GET', '/store/redemptions/' + r.id);
-      if (got.status === 200) { r.status = got.body.status; r.reason = got.body.reason; r.costCoins = got.body.costCoins; reds.push({ id: r.id, status: got.body.status, costCoins: Number(got.body.costCoins) }); }
-      else reds.push({ id: r.id, status: 'unreadable', costCoins: Number(r.costCoins) });
+  await pool(met, 6, async (m) => {
+    const { token } = await post('/control/token', { tenantId: m.tenantId, playerId: m.playerId });
+    const auth = { headers: { Authorization: 'Bearer ' + token } };
+    const me = await fetch(app + '/me', auth);
+    const meBody = me.ok ? await me.json() : null;
+    const redemptions = [];
+    for (const ref of m.references) {
+      const r = await fetch(app + '/store/redemptions/' + encodeURIComponent(ref), auth);
+      if (r.status === 404) continue;
+      if (!r.ok) { redemptions.push({ id: ref, status: 'unreadable', costCoins: 0 }); continue; }
+      const b = await r.json();
+      redemptions.push({ id: ref, status: b.status, costCoins: Number(b.costCoins) });
     }
-    const ok = me.status === 200 && me.body.balance;
     out.push({
-      tenantId: pl.tenantId, playerId: pl.playerId, redemptions: reds,
-      balance: ok ? { available: Number(me.body.balance.available), reserved: Number(me.body.balance.reserved) } : null,
-      creditedCoins: me.status === 200 ? me.body.spins.filter((s) => s.status === 'used').reduce((a, s) => a + Number(s.coins || 0), 0) : 0,
+      tenantId: m.tenantId, playerId: m.playerId, redemptions,
+      balance: meBody && meBody.balance ? { available: Number(meBody.balance.available), reserved: Number(meBody.balance.reserved) } : null,
+      creditedCoins: meBody ? meBody.spins.filter((s) => s.status === 'used').reduce((a, s) => a + Number(s.coins || 0), 0) : 0,
     });
   });
   return out;
 }
-async function runVerdict() {
-  $('verdictInfo').textContent = 'Checking...';
-  const players = await gatherPlayers();
-  const state = await syncCasino();
-  if (!state) { $('verdictInfo').textContent = 'The fake casino did not answer.'; return null; }
-  const v = judgeVerdict({ grants: state.grants, players });
-  const box = $('verdictLines');
-  box.replaceChildren(...v.lines.map((l) => h('div', { class: 'verdict-line' },
-    h('span', { class: 'tag ' + (l.ids.length ? 'bad' : 'ok'), text: l.ids.length ? 'FAIL' : 'ok' }),
-    h('span', { text: l.label + ': ' + l.ids.length }),
-    h('span', { class: 'ids', text: l.ids.slice(0, 20).join(', ') + (l.ids.length > 20 ? ' ...' : '') }))));
-  box.append(h('div', { class: 'verdict-line' }, h('span', { class: 'tag ' + (v.notFinal ? 'warn' : 'ok'), text: v.notFinal ? 'open' : 'ok' }), h('span', { text: 'Redemptions not final yet: ' + v.notFinal + ' of ' + v.redemptions }), h('span', { class: 'ids', text: 'A visible state, not an error.' })));
-  $('verdictInfo').textContent = (v.ok ? 'All rules hold' : 'A rule is broken') + ' for ' + players.length + ' players, ' + v.redemptions + ' redemptions, ' + state.grants.length + ' grants at the casino.';
-  return v;
-}
-
-/* ---------- section 5 ---------- */
-function chaosRates(platform, rate) {
-  const r = rate / 100;
-  const grant = { lost_answer: 0.3 * r, lost_request: 0.2 * r, error_500: 0.2 * r, rate_limit: 0.15 * r, refuse: 0.15 * r };
-  const find = { error_500: 0.5 * r, rate_limit: 0.25 * r, lost_request: 0.25 * r };
-  return platform === 'A' ? { 'a.grant': grant, 'a.find': find } : { 'b.grant': grant, 'b.find': find, 'b.callback': { lost: 0.5 * r, twice: 0.5 * r } };
-}
-async function runMany() {
-  if (STATE.busy) return;
-  STATE.busy = true;
-  renderPlayer();
-  $('runGo').disabled = true;
-  const t = $('tenant').value;
-  const platform = platformOf(t).platform;
-  const n = Math.max(1, Math.min(200, Number($('runN').value) || 30));
-  const deposits = Math.max(1, Math.min(5, Number($('runDeposits').value) || 1));
-  const seed = Number($('runSeed').value) || 0;
-  const rate = Number($('runRate').value);
-  const runId = randId(4);
-  const ids = Array.from({ length: n }, (_, i) => 'run' + runId + '-' + (i + 1));
-  const summary = { tenant: t, players: n, depositsEach: deposits, seed, faultRate: rate + ' %' };
-  const prog = $('runProgress');
-  prog.max = n * 3; prog.value = 0;
-  const bump = () => { prog.value += 1; };
+async function runCheck() {
+  const button = $('check');
+  button.disabled = true;
+  $('checkInfo').textContent = 'Checking...';
   try {
-    $('runStatus').textContent = 'Switching faults on...';
-    await control('POST', '/control/chaos', { seed, rates: rate > 0 ? chaosRates(platform, rate) : {} });
-    $('runStatus').textContent = 'Players are depositing, spinning and redeeming...';
-    await pool(ids, 6, async (pid) => {
-      const pl = touchPlayer(t, pid);
-      for (let d = 0; d < deposits; d++) {
-        const r = await control('POST', '/control/deposit', { tenantId: t, platform, playerId: pid, amount: '20.00' });
-        for (const s of (r.body.sent || [])) addLog({ time: timeNow(), who: 'casino -> us', method: 'POST', path: '/webhooks/' + t + '/events', status: s.status, req: '(signed by the fake casino, event ' + r.body.eventId + ')', res: s.body, curl: null });
-      }
-      bump();
-      const me = await pcall(t, pid, 'GET', '/me');
-      for (const s of me.body.spins.filter((x) => x.status === 'available')) await pcall(t, pid, 'POST', '/wheel/spins/' + s.id + '/spin');
-      bump();
-      const after = await pcall(t, pid, 'GET', '/me');
-      const items = (await pcall(t, pid, 'GET', '/store/items')).body;
-      const cheapest = [...items].sort((a, b) => a.costCoins - b.costCoins)[0];
-      if (cheapest && after.body.balance && Number(after.body.balance.available) >= Number(cheapest.costCoins)) {
-        const r = await pcall(t, pid, 'POST', '/store/redemptions', { headers: { 'Idempotency-Key': uuid() }, body: { itemId: cheapest.id } });
-        if (r.status === 200 || r.status === 201) pl.redemptions.push({ id: r.body.id, itemName: cheapest.name, costCoins: r.body.costCoins, status: r.body.status, reason: r.body.reason });
-      }
-      bump();
-    });
-    await control('POST', '/control/chaos', { seed: null });
-    await syncCasino();
-    const mine = ids.map((id) => STATE.players.get(t + '|' + id)).filter((p) => p.redemptions.length);
-    const total = mine.reduce((a, p) => a + p.redemptions.length, 0);
-    summary.redemptionsMade = total;
-    $('runStatus').textContent = 'Faults are off. Waiting for ' + total + ' redemptions to finish...';
-    const started = Date.now();
-    let open = total;
-    while (Date.now() - started < 60000) {
-      if (platform === 'B') await control('POST', '/control/b/deliver');
-      open = 0;
-      await pool(mine, 8, async (pl) => {
-        for (const r of pl.redemptions) {
-          if (!FINAL.includes(r.status)) {
-            const got = await pcall(t, pl.playerId, 'GET', '/store/redemptions/' + r.id);
-            if (got.status === 200) { r.status = got.body.status; r.reason = got.body.reason; }
-          }
-        }
-        const me = await pcall(t, pl.playerId, 'GET', '/me');
-        const reserved = me.body.balance ? Number(me.body.balance.reserved) : 1;
-        if (pl.redemptions.some((r) => !FINAL.includes(r.status)) || reserved !== 0) open += 1;
-      });
-      $('runStatus').textContent = 'Waiting: ' + open + ' players not settled, ' + Math.round((Date.now() - started) / 1000) + ' s of 60 s.';
-      if (open === 0) break;
-      await sleep(1500);
-    }
-    const all = mine.flatMap((p) => p.redemptions);
-    summary.issued = all.filter((r) => r.status === 'issued').length;
-    summary.refused = all.filter((r) => r.status === 'refused').length;
-    summary.insufficient = all.filter((r) => r.status === 'insufficient').length;
-    summary.notFinalAfterWait = all.filter((r) => !FINAL.includes(r.status)).length;
-    summary.playersNotSettled = open;
-    summary.waitedSeconds = Math.round((Date.now() - started) / 1000);
-    $('runStatus').textContent = 'Done.';
+    const met = await getJson('/control/players');
+    const state = await getJson('/control/state');
+    const players = await gatherPlayers(met);
+    const v = judgeVerdict({ grants: state.grants, players });
+    const box = $('checks');
+    box.replaceChildren(...v.lines.map((l) => h('div', { class: 'check' },
+      h('span', {}, h('span', { class: 'tag ' + (l.ids.length ? 'bad' : 'ok'), text: l.ids.length ? 'Failed' : 'Passed' })),
+      h('div', {}, h('div', { text: l.label }), ...(l.ids.length ? [h('div', { class: 'ids', text: l.ids.slice(0, 20).join(', ') + (l.ids.length > 20 ? ' ...' : '') })] : [])))));
+    box.append(h('div', { class: 'check' },
+      h('span', {}, h('span', { class: 'tag ' + (v.notFinal ? 'warn' : 'ok'), text: v.notFinal ? 'Waiting' : 'Passed' })),
+      h('div', { text: v.notFinal ? v.notFinal + ' redemptions are still waiting for an answer. That is not a failure. Check again in a moment.' : 'No redemption is waiting for an answer.' })));
+    $('checkInfo').textContent = (v.ok ? 'All checks passed' : 'A check failed') + ' for ' + players.length + ' players, ' + v.redemptions + ' redemptions and ' + state.grants.length + ' bonuses in the casino’s record.';
   } catch (e) {
-    $('runStatus').textContent = 'Run failed: ' + e.message;
-    await control('POST', '/control/chaos', { seed: null }).catch(() => null);
+    $('checkInfo').textContent = 'The check could not run: ' + e.message + '. Is our app reachable at ' + STATE.cfg.appUrl + '?';
   }
-  prog.value = prog.max;
-  $('runSummary').textContent = JSON.stringify(summary, null, 2);
-  STATE.busy = false;
-  $('runGo').disabled = false;
-  const v = await runVerdict();
-  if (v) $('runSummary').textContent += '\n\nVerdict: ' + (v.ok ? 'all rules hold' : 'a rule is broken') + '\n' + v.lines.map((l) => l.label + ': ' + l.ids.length).join('\n') + '\nRedemptions not final yet: ' + v.notFinal;
-  await refreshPlayer().catch(() => null);
+  button.disabled = false;
 }
 
 /* ---------- start ---------- */
 async function init() {
-  const cfg = await fetch('/control/config').then((r) => r.json());
-  STATE.cfg = cfg;
-  $('tenant').replaceChildren(...cfg.tenants.map((t) => h('option', { value: t.id, text: t.name + ' (platform ' + t.platform + ')' })));
-  $('player').value = 'player-' + randId(5);
-  $('tenant').addEventListener('change', () => { STATE.items = []; STATE.lastEventId = null; STATE.lastRedeem = null; renderContext(); refreshPlayer(); });
-  $('player').addEventListener('change', () => { STATE.lastEventId = null; STATE.lastRedeem = null; refreshPlayer(); });
-  $('newPlayer').addEventListener('click', () => { $('player').value = 'player-' + randId(5); STATE.lastEventId = null; STATE.lastRedeem = null; refreshPlayer(); });
-  $('refresh').addEventListener('click', () => refreshPlayer());
-  $('bDeposit').addEventListener('click', () => step(doDeposit));
-  $('bDepositAgain').addEventListener('click', () => step(doDepositAgain));
-  $('bDepositBad').addEventListener('click', () => step(doDepositBad));
-  $('bSpin').addEventListener('click', () => step(() => doSpin(1)));
-  $('bSpinTwice').addEventListener('click', () => step(() => doSpin(2)));
-  $('bRedeemAgain').addEventListener('click', doRedeemAgain);
-  $('bRedeemTwice').addEventListener('click', doRedeemTwice);
-  $('bDeliver').addEventListener('click', () => step(doDeliver));
-  $('clearFaults').addEventListener('click', async () => { await control('POST', '/control/faults/clear'); say('All armed faults and random faults cleared.'); await loadFaults(); });
-  $('reloadFaults').addEventListener('click', loadFaults);
-  $('runRate').addEventListener('input', () => { $('runRateOut').textContent = $('runRate').value + ' %'; });
-  $('runGo').addEventListener('click', runMany);
-  $('verdictGo').addEventListener('click', runVerdict);
-  $('opsLink').href = cfg.appUrl + '/app/#/admin';
-  $('logClear').addEventListener('click', () => { STATE.log = []; renderLog(); });
-  renderContext();
-  await loadFaults();
-  await refreshPlayer().catch((e) => say('Could not reach our API at ' + cfg.appUrl + ': ' + e.message));
-  renderLog();
+  STATE.cfg = await getJson('/control/config');
+  $('playLink').href = STATE.cfg.appUrl + '/app/#/play';
+  $('adminLink').href = STATE.cfg.appUrl + '/app/#/admin';
+  renderScenarios();
+  $('clearAll').addEventListener('click', async () => {
+    try {
+      await post('/control/faults/clear');
+      $('clearInfo').textContent = 'Everything is off.';
+      await loadArmed();
+    } catch (e) { $('clearInfo').textContent = 'Could not switch off: ' + e.message; }
+  });
+  $('deliver').addEventListener('click', async () => {
+    try {
+      const r = await post('/control/b/deliver');
+      $('deliverInfo').textContent = r.delivered.length + ' results sent.';
+    } catch (e) { $('deliverInfo').textContent = 'Could not deliver: ' + e.message; }
+    await refreshGrants();
+  });
+  $('refresh').addEventListener('click', () => { refreshGrants(); loadArmed().catch(() => null); });
+  $('check').addEventListener('click', runCheck);
+  await Promise.all([loadArmed().catch(() => null), refreshGrants()]);
+  setInterval(() => { refreshGrants(); loadArmed().catch(() => null); }, 3000);
 }
 init().catch((e) => { document.body.prepend(h('p', { class: 'result', text: 'The page could not start: ' + e.message })); });
 </script>

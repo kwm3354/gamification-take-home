@@ -215,6 +215,7 @@ export async function startFakeCasino(options: FakeCasinoOptions = {}): Promise<
       if (typeof key !== "string" || key === "") throw new HttpError(400, "Idempotency-Key is required");
       const input = parseAGrant(body);
       if (typeof input === "string") throw new HttpError(400, input);
+      world.meet(tenant.id, input.playerId, input.reference);
       return withFault(res, tenant, "a.grant", input.reference, (refuse) =>
         aGrant(world, tenant, key, input, refuse),
       );
@@ -231,6 +232,7 @@ export async function startFakeCasino(options: FakeCasinoOptions = {}): Promise<
       const tenant = tenantForApi(req, "B");
       const input = parseBGrant(parseJson(await readBody(req)));
       if (typeof input === "string") throw new HttpError(400, input);
+      world.meet(tenant.id, input.customerId, input.externalRef);
       return withFault(res, tenant, "b.grant", input.externalRef, (refuse) =>
         bGrant(world, tenant, input, refuse),
       );
@@ -245,6 +247,9 @@ export async function startFakeCasino(options: FakeCasinoOptions = {}): Promise<
     // Control API
     if (method === "GET" && path === "/control/state")
       return send(res, { status: 200, body: world.snapshot() });
+    // Players the casino has met and the references they asked for. The control page's check reads it.
+    if (method === "GET" && path === "/control/players")
+      return send(res, { status: 200, body: world.playerList() });
     if (method === "GET" && path === "/control/faults")
       return send(res, { status: 200, body: faults.list() });
     if (method === "POST" && path === "/control/reset") {
@@ -314,6 +319,7 @@ export async function startFakeCasino(options: FakeCasinoOptions = {}): Promise<
       if (tamper === "stale" && tenant.platform !== "A")
         throw new HttpError(400, "stale applies to platform A only");
       const eventId = body.eventId === undefined ? newEventId() : str(body, "eventId");
+      world.meet(tenant.id, str(body, "playerId"));
       const { raw, headers } = buildDeposit({
         tenant,
         playerId: str(body, "playerId"),
@@ -341,6 +347,7 @@ export async function startFakeCasino(options: FakeCasinoOptions = {}): Promise<
       const tamper = body.tamper === undefined ? undefined : str(body, "tamper");
       if (tamper !== undefined && !["signature", "expired"].includes(tamper))
         throw new HttpError(400, "unknown tamper");
+      world.meet(tenant.id, str(body, "playerId"));
       const iat = Math.floor(now() / 1000);
       const claims = {
         iss: tenant.id,
