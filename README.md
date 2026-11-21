@@ -30,6 +30,25 @@ Then open three pages in a browser:
 - http://localhost:30081/ is the casino control panel. It plays the casino, can inject faults, runs
   many players and shows a verdict.
 
+Demo users of the back office (the demo seed creates them; the sign-in page also lists them):
+
+| Email | Password | Role | Tenant |
+|---|---|---|---|
+| `ops@demo.local` | `demo-ops-password-1` | platform admin | all, can approve waiting changes |
+| `manager@alpha.demo` | `demo-alpha-manager-1` | tenant admin | alpha-casino |
+| `viewer@alpha.demo` | `demo-alpha-viewer-1` | tenant viewer, read only | alpha-casino |
+| `manager@beta.demo` | `demo-beta-manager-1` | tenant admin | beta-casino |
+
+Five wrong passwords lock a user for 15 minutes. Sign in from the command line and use the token:
+
+```
+curl -s -X POST http://localhost:30080/admin/auth/login -H 'content-type: application/json' \
+  -d '{"email":"ops@demo.local","password":"demo-ops-password-1"}'
+curl -s http://localhost:30080/admin/alpha-casino/overview -H "authorization: Bearer $TOKEN"
+```
+
+The first call answers `{ token, expiresAt, user }`; the token lasts 30 minutes.
+
 Sample requests are in `docs/samples.md`.
 
 To look at the screens without the stack: `npm run web:build`, then `node web/dev/mock-server.mjs` and open

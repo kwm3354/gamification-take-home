@@ -38,7 +38,7 @@ agent proposed something and I accepted it, the text says so.
 
 Today: every table carries `tenant_id` and every query filters by it (`src/schema.sql`). The tenant
 of a request comes from a place the caller cannot forge: the path plus the tenant's own webhook
-signature, the player token's signature, or the tenant's admin key. Each tenant has its own
+signature, the player token's signature, or the signed admin token (its `tid` claim, checked against the path). Each tenant has its own
 TigerBeetle ledger (`tenants.ledger_no`), and TigerBeetle never moves coins between two ledgers.
 
 Decision: a ledger per tenant comes from the build contract, which the agent wrote from my decisions
@@ -177,17 +177,20 @@ writes is in the contract the agent wrote. No log row gives a reason for the ord
 Today: settings are rows, never edited. `wheel_configs`, `grant_policies` and `ops_policies` are
 versioned per tenant; a change is a new row with the next version, and a trigger forbids UPDATE and
 DELETE. The newest version applies to new work. A spin keeps the wheel and the policy it was granted
-under. The admin API (`src/admin/`) has the audit trail of one entity, the list of stuck
-redemptions, manual resolution and the alerts. It is guarded by the tenant's `admin_key`
-(`X-Admin-Key`, compared without timing leaks); `X-Admin-Name` names the actor.
+under. The admin API (`src/admin/`) has the read endpoints of the back office, the audit trail, the
+list of stuck redemptions, manual resolution, the alerts and the change of the wheel. It needs a sign-in:
+`POST /admin/auth/login` checks an scrypt password hash and answers a token we sign (HS256, 30
+minutes). Three roles (`tenant_viewer`, `tenant_admin`, `platform_admin`) are decided in one function,
+`can`. Five wrong passwords lock a user for 15 minutes. The actor in the audit trail is
+`admin/<user id>`, and the back office shows the user's email next to it.
 
 Decisions, mine (log, 12:00 and 12:01): a change of settings is an intent, like a redemption. The
 casino's representative creates it; a policy decides whether it is confirmed at once or waits for us;
 which policies apply to which casino only we decide. For a wheel change the policy looks at the
 expected prize of one spin: within the limit we set for that casino it is confirmed automatically,
-above it the change waits for us. Designed, not built: the settings-change intent and any API or
-screen to create a version. Today tests and the seed insert versions through the audited `create`.
-Not built: roles; one key per tenant opens every admin call.
+above it the change waits for us. Built: the intent for the wheel (`POST /admin/:tenant/settings/wheel`,
+approval by the platform admin) and the back office screen. Not built: the same for grant and ops policy
+versions; tests and the seed insert those through the audited `create`.
 
 ### Observability, auditability and security
 
@@ -342,8 +345,8 @@ against the official image and then starts the whole compose stack. Not proven: 
 macOS or Windows, and hosts with io_uring disabled. The development machine has no AVX2 and uses a
 local build (`scripts/tb-old-cpu.sh`).
 
-Not built: a real casino platform, the settings-change intent and an API to create settings versions,
-roles for admins, database-enforced tenant isolation, a queue in front of the intake, the real-time
+Not built: a real casino platform, an API to create grant and ops policy versions, a password
+change or reset and a token refresh for admins, database-enforced tenant isolation, a queue in front of the intake, the real-time
 gateway, missions and other mechanics, coin expiry, revoking a reward, deposit reversals, alert
 delivery, the digest agent run, rate limiting, a secrets store, migrations, load tests.
 

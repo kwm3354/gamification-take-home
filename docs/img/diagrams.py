@@ -112,7 +112,7 @@ def service():
 
     # Outside, left column.
     d.card(24, 86, 220, 82, "Player", ["the casino's page with our widget", "token signed by the operator"], AMBER, AMBER_BG)
-    d.card(24, 196, 220, 82, "Operator staff, our ops", ["admin API with the tenant's key", "header X-Admin-Key"], AMBER, AMBER_BG)
+    d.card(24, 196, 220, 82, "Operator staff, our ops", ["back office after sign-in", "token we sign, three roles"], AMBER, AMBER_BG)
 
     d.box(24, 316, 220, 300, AMBER_BG, AMBER, dash="6 4")
     d.text(36, 338, "Fake casino process", 13, 700, AMBER)
@@ -159,7 +159,7 @@ def service():
     d.arrow([(244, 150), (lx, 150)])
     d.label(292, 141, "HTTPS + JWT")
     d.arrow([(244, 262), (lx, 262)])
-    d.label(292, 253, "admin key")
+    d.label(284, 253, "sign-in token")
     # Fake casino <-> integrations row.
     yi = rows_y[3]
     d.arrow([(244, yi + 22), (lx, yi + 22)])
