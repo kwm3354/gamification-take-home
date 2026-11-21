@@ -10,7 +10,8 @@ export interface CoinLedger {
   creditPrize(input: { ledgerNo: number; playerId: string; spinId: string; coins: bigint }): Promise<void>;
 
   /**
-   * Reserves the price of a redemption (a pending transfer: player -> the tenant's "redeemed" account).
+   * Reserves the price of a redemption (a pending transfer: player -> the tenant's issuer account,
+   * so spent coins come back to where they came from).
    * "insufficient" is final for this redemption id: the ledger refuses a balance below zero by itself.
    */
   reserve(input: {
@@ -29,7 +30,11 @@ export interface CoinLedger {
   /** `available` can be spent now; `reserved` is held by redemptions that are not final yet. */
   balance(input: { ledgerNo: number; playerId: string }): Promise<{ available: bigint; reserved: bigint }>;
 
-  /** All coins the tenant has issued and players have not spent: the balance of ONE account. */
+  /**
+   * All coins the tenant has issued and players have not spent: the balance of ONE account, the
+   * issuer (posted debits minus posted credits). A pending reserve has not come back yet, so it
+   * does not lower this number until capture.
+   */
   outstanding(input: { ledgerNo: number }): Promise<bigint>;
 }
 

@@ -70,20 +70,22 @@ record(tx, ctx, fact: { action: string; entityType: string; entityId: string; ch
 Port: `src/domain/coin-ledger.ts`. Model:
 
 - TigerBeetle `ledger` = the tenant's `ledger_no`. Accounts of two tenants can never be in one transfer.
-- Per tenant: an `issuer` account (code 10) and a `redeemed` account (code 20). Per player: one
+- Per tenant: one `issuer` account (code 10; no balance flag, it issues coins). Per player: one
   account (code 1) with the flag `debits_must_not_exceed_credits`, so the ledger itself refuses a
   negative balance.
 - Account and transfer ids are the first 16 bytes of SHA-256 of a string, as a u128:
-  `acct:<ledgerNo>:issuer`, `acct:<ledgerNo>:redeemed`, `acct:<ledgerNo>:player:<playerId>`,
+  `acct:<ledgerNo>:issuer`, `acct:<ledgerNo>:player:<playerId>`,
   `xfer:prize:<spinId>`, `xfer:reserve:<redemptionId>`, `xfer:capture:<redemptionId>`,
   `xfer:release:<redemptionId>`.
-- Prize: issuer -> player, posted. Reserve: player -> redeemed, pending, no timeout. Capture posts
-  the pending transfer; release voids it.
+- Prize: issuer -> player, posted. Reserve: player -> issuer, pending, no timeout (spent coins
+  come back to where they came from). Capture posts the pending transfer; release voids it.
 - Accounts are created on first use; "exists" is success.
 - A repeated id with the same content is success. A reserve that failed for lack of coins stays
   failed for that redemption id (the ledger remembers the id), which is what we want.
 - `available = credits_posted - debits_posted - debits_pending`; `reserved = debits_pending`.
-- `outstanding` = issuer `debits_posted` minus redeemed `credits_posted`.
+- `outstanding` = issuer `debits_posted` minus issuer `credits_posted`: the balance of ONE account.
+  A pending reserve is not yet "come back", so it lowers the number only when captured. Total coins
+  ever redeemed is the issuer's `credits_posted`.
 - Every call has a time limit (env `LEDGER_TIMEOUT_MS`, default 2000) and throws `LedgerUnavailable` after it.
 
 ## Outbox

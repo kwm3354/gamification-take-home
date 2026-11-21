@@ -2,7 +2,7 @@ import { randomInt, randomUUID } from "node:crypto";
 import { type Client, createClient } from "tigerbeetle-node";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { LedgerUnavailable } from "../src/domain/coin-ledger.ts";
-import { LedgerConflict, TigerBeetleCoinLedger } from "../src/ledger/coin-ledger.tigerbeetle.ts";
+import { LedgerConflict, TigerBeetleCoinLedger, ledgerId } from "../src/ledger/coin-ledger.tigerbeetle.ts";
 import { startTigerBeetle } from "./tigerbeetle.ts";
 
 // Real TigerBeetle, no mocks. All test files may share one server, so every test uses its own
@@ -138,6 +138,31 @@ describe.skipIf(!tb)("coin ledger on TigerBeetle", () => {
     await ledger.reserve({ ledgerNo, playerId: b, redemptionId: released, coins: 30n });
     await ledger.release({ ledgerNo, redemptionId: released });
     expect(await ledger.outstanding({ ledgerNo })).toBe(110n);
+  });
+
+  test("outstanding is the net balance of the ONE issuer account; a pending reserve is not yet 'come back'", async () => {
+    const ledgerNo = newLedgerNo();
+    const [a, b, c] = [randomUUID(), randomUUID(), randomUUID()];
+    await ledger.creditPrize({ ledgerNo, playerId: a, spinId: randomUUID(), coins: 100n });
+    await ledger.creditPrize({ ledgerNo, playerId: b, spinId: randomUUID(), coins: 50n });
+    await ledger.creditPrize({ ledgerNo, playerId: c, spinId: randomUUID(), coins: 20n });
+    const captured = randomUUID();
+    await ledger.reserve({ ledgerNo, playerId: a, redemptionId: captured, coins: 40n });
+    await ledger.capture({ ledgerNo, redemptionId: captured });
+    const released = randomUUID();
+    await ledger.reserve({ ledgerNo, playerId: b, redemptionId: released, coins: 30n });
+    await ledger.release({ ledgerNo, redemptionId: released });
+    // A pending reserve is a promise, not a return: the coins have not come back to the issuer yet.
+    await ledger.reserve({ ledgerNo, playerId: c, redemptionId: randomUUID(), coins: 15n });
+
+    const [issuer] = await client.lookupAccounts([ledgerId(`acct:${ledgerNo}:issuer`)]);
+    expect(issuer?.debits_posted).toBe(170n); // all prizes
+    expect(issuer?.credits_posted).toBe(40n); // only the captured redemption
+    expect(issuer?.credits_pending).toBe(15n); // the open reserve
+    expect(await ledger.outstanding({ ledgerNo })).toBe(130n);
+    expect(await ledger.outstanding({ ledgerNo })).toBe(issuer!.debits_posted - issuer!.credits_posted);
+    // There is no second tenant account any more.
+    expect(await client.lookupAccounts([ledgerId(`acct:${ledgerNo}:redeemed`)])).toHaveLength(0);
   });
 
   test("outstanding of a tenant that never issued anything is 0", async () => {

@@ -17,7 +17,6 @@ export class LedgerConflict extends Error {}
 
 const CODE_PLAYER = 1;
 const CODE_ISSUER = 10;
-const CODE_REDEEMED = 20;
 const CODE_TRANSFER = 1;
 const U128_MAX = (1n << 128n) - 1n;
 
@@ -29,7 +28,6 @@ export function ledgerId(text: string): bigint {
 }
 
 const issuerId = (ledgerNo: number) => ledgerId(`acct:${ledgerNo}:issuer`);
-const redeemedId = (ledgerNo: number) => ledgerId(`acct:${ledgerNo}:redeemed`);
 const playerAccountId = (ledgerNo: number, playerId: string) =>
   ledgerId(`acct:${ledgerNo}:player:${playerId}`);
 
@@ -119,6 +117,11 @@ export class TigerBeetleCoinLedger implements CoinLedger {
     return result.status;
   }
 
+  /** No balance flag: the issuer creates coins, so its debits exceed its credits by design. */
+  private issuerAccount(ledgerNo: number): Account {
+    return account(issuerId(ledgerNo), ledgerNo, CODE_ISSUER, AccountFlags.none);
+  }
+
   private playerAccount(ledgerNo: number, playerId: string): Account {
     return account(
       playerAccountId(ledgerNo, playerId),
@@ -137,7 +140,7 @@ export class TigerBeetleCoinLedger implements CoinLedger {
     positive(input.coins);
     return this.limited("creditPrize", async () => {
       await this.ensureAccounts([
-        account(issuerId(input.ledgerNo), input.ledgerNo, CODE_ISSUER, AccountFlags.none),
+        this.issuerAccount(input.ledgerNo),
         this.playerAccount(input.ledgerNo, input.playerId),
       ]);
       const status = await this.one(
@@ -167,13 +170,13 @@ export class TigerBeetleCoinLedger implements CoinLedger {
     return this.limited("reserve", async () => {
       await this.ensureAccounts([
         this.playerAccount(input.ledgerNo, input.playerId),
-        account(redeemedId(input.ledgerNo), input.ledgerNo, CODE_REDEEMED, AccountFlags.none),
+        this.issuerAccount(input.ledgerNo),
       ]);
       const status = await this.one(
         transfer({
           id: ledgerId(`xfer:reserve:${input.redemptionId}`),
           debit_account_id: playerAccountId(input.ledgerNo, input.playerId),
-          credit_account_id: redeemedId(input.ledgerNo),
+          credit_account_id: issuerId(input.ledgerNo),
           amount: input.coins,
           ledger: input.ledgerNo,
           code: CODE_TRANSFER,
@@ -244,10 +247,9 @@ export class TigerBeetleCoinLedger implements CoinLedger {
 
   outstanding(input: { ledgerNo: number }): Promise<bigint> {
     return this.limited("outstanding", async () => {
-      const found = await this.client.lookupAccounts([issuerId(input.ledgerNo), redeemedId(input.ledgerNo)]);
-      const issuer = found.find((a) => a.id === issuerId(input.ledgerNo));
-      const redeemed = found.find((a) => a.id === redeemedId(input.ledgerNo));
-      return (issuer?.debits_posted ?? 0n) - (redeemed?.credits_posted ?? 0n);
+      // One account: what left the issuer minus what came back. Pending reserves do not count yet.
+      const [issuer] = await this.client.lookupAccounts([issuerId(input.ledgerNo)]);
+      return (issuer?.debits_posted ?? 0n) - (issuer?.credits_posted ?? 0n);
     });
   }
 }

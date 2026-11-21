@@ -124,14 +124,14 @@ day), missions, other mechanics.
 
 Today: the port `CoinLedger` (`src/domain/coin-ledger.ts`), implemented on TigerBeetle 0.17.9 in
 `src/ledger/coin-ledger.tigerbeetle.ts`. Double entry, one TigerBeetle ledger per tenant. Per tenant:
-an `issuer` account and a `redeemed` account. Per player: one account with the flag
+one `issuer` account. Per player: one account with the flag
 `debits_must_not_exceed_credits`, so the ledger itself refuses a negative balance, also under
 concurrent requests. Every account and transfer id is the first 16 bytes of SHA-256 of a string built
 from our own ids (`xfer:prize:<spinId>`, `xfer:reserve:<redemptionId>`, and so on), so a repeated
 call moves nothing. A prize is a posted transfer from issuer to player. A redemption reserves coins as
-a pending transfer from player to redeemed; capture posts it, release voids it. The coins all players
-of a tenant still hold come from two tenant accounts, not from a sum over players: what left `issuer`
-minus what reached `redeemed` (`outstanding`). Every call has a time limit (`LEDGER_TIMEOUT_MS`)
+a pending transfer from player back to `issuer`; capture posts it, release voids it. The coins all
+players of a tenant still hold are the balance of one account, not a sum over players: what left
+`issuer` minus what came back to it (`outstanding`). Every call has a time limit (`LEDGER_TIMEOUT_MS`)
 and throws `LedgerUnavailable` after it; the client call is not cancelled, which is safe because
 the retry uses the same id.
 
@@ -374,10 +374,8 @@ Found while writing this page, for the author to decide.
 7. Not in the contract: `GET /admin/:tenantId/redemptions/stuck` answers `{ limitSec: null, items: []
    }` for a tenant without an ops policy (`src/admin/admin.controller.ts:55`), and an `Idempotency-Key`
    longer than 200 characters is 400 (`src/store/store.controller.ts:37`).
-8. The port says `outstanding` is "the balance of ONE account" (`src/domain/coin-ledger.ts:32`); the
-   implementation reads two accounts, issuer debits minus redeemed credits
-   (`src/ledger/coin-ledger.tigerbeetle.ts:250`). Redeemed coins never return to `issuer`, so no single
-   account holds this number in the current model.
+8. Fixed in review: `outstanding` used to read two accounts (issuer and `redeemed`). Spent coins now
+   come back to `issuer`, so it is the net balance of that one account.
 
 Two observations that are not contract differences. The `spin_credit` job goes dead after 10 failed
 attempts when the ledger is away (`src/outbox/outbox.ts:26`), while a redemption turns
