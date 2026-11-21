@@ -9,8 +9,9 @@ default ports; long JSON from `jq` is printed on one line (`jq -c`).
 
 Addresses: our app is `http://localhost:30080`, the fake casino is `http://localhost:30081`. Ids,
 timestamps, signatures, request ids and trace ids differ on every run. Calls to `/control/...`
-belong to the fake casino, not to our API. The signatures in steps 2 and 5 were computed with
-`openssl` from the demo webhook secrets in `src/tenants/demo-tenants.ts`.
+belong to the fake casino, not to our API. Steps 2, 3 and 5 sign the request
+with `openssl` and the demo webhook secrets from `src/tenants/demo-tenants.ts`, so they can be
+copied as they are; platform A's signature covers the current time and is accepted for five minutes.
 
 ### 1. A signed deposit, platform A, sent by the fake casino
 
@@ -26,7 +27,10 @@ secret. Every answer carries `x-request-id` (the id in our log lines and audit r
 tracing on, `x-trace-id` (the trace in Jaeger).
 
 ```
-$ curl -s -i -X POST http://localhost:30080/webhooks/alpha-casino/events -H 'Content-Type: application/json' -H 'X-Alpha-Timestamp: 1795257208' -H 'X-Alpha-Signature: 25e81cdfa17edaba84c38d455e1f77aadc4090c73f85502bc3d9b3974e949da2' -d '{"event_id":"evt_sample_2","type":"deposit.succeeded","player_id":"sample-a","amount_minor":2000,"currency":"EUR","occurred_at":"2026-11-21T10:33:28Z"}'
+$ BODY='{"event_id":"evt_sample_2","type":"deposit.succeeded","player_id":"sample-a","amount_minor":2000,"currency":"EUR","occurred_at":"2026-11-21T10:33:28Z"}'
+$ TS=$(date +%s)
+$ SIG=$(printf '%s' "$TS.$BODY" | openssl dgst -sha256 -hmac 'demo-alpha-webhook-secret' -hex | sed 's/^.* //')
+$ curl -s -i -X POST http://localhost:30080/webhooks/alpha-casino/events -H 'Content-Type: application/json' -H "X-Alpha-Timestamp: $TS" -H "X-Alpha-Signature: $SIG" -d "$BODY"
 HTTP/1.1 200 OK
 X-Powered-By: Express
 Access-Control-Allow-Origin: *
@@ -45,7 +49,7 @@ Keep-Alive: timeout=5
 ### 3. A duplicate deposit (same event id again)
 
 ```
-$ curl -s -i -X POST http://localhost:30080/webhooks/alpha-casino/events -H 'Content-Type: application/json' -H 'X-Alpha-Timestamp: 1795257208' -H 'X-Alpha-Signature: 25e81cdfa17edaba84c38d455e1f77aadc4090c73f85502bc3d9b3974e949da2' -d '{"event_id":"evt_sample_2","type":"deposit.succeeded","player_id":"sample-a","amount_minor":2000,"currency":"EUR","occurred_at":"2026-11-21T10:33:28Z"}'
+$ curl -s -i -X POST http://localhost:30080/webhooks/alpha-casino/events -H 'Content-Type: application/json' -H "X-Alpha-Timestamp: $TS" -H "X-Alpha-Signature: $SIG" -d "$BODY"
 HTTP/1.1 200 OK
 X-Powered-By: Express
 Access-Control-Allow-Origin: *
@@ -73,7 +77,9 @@ $ curl -s -X POST http://localhost:30081/control/deposit -d '{"tenantId":"alpha-
 The signature is the base64 HMAC-SHA256 of the raw body.
 
 ```
-$ curl -s -i -X POST http://localhost:30080/webhooks/beta-casino/events -H 'Content-Type: application/json' -H 'X-Beta-Auth: xub6HDr9q/Xe8hWeEN2L4YxBAps/jk4QgQQzV+PsdNU=' -d '{"batchId":"batch-sample-1","transactions":[{"txnId":"T-sample-1","kind":"DEPOSIT","state":"COMPLETED","customer":{"id":"sample-b"},"amount":"20.00","currencyCode":"EUR","completedAt":1795257208}]}'
+$ BODY='{"batchId":"batch-sample-1","transactions":[{"txnId":"T-sample-1","kind":"DEPOSIT","state":"COMPLETED","customer":{"id":"sample-b"},"amount":"20.00","currencyCode":"EUR","completedAt":1795257208}]}'
+$ SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac 'demo-beta-webhook-secret' -binary | base64)
+$ curl -s -i -X POST http://localhost:30080/webhooks/beta-casino/events -H 'Content-Type: application/json' -H "X-Beta-Auth: $SIG" -d "$BODY"
 HTTP/1.1 200 OK
 X-Powered-By: Express
 Access-Control-Allow-Origin: *
@@ -132,6 +138,9 @@ $ curl -s http://localhost:30080/me -H "Authorization: Bearer $TOKEN"
 Setup, not shown: to have enough coins, the script sent 14 more deposits for sample-a through the
 fake casino and spun every spin until the balance was at least 600. It did the same for sample-b
 of beta-casino (3 more deposits).
+The prizes differ from run to run, so the number of deposits you need differs too: repeat step 1
+and step 9 until `GET /me` shows enough coins (a bonus costs 100 or 500), or use the player page,
+where a deposit and a spin are one click each.
 
 ### 11. The store
 
