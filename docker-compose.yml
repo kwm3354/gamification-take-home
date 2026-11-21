@@ -50,6 +50,11 @@ services:
       FAKE_CASINO_URL: http://fake-casino:4000
       # The fake casino's address as the browser sees it. The web app at /app/ uses it.
       PUBLIC_FAKE_CASINO_URL: http://localhost:${FAKE_PORT:-30081}
+      # Traces go to jaeger. If jaeger is down the app works the same. Remove the first line to turn tracing off.
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: gamification
+      # Share of requests that are traced, 0 to 1. Lower it for a load run.
+      OTEL_TRACES_SAMPLE_RATIO: ${OTEL_TRACES_SAMPLE_RATIO:-1}
     depends_on:
       postgres: { condition: service_healthy }
       tigerbeetle: { condition: service_healthy }
@@ -76,6 +81,14 @@ services:
       interval: 2s
       timeout: 5s
       retries: 30
+
+  # Trace viewer. Open http://localhost:30086 and pick the service "gamification". Traces are kept in
+  # memory only (at most 10000) and are lost when the container stops. The app does not depend on it.
+  jaeger:
+    image: jaegertracing/all-in-one:1.76.0
+    environment:
+      MEMORY_MAX_TRACES: "10000"
+    ports: ["${JAEGER_PORT:-30086}:16686"]
 
 volumes:
   tigerbeetle-data:

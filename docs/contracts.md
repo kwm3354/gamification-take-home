@@ -326,6 +326,40 @@ becomes `Bearer ***`. Bigint values are written as strings. Request and response
 Logging never throws into the caller: a value that cannot be serialised gives a minimal line with
 `logError`.
 
+## Tracing
+
+OpenTelemetry, traces only. Spans are written by hand at our boundaries (`src/tracing/tracing.ts`);
+nothing is patched and no auto instrumentation is used. Tracing is off unless
+`OTEL_EXPORTER_OTLP_ENDPOINT` is set. When it is off every span call only runs the work it wraps, there
+is no `x-trace-id` header and no `traceId` in log lines.
+
+| Span | Where | Attributes |
+|---|---|---|
+| `http <METHOD> <route pattern>` | every request (`TracingMiddleware`) | `http.request.method`, `http.route`, `http.response.status_code`, `tenant.id`, `request.id` |
+| `db acquire` | getting a connection from the pool | |
+| `db <KEYWORD> [table]` (`db SELECT spins`, `db BEGIN`, `db COMMIT`) | every query, in `src/db.ts` | `db.statement` (SQL text without parameter values, at most 200 characters) |
+| `ledger <method>` | each TigerBeetle ledger method | `ledger.result` (`reserved` or `insufficient` for reserve) |
+| `platform issue A` / `find B` ... | calls to the casino platform | `tenant.id`, `http.response.status_code`, `platform.result`, `error.type` |
+| `outbox <kind>` | each job run, a new trace of its own | `tenant.id`, `outbox.attempts`, `outbox.result` (`done`, `retry`, `dead`), `request.id` (`job:<kind>:<ref>`) |
+
+- A span other than the http and outbox ones is made only when a span is already running. The outbox
+  timer's own idle queries therefore leave no traces. Claiming a job row (BEGIN, SELECT) and writing its
+  outcome are outside the `outbox` span.
+- A failing call gets error status and the exception; the error goes on unchanged.
+- Never recorded: secrets, tokens, `Authorization` or signature headers, request or response bodies, SQL
+  parameter values. The tests scan every span of a full flow for the demo secrets and a player id.
+- An incoming `traceparent` is continued. The response has `x-trace-id` (only when tracing is on).
+  Calls to the casino carry `traceparent`.
+- Join key: `request.id` on the http span is the `requestId` of the log lines and the `request_id` of the
+  audit rows. Log lines written inside a span also have `traceId`. The audit table has no trace id.
+- Turn on: `OTEL_EXPORTER_OTLP_ENDPOINT` (OTLP/HTTP base address), `OTEL_SERVICE_NAME` (default
+  `gamification`), `OTEL_TRACES_SAMPLE_RATIO` (0 to 1, default 1; decided once per trace at the root, so a
+  sampled request keeps all its spans). `docker-compose.yml` sets them and starts Jaeger.
+- If the collector is down the app works the same; the exporter drops the batch and writes one warning
+  line a minute. Spans wait in a queue of 2048 and are sent every 5 seconds in batches of 512; when the
+  queue is full new spans are dropped, counted, and the count is written once as a warning.
+- Pending spans are flushed when the app shuts down.
+
 ## Admin and operations
 
 Code: `src/admin/` (guard, controller, plain logic in `stuck.ts`, `resolve.ts`, `audit-trail.ts`) and
