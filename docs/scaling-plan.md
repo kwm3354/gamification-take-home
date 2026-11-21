@@ -23,8 +23,8 @@ What supports it today:
 
 - Every table carries `tenant_id`, and every query filters by it (`src/schema.sql`). Isolation is
   tested on the player API, on every back office list and detail, on tenant keys and inside every
-  alert test (`docs/failure-table.md`). The route-walking test is being added; see
-  `docs/verification.md`.
+  alert test (`docs/failure-table.md`). The route-walking test is
+  `test/tenant-isolation.test.ts`.
 - In the ledger, each tenant has its own TigerBeetle `ledger` number, so accounts of two tenants
   can never be in one transfer (`docs/contracts.md`, "Ledger").
 - Coins move with ids derived from the spin or redemption id, so repeating a step after a crash

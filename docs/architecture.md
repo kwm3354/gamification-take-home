@@ -54,9 +54,8 @@ enforced by the database at the top of the work for production (log, 13:08), and
 mind. My position now: a test that reads every route of the application and forces a decision for
 each one (two lists, checked and skipped; a route in neither list fails the test), kept mandatory in
 CI. I prefer this to row-level rules in the database. Database rules, or a separate database per
-casino, come only when a client's contract requires them. That route test is being added; see
-`docs/verification.md` for whether it is on the main branch. See "Security" for the tests that exist
-and the limit.
+casino, come only when a client's contract requires them. That route test is `test/tenant-isolation.test.ts`. See "Security" for the other tests and the
+limit.
 
 ### Casino integration layer supporting different external APIs
 
