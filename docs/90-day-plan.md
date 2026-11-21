@@ -1,8 +1,9 @@
 # First 90 days
 
 The engineering plan for the first three months, with the team from question 5 of
-`docs/scaling-plan.md`: a product owner, one engineer and a QA, all working with agents. The aim is
-the MVP for a first real casino. The positions come from `docs/ai-log.md`.
+`docs/scaling-plan.md`: a product owner, one engineer and a QA, all working with AI agents. The aim
+is the MVP for a first real casino. The positions come from `docs/ai-log.md` or were stated by me
+since.
 
 How I run it:
 
@@ -10,8 +11,9 @@ How I run it:
   rule is checked, as was done for the prototype (`docs/contracts.md`, `docs/verification.md`).
 - Bringing a casino onto the product is a project, and I run it with ordinary project management:
   dates, people, tasks, regular calls with the casino's team.
-- A pilot with the casino starts as early as possible. Feedback from production is worth more than
-  a later, larger launch.
+- A pilot with the casino starts as early as possible: narrow by the end of month 1, wider in month
+  2, all players and A/B tests in month 3. Feedback from production is worth more than a later,
+  larger launch.
 - I do not promise a date for opening to all players, because it depends on the casino's side too.
   My own estimate is that three months are enough for the integration with a first real platform.
 
@@ -31,7 +33,9 @@ What we do:
   the platform has one. Run the same flow tests against the fake casino and against their test
   environment.
 - Start the pilot on a narrow group (for example the casino's own staff or a small share of
-  players) with the wheel only. The wheel can be switched off for a casino by one setting.
+  players) with the wheel only. A switch to turn the wheel off for one casino is part of this work.
+  Today the nearest thing is a grant policy version with 0 spins per deposit, and such versions
+  have no API yet.
 
 What depends on the casino: access to their platform documentation and a test environment; people
 for the regular call; the decision to start a narrow pilot and who is in it.
@@ -46,13 +50,14 @@ Goal: the pilot grows as it proves itself, and the bonus store runs in productio
 What we do:
 
 - Widen the pilot step by step.
-- Before each widening, close the first three production steps: tenant isolation enforced by the
-  database, backups with a tested restore including the ledger, load tests with real numbers.
+- Before each widening, close the first three production steps: backups with a tested restore
+  including the ledger, load tests in the production environment, and the route isolation test
+  mandatory in CI.
 - Turn on the bonus store in production: redemptions against the real platform.
 - Run operations on live data: alerts delivered to people, stuck redemptions, the audit trail, the
   daily digest. The back office for this exists in the prototype; here it meets real traffic.
-- Make the player widget for real, with agents, as source code that we can change; the team
-  chooses among several variants.
+- Make the player widget for real, with agents (and a designer with experience in this field if
+  needed), as source code that we can change; the team chooses among several variants.
 - Start missions.
 
 What depends on the casino: how fast the pilot may widen; answers about their API; what happens to
@@ -72,9 +77,10 @@ What we do:
 - Open the product to all players of the casino, when the casino agrees.
 - Run A/B tests of widget versions, now that there is traffic. One open question they should
   answer: how much of the widget is built into a per-casino bundle and how much is read from the
-  server at run time.
+  server at run time. I lean to a mix: the look built into the bundle per casino, the wheel and the
+  rewards read from the server. The tests decide.
 - Finish missions.
-- Deliver the widget the way a client's site needs it: bundles built ahead, served from a CDN,
+- Deliver the widget the way a client's site needs it: bundles built per casino, served from a CDN,
   caches warmed after a deploy.
 
 What depends on the casino: the decision to open to all players; showing the widget on their site.
@@ -87,8 +93,9 @@ produced a decision; incidents so far were handled through the back office.
 - The date depends on the casino. I do not promise a go-live date; the project has dates for each
   side, and the regular call shows early when one side slips.
 - One engineer. The system fails safe (a stuck redemption is reserved coins, not lost coins);
-  alerts and manual resolution need no engineer; every action is audited. When the engineer is
-  unreachable, the product owner handles the incident with agents.
+  alerts and manual resolution need no engineer; every action is audited. The product owner
+  handles incidents with agents, through MCP tools on the same entry points the back office uses
+  (designed, not built). On-call is a team agreement, not imposed from day one.
 - A platform without a status query or reliable webhooks leaves outcomes unknown. An admin can
   resolve them by hand; the rule for such cases is agreed with the casino.
 - The real platform's lookup may lag behind an accepted grant. The prototype assumes it does not
