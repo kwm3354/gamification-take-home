@@ -33,9 +33,7 @@ What we do:
   the platform has one. Run the same flow tests against the fake casino and against their test
   environment.
 - Start the pilot on a narrow group (for example the casino's own staff or a small share of
-  players) with the wheel only. A switch to turn the wheel off for one casino is part of this work.
-  Today the nearest thing is a grant policy version with 0 spins per deposit, and such versions
-  have no API yet.
+  players) with the wheel only.
 
 What depends on the casino: access to their platform documentation and a test environment; people
 for the regular call; the decision to start a narrow pilot and who is in it.

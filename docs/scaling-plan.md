@@ -92,7 +92,6 @@ Designed, not built:
 
 - The same intent for grant and ops policy versions. Today those are inserted only by tests and the
   seed.
-- A console a casino's manager can be given alone, beyond the back office screens above.
 
 ## 3. "How would you introduce PvP, Missions, and Kingdom Builder without coupling every feature to the casino integration layer?"
 
@@ -162,7 +161,7 @@ The MVP is what a first real casino needs to go live:
 - a player widget fit to show on a casino's site;
 - a production environment in the cloud, with backups and monitoring.
 
-Left for later: contests, Kingdom Builder, a console a casino's manager uses alone, a second casino
+Left for later: contests, Kingdom Builder, a second casino
 on another platform.
 
 The widget has no frontend engineer behind it. It is made by the product owner with agents, or by a
@@ -199,15 +198,15 @@ casino.
 What was done with AI in the prototype is logged in `docs/ai-log.md`. In short: agents wrote code
 from a written contract (`docs/contracts.md`), each on its own branch with its own files; the main
 session kept the decisions, the briefs and the review of what came back. Agents broke the code on
-purpose to check that the tests notice; when a break was not caught, a test was added. Interface
-variants for the player page were made with agents.
+purpose to check that the tests notice; when a break was not caught, a test was added. Several
+interface variants for the player page can be made the same way if they are needed.
 
 ## The playground as part of the product
 
 The test stand built for the prototype should be part of the product, not thrown away. It is built
 first for sales: a demonstration that works without an engineer in the room. Integrators come next,
-then our own adapter tests. A clear playground also makes estimates more accurate and shows quickly
-what is exchanged with a platform and how an integration goes.
+then our own adapter tests. It serves two purposes: a quick demonstration of how the finished solution
+looks, and a view of what is exchanged between the services.
 
 Built today: the fake casino plays both platforms with scripted and seeded faults
 (`src/fake-casino/`). Its control page (port 30081) sets faults in plain words, shows the casino's
