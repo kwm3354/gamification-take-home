@@ -9,6 +9,9 @@ This is a prototype built in one working day. The part about money-like coins an
 is built to be correct under failure and is tested that way. The rest is as wide as the day allowed,
 and this page says plainly what is real, what is simulated and what is not built.
 
+To run it: `docker compose up -d --build --wait`, then open http://localhost:30080/app/ (details
+in "Run it" below).
+
 Where to look:
 
 | What | Where |
@@ -26,48 +29,38 @@ Where to look:
 | Rules the agents work under | `CLAUDE.md`, `.claude/skills/verify/SKILL.md` |
 | A short presentation video | `docs/video/presentation.mp4` |
 
-## The task in my own words
+## The solution in five minutes
 
-Build the money-like core of a gamification product and show it survives the ways an integration
-fails. Concretely:
+### 1. What the system promises
 
-1. Two casino operators (tenants) on two different platforms. Platform A answers a reward request
-   at once and accepts an idempotency key. Platform B accepts the request and reports the result
-   later by a webhook, and has no idempotency key.
-2. A deposit event from the casino gives the player a spin. The server picks the prize.
-3. Coins are a ledger: every coin has a source and an owner, and no balance goes below zero.
-4. A redemption takes coins and asks the casino for a bonus. The casino may answer late, twice or
-   never. The player must not pay twice, must not get two bonuses, and must not lose coins for a
-   bonus that was not issued.
-5. Explain how this grows into a product: more operators, more mechanics, a team, 90 days.
+I started from what must never happen, not from features. Everything else in the project exists
+to keep these promises when things fail.
 
-## What must never happen
+1. One deposit gives no more spins than the grant policy of its time allows.
+2. One spin gives one prize, and the server chooses it.
+3. A coin balance never goes below zero.
+4. One redemption never takes coins twice, and the casino never issues its bonus twice.
+5. Coins are never taken without a bonus, and a bonus is never issued without the coins being
+   taken, once everything has settled. Coins do not disappear while the casino has not answered.
+6. One casino never sees or changes anything of another casino.
+7. An event without a valid signature changes nothing.
 
-These seven rules are what the tests check. For rules 3 to 6 there is a judge (`test/judge.ts`): it
-trusts only the casino's own record and the ledger. It reads our redemption rows only to learn what
-we claim, and checks each claim against those two. Rules 1, 2 and 7 are checked by ordinary tests
-of the intake and the wheel.
+For rules 3 to 6 there is a judge (`test/judge.ts`): it trusts only the casino's own record and the
+ledger. It reads our redemption rows only to learn what we claim, and checks each claim against
+those two. Rules 1, 2 and 7 are checked by ordinary tests of the intake and the wheel.
 
-1. One deposit gives more spins than the grant policy of its time allows.
-2. One spin gives more than one prize, or a prize the client chose.
-3. A coin balance goes below zero.
-4. One redemption reserves or debits coins twice, or the casino issues its reward twice.
-5. Coins are debited and no reward was issued, or the reverse, once everything has settled.
-6. One tenant sees or changes anything of another tenant.
-7. An event without a valid signature changes anything.
-
-## The coins are not in PostgreSQL
+### 2. The coins are not in PostgreSQL
 
 The coin ledger is **TigerBeetle**, a database built only for double-entry accounting. PostgreSQL
-keeps everything else. This is the most unusual decision in the project, so here it is in full.
+keeps everything else. This is the most unusual decision in the project.
 
 **Why.** Coins behave like money: they are won, reserved, spent, given back. A ledger written by
 hand in SQL is where such products get their worst bugs (a balance column updated twice, a debit
 without its credit, a race that goes below zero). TigerBeetle guarantees a correct ledger by
-construction, has headroom far above this load, and took most of the ledger work off the table, so
-the day went into the product.
+construction, has headroom far above this load, and removed most of the work of writing a ledger
+by hand, so the day went into the product.
 
-**How the model maps onto it** (`src/ledger/coin-ledger.tigerbeetle.ts`, port in
+**The model maps onto it almost one to one** (`src/ledger/coin-ledger.tigerbeetle.ts`, port in
 `src/domain/coin-ledger.ts`):
 
 | In the product | In the ledger |
@@ -80,42 +73,44 @@ the day went into the product.
 | The casino refused | The pending transfer is **voided**: the coins are back. |
 | Coins owed to all players of a casino | The balance of ONE account, the issuer. Not a sum over players. |
 
-Every coin has a source and an owner, and the two-step transfer is exactly the life of a
-redemption.
-
 **Two stores, no shared transaction.** The decision and a job are written to PostgreSQL in one
 transaction. Then the job makes the ledger transfer. The transfer's id is derived from the id of
-the decision (a hash of `xfer:prize:<spin id>`, `xfer:reserve:<redemption id>` and so on), so running the
-job twice moves nothing the second time. If the process dies between the two stores, the job is
-still in PostgreSQL and a worker repeats it.
+the decision (a hash of `xfer:prize:<spin id>`, `xfer:reserve:<redemption id>` and so on), so
+running the job twice moves nothing the second time. If the process dies between the two stores,
+the job is still in PostgreSQL and a worker repeats it.
 
-**What it costs, honestly.** A second store to run and back up. No SQL: lists and reports read
-PostgreSQL, the ledger is asked only for balances. The server needs a CPU with AVX2 and io_uring
-(hence one extra line in `docker-compose.yml`). I set myself two conditions before using it:
-prove the official image on other hardware in the first hour (done on a CI runner at 11:13), and a
-deadline for the integration with a fallback to a ledger table in PostgreSQL (not needed).
+**What it costs.** A second store to run and back up. No SQL: lists and reports read PostgreSQL,
+the ledger is asked only for balances. The server needs a CPU with AVX2 and io_uring (hence one
+extra line in `docker-compose.yml`). I set two conditions before using it: prove the official
+image on other hardware in the first hour (done on a CI runner), and keep a fallback to a ledger
+table in PostgreSQL (not needed).
 
-## How it is built, in one screen
+### 3. The hard part
 
-- **One domain, one adapter per casino platform.** There are many casinos and one domain logic.
-  An adapter turns a platform's events and answers into three domain outcomes of a reward request:
-  issued, refused, or not known yet. Code: `src/domain/`, `src/integrations/`.
-- **A redemption is an intent.** created → reserved → submitting → issued or refused. The platform
-  that answers at once is the same model with two steps taken at once. One function confirms the
-  outcome, whoever brings it: the platform's answer, its webhook, our own look-up, or an admin.
-  Code: `src/store/redemption.ts`.
-- **Coins are reserved, not spent, until the casino answers.** Coins must not disappear while the
-  casino has not answered. A refusal releases the reserve; an issue captures it.
-- **Look first, then repeat.** After an unknown outcome we ask the casino whether the reward exists
-  before sending the request again. On a platform without idempotency this is the only thing that
-  prevents a second bonus.
-- **The ledger is TigerBeetle**, see the section above. Code: `src/ledger/`, `src/outbox/`.
+The casino is outside our control. It can answer late, twice, or never. And the two casinos have
+different APIs. Platform A answers a reward request at once and accepts an idempotency key.
+Platform B accepts the request, reports the result later by a webhook, and has no idempotency key.
+
+### 4. Two decisions on top of the ledger
+
+**One model for both platforms.** There are many casinos and one domain logic. A redemption is an
+intent: created → reserved → submitting → issued or refused. The platform that answers at once is
+the same model with two steps taken at once. There is one adapter per platform
+(`src/integrations/`, interface in `src/domain/casino-platform.ts`) and one function that confirms
+the outcome, whoever brings it: the platform's answer, its webhook, our own look-up, or an admin
+(`confirm` in `src/store/redemption.ts`).
+
+**Look first, then repeat.** After an unknown outcome we ask the casino whether the bonus exists
+before we send the request again. On a platform without an idempotency key this is the only thing
+that prevents a second bonus.
+
+The other decisions, in one line each:
+
 - **Workers scale by count.** A job is claimed with a lease in one short statement, the casino and
   ledger calls run with no database transaction open, and only the holder of the lease writes the
-  outcome.
-  The queue is a table in PostgreSQL on purpose: a job is written in the same transaction as the
-  decision that needs it. Handlers do not know who calls them, so a broker can be put after the
-  table later (`docs/scaling-plan.md`, answer 1).
+  outcome. The queue is a table in PostgreSQL on purpose: a job is written in the same transaction
+  as the decision that needs it. Handlers do not know who calls them, so a broker can be put after
+  the table later (`docs/scaling-plan.md`, answer 1).
 - **The server picks the prize.** The outcome is computed from a secret of the tenant and our spin
   id; the wheel's configuration is versioned and pinned when the spin is granted. The page only
   shows the result.
@@ -127,6 +122,37 @@ deadline for the integration with a fallback to a ledger table in PostgreSQL (no
 - **Operations:** a back office with sign-in and three roles, alerts as plain SQL, a list of stuck
   redemptions with a manual resolution that goes through the same confirm function, replaceable
   signing keys, structured logs, traces.
+
+### 5. How I know it works
+
+The casino is simulated, and the simulation can lose a request, lose its answer, answer slowly,
+refuse, and send a result twice. The judge checks the promises against the casino's own record and
+the ledger. On top of that there is a test that generates random faults
+(`test/properties.test.ts`) and a test that starts real processes and kills a worker in the middle
+of its work (`test/processes.test.ts`). That last one found a real defect: a process starting
+under load could deadlock on the schema script. An independent review at the end of the day found
+more defects on the intake and the wheel; they are in the log with their fixes.
+
+I also measured instead of guessing (`docs/performance.md`). The first load run showed a design
+mistake: the job queue made casino calls inside a database transaction. It was replaced with
+leases. Redemption requests went from about 30 per second at any concurrency to over 100 at 64
+concurrent requests, on a busy development machine, and the time workers need to finish a backlog
+halves with two workers and again with four.
+
+### 6. How it was made
+
+I made the decisions; AI agents wrote the code from written briefs, each in its own branch. Every
+piece had to come back with what can break, which test catches it, and what happened when the code
+was broken on purpose. Every decision is in `docs/ai-log.md` with who made it and how it was
+checked, including where the AI was wrong. More in "How this was made" below.
+
+### 7. What is not there
+
+Both casinos are simulated, and one of the simulation's assumptions is kind: that platform B's
+look-up shows a request at once. Tenant isolation is enforced in code and by a test that walks
+every route, with no second lock in the database. Secrets are plain text in the database. There
+are no schema migrations yet. The prototype is wider than the task asked; the part I know best is
+the path of a coin. The full list is in "What is real, what is simulated, what is not built".
 
 ## Run it
 
