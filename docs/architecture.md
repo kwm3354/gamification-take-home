@@ -360,11 +360,8 @@ Found while writing this page, for the author to decide.
    (`src/wheel/spin.ts:78`); the token guard and the store write the platform's id
    (`src/tenants/player-auth.guard.ts:46`, `src/store/store.service.ts:85`). One player has two actor
    names in the audit trail.
-4. `docs/monitoring-playbook.md:268` says the request id is in the `request_id` column of the audit
-   rows of that request. Rows written through `ctxFor` in `src/store/redemption.ts:110` (status
-   changes, `platform_call`, `outcome_contradicted`), the `manual_resolution` record
-   (`src/admin/resolve.ts:50`) and the spin's `credited_at` update (`src/wheel/spin.ts:133`) carry no
-   request id.
+4. Fixed in review: some audit rows had no request id. The audit functions now take the id of the
+   running request or job when the caller passes none.
 5. The contract says the spin request runs the job at once. The controller calls `creditSpin`
    directly (`src/wheel/wheel.controller.ts:49`); the job row stays due and runs once more later as a
    no-op.

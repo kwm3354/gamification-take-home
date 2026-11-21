@@ -263,7 +263,7 @@ async function call<T>(tenantId: string, externalId: string, path: string, init:
     ...init,
     headers: { ...bearer(tenantId, externalId), "content-type": "application/json", ...init.headers },
   });
-  return { status: r.status, json: (await r.json()) as T };
+  return { status: r.status, json: (await r.json()) as T, requestId: r.headers.get("x-request-id") };
 }
 
 interface View {
@@ -607,5 +607,64 @@ describe.skipIf(!running)("logs of the running service", () => {
         .filter((l) => l.level === "debug")
         .map((l) => l.event),
     ).toEqual(["spin.credited"]);
+  });
+});
+
+describe.skipIf(!running)("request id in the audit trail", () => {
+  beforeEach(async () => {
+    await fetch(`${fakeUrl()}/control/reset`, { method: "POST" });
+    await app().db.query("UPDATE outbox SET done_at = now() WHERE done_at IS NULL");
+    clearLogs();
+  });
+
+  test("every audit row of a spin and of a redemption on platform B carries a request id: the request's own, or job:<kind>:<ref>", async () => {
+    const externalId = "p-rid-audit";
+    const deposit = await postDeposit(BETA, "evt-rid-audit", externalId);
+    const mine = await call<{ playerId: string; spins: { id: string }[] }>(BETA, externalId, "/me");
+    const spinId = mine.json.spins[0]?.id as string;
+    const spin = await call(BETA, externalId, `/wheel/spins/${spinId}/spin`, { method: "POST" });
+    const item = (
+      await app().db.query("SELECT id FROM store_items WHERE tenant_id = $1 AND code = 'bonus-1-eur'", [BETA])
+    ).rows[0].id as string;
+    await app()
+      .app.get<CoinLedger>(COIN_LEDGER)
+      .creditPrize({
+        ledgerNo: tenantOf(BETA).ledgerNo,
+        playerId: mine.json.playerId,
+        spinId: randomUUID(),
+        coins: 500n,
+      });
+    // The first grant answer is lost, so the request ends in "submitting" and an outbox job finishes it.
+    await fault("b.grant", "lost_answer");
+    const redeem = await call<View>(BETA, externalId, "/store/redemptions", {
+      method: "POST",
+      headers: { "idempotency-key": randomUUID() },
+      body: JSON.stringify({ itemId: item }),
+    });
+    expect(redeem.json.status).toBe("submitting");
+    await later(60_000);
+    await deliver(); // the callback that settles a platform B redemption
+
+    const rows = (
+      await app().db.query(
+        `SELECT entity_type, action, request_id FROM audit_log
+          WHERE (entity_type IN ('redemption', 'redemptions') AND entity_id = $1) OR (entity_type = 'spins' AND entity_id = $2)
+          ORDER BY id`,
+        [redeem.json.id, spinId],
+      )
+    ).rows as { entity_type: string; action: string; request_id: string | null }[];
+    expect(rows.length).toBeGreaterThan(4);
+    expect(rows.filter((r) => r.request_id === null)).toEqual([]);
+    // The callback webhook that settles B is a request of the fake casino; its id is a uuid we did not see.
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+    const known = [spin.requestId, redeem.requestId, deposit.requestId];
+    const allowed = (id: string) => known.includes(id) || id.startsWith("job:") || uuid.test(id);
+    expect(rows.filter((r) => !allowed(r.request_id as string))).toEqual([]);
+    // The spin row was created by the deposit request.
+    expect(rows.some((r) => r.entity_type === "spins" && r.request_id === deposit.requestId)).toBe(true);
+    // Both kinds are present: rows of the HTTP requests, and rows written by an outbox job.
+    expect(rows.some((r) => r.request_id === redeem.requestId)).toBe(true);
+    expect(rows.some((r) => r.request_id === spin.requestId)).toBe(true);
+    expect(rows.some((r) => r.request_id?.startsWith("job:redemption"))).toBe(true);
   });
 });
