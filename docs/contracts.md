@@ -362,3 +362,44 @@ Alerts (all windows use the injected clock; all queries filter by tenant): `rede
 Not built: the alert for a deposit reversed after its spin was used (the adapters have no reversal
 event), and delivery of alerts to us and to the operator. The endpoint is what a scheduler or a
 monitoring system would poll.
+
+## Back office API
+
+Read endpoints for the back office, plus the change of wheel settings. Same auth as above
+(`X-Admin-Key` of the tenant in the path, `X-Admin-Name`). Every query filters by the tenant in the
+path. Lists are newest first and take `limit` (1..100, default 50) and `before` (the `cursor` of the
+last row of the previous page); they answer `{ items: [...], nextCursor: string | null }`. Coins are
+strings. Times are ISO strings. Ids of rows that have a detail endpoint are our uuids.
+
+| Call | Answers |
+|---|---|
+| `GET /admin/:tenantId/overview` | `{ at, players, events24h: { accepted, ignored }, spins: { available, used }, redemptions: { created, reserved, submitting, issued, refused, insufficient, unsettled }, coinsOutstanding: string \| null, outbox: { due, waiting, dead }, alerts: { critical, warning }, settings: { wheelVersion, grantPolicyVersion, opsPolicyVersion } }`. `coinsOutstanding` is null when the ledger does not answer |
+| `GET /admin/:tenantId/redemptions?status=&playerId=` | items `{ id, createdAt, updatedAt, playerId, playerExternalId, itemCode, itemName, costCoins, status, settled, platformRef, reason, cursor }` |
+| `GET /admin/:tenantId/redemptions/:id` | `{ redemption: <the item above>, reward, audit: [<audit rows, oldest first>], job: { runAt, attempts, lastError, doneAt, deadAt } \| null }`; 404 if not this tenant's |
+| `GET /admin/:tenantId/players?q=` | items `{ id, externalId, createdAt, spinsAvailable, spinsUsed, redemptions, cursor }`; `q` matches the start of `externalId` |
+| `GET /admin/:tenantId/players/:id` | `{ player: { id, externalId, createdAt }, balance: { available, reserved } \| null, spins: [{ id, status, coins, createdAt, usedAt, creditedAt, wheelVersion, grantPolicyVersion }], redemptions: [<items as in the list>], events: [<items as in the events list>] }` (the newest 50 of each); 404 if not this tenant's |
+| `GET /admin/:tenantId/events?kind=` | items `{ id, externalEventId, kind, playerId, playerExternalId, receivedAt, normalized, cursor }` |
+| `GET /admin/:tenantId/events/:id` | the item plus `raw` and `spins: [{ id, status }]`; 404 if not this tenant's |
+| `GET /admin/:tenantId/spins?status=&playerId=` | items `{ id, playerId, playerExternalId, status, coins, segmentIndex, createdAt, usedAt, creditedAt, wheelVersion, cursor }` |
+| `GET /admin/:tenantId/outbox?state=due\|waiting\|dead\|done` | items `{ id, kind, refId, runAt, attempts, lastError, doneAt, deadAt, cursor }` |
+| `GET /admin/:tenantId/audit?entityId=` or `?recent=1&actor=&action=` | with `entityId`: as above. With `recent=1`: the list form, newest first, optional exact `action` and `actor` prefix |
+| `GET /admin/:tenantId/settings` | `{ wheel: [{ id, version, createdAt, segments, expectedPrizeCoins }], grantPolicies: [{ id, version, createdAt, params }], opsPolicies: [{ id, version, createdAt, params }], storeItems: [{ id, code, name, costCoins, reward, active }], changes: [<settings changes, newest first, at most 50>] }` (versions newest first; `expectedPrizeCoins` is a number rounded to 2 places for display) |
+
+### Changing the wheel: an intent that a policy confirms
+
+A change of settings is an intent, like a redemption. The casino's representative proposes it; a
+policy decides whether it is applied at once or waits for us; only we can approve what waits.
+
+Table `settings_changes`: `id`, `tenant_id`, `kind` (`wheel_config`), `proposed` (jsonb), `status`
+(`proposed`, `applied`, `rejected`), `expected_prize_coins` (numeric), `limit_coins` (numeric),
+`proposed_by` (actor), `decided_by` (actor or `policy/ops-v<N>`), `decision_note`, `result_id`
+(the new `wheel_configs` row), `created_at`, `decided_at`. Written through the audit functions.
+
+| Call | Answers |
+|---|---|
+| `POST /admin/:tenantId/settings/wheel` body `{ segments: [{ label, coins, weight }] }` | Validates (2..24 segments; `label` 1..40 chars; `coins` integer 1..1000000; `weight` integer 1..1000000). Computes the expected prize. If it is at most `maxExpectedPrizeCoins` of the newest ops policy: creates the next `wheel_configs` version and answers 201 `{ change: { ..., status: "applied" }, wheelVersion }` with `decided_by` `policy/ops-v<N>`. Otherwise stores the change and answers 202 `{ change: { ..., status: "proposed" } }`. 400 for invalid segments; 409 when the tenant has no ops policy |
+| `POST /platform/settings-changes/:id/approve` and `.../reject`, header `X-Platform-Key` (env `PLATFORM_ADMIN_KEY`, demo default `demo-platform-key`), optional `X-Admin-Name`, body `{ note }` (5..500 chars) | Only for a change in status `proposed` (else 409). Approve creates the next wheel version and sets `applied`; reject sets `rejected`. Actor `platform/<name>`. The tenant's own admin key cannot approve: 401 |
+| `GET /platform/settings-changes?status=proposed` with `X-Platform-Key` | every tenant's waiting changes, oldest first |
+
+Spins already granted keep the wheel version they were granted with. Two approvals of one change at
+once apply it once.
