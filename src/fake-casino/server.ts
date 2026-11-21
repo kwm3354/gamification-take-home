@@ -7,6 +7,7 @@ import { buildDeposit, newEventId } from "./deposit.ts";
 import { type FaultPoint, Faults, validFaults } from "./faults.ts";
 import { aFind, aGrant, parseAGrant } from "./platform-a.ts";
 import { bFind, bGrant, deliverAll, parseBGrant } from "./platform-b.ts";
+import { SecretOverrides, parseSecretsBody } from "./secrets.ts";
 import { signJwt } from "./signing.ts";
 import { type FakeState, type Reply, World, isoNow, toMinor } from "./state.ts";
 
@@ -78,6 +79,7 @@ function tenantById(id: string): DemoTenant {
 export async function startFakeCasino(options: FakeCasinoOptions = {}): Promise<FakeCasino> {
   const world = new World();
   const faults = new Faults();
+  const secrets = new SecretOverrides();
   const appUrl = (options.appUrl ?? "http://app:3000").replace(/\/$/, "");
   const publicAppUrl = (options.publicAppUrl ?? "http://localhost:30080").replace(/\/$/, "");
   const timers = new Set<NodeJS.Timeout>();
@@ -298,11 +300,14 @@ export async function startFakeCasino(options: FakeCasinoOptions = {}): Promise<
     }
     if (method === "POST" && path === "/control/b/deliver") {
       await readBody(req);
-      return send(res, { status: 200, body: { delivered: await deliverAll(world, faults, appUrl) } });
+      return send(res, {
+        status: 200,
+        body: { delivered: await deliverAll(world, faults, appUrl, secrets) },
+      });
     }
     if (method === "POST" && path === "/control/deposit") {
       const body = parseJson(await readBody(req));
-      const tenant = tenantById(str(body, "tenantId"));
+      const tenant = secrets.apply(tenantById(str(body, "tenantId")));
       const amount = str(body, "amount");
       if (toMinor(amount) === null) throw new HttpError(400, "amount must be a decimal string like 20.00");
       const repeat = body.repeat === undefined ? 1 : body.repeat;
@@ -332,9 +337,19 @@ export async function startFakeCasino(options: FakeCasinoOptions = {}): Promise<
       }
       return send(res, { status: 200, body: { eventId, sent } });
     }
+    const keysPath = /^\/control\/tenants\/([^/]+)\/secrets$/.exec(path);
+    if (method === "PUT" && keysPath) {
+      const tenant = tenantById(decodeURIComponent(keysPath[1] as string));
+      const parsed = parseSecretsBody(parseJson(await readBody(req)));
+      if (typeof parsed === "string") throw new HttpError(400, parsed);
+      secrets.set(tenant.id, parsed);
+      res.writeHead(204);
+      res.end();
+      return;
+    }
     if (method === "POST" && path === "/control/token") {
       const body = parseJson(await readBody(req));
-      const tenant = tenantById(str(body, "tenantId"));
+      const tenant = secrets.apply(tenantById(str(body, "tenantId")));
       const ttl = body.ttlSeconds === undefined ? 600 : body.ttlSeconds;
       if (typeof ttl !== "number" || !Number.isFinite(ttl))
         throw new HttpError(400, "ttlSeconds must be a number");
@@ -359,7 +374,7 @@ export async function startFakeCasino(options: FakeCasinoOptions = {}): Promise<
     res.setHeader("Access-Control-Allow-Origin", "*");
     if (req.method === "OPTIONS") {
       res.writeHead(204, {
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
         "Access-Control-Allow-Headers": req.headers["access-control-request-headers"] ?? "content-type",
       });
       res.end();

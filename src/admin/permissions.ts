@@ -6,12 +6,13 @@
  * | resolve       | no            | own tenant   | any tenant     |
  * | propose_wheel | no            | own tenant   | any tenant     |
  * | decide_change | no            | no           | yes            |
+ * | manage_keys   | no            | own tenant   | any tenant     |
  *
  * `read` is also the question "may this person see this tenant at all?". A no there is a 404
  * (so the existence of a tenant does not leak); a no on any other action is a 403.
  */
 export type Role = "platform_admin" | "tenant_admin" | "tenant_viewer";
-export type Action = "read" | "resolve" | "propose_wheel" | "decide_change";
+export type Action = "read" | "resolve" | "propose_wheel" | "decide_change" | "manage_keys";
 
 export interface AdminUser {
   id: string;
