@@ -10,10 +10,24 @@ CREATE TABLE IF NOT EXISTS tenants (
   webhook_secret     text NOT NULL,                    -- the platform signs events with it
   token_secret       text NOT NULL,                    -- the operator signs player tokens with it
   wheel_secret       text NOT NULL,                    -- never leaves the server; wheel outcomes derive from it
-  admin_key          text NOT NULL,
   platform_url       text NOT NULL,                    -- base address of the platform's reward API
   platform_key       text NOT NULL,
   created_at         timestamptz NOT NULL DEFAULT now()
+);
+
+-- People who sign in to the back office. The hash is scrypt (see src/admin/password.ts).
+CREATE TABLE IF NOT EXISTS admin_users (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email         text NOT NULL UNIQUE CHECK (email = lower(email)),
+  name          text NOT NULL,
+  password_hash text NOT NULL,
+  role          text NOT NULL CHECK (role IN ('platform_admin', 'tenant_admin', 'tenant_viewer')),
+  tenant_id     text REFERENCES tenants(id),
+  failed_logins integer NOT NULL DEFAULT 0,
+  locked_until  timestamptz,
+  disabled      boolean NOT NULL DEFAULT false,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  CHECK ((role = 'platform_admin') = (tenant_id IS NULL))
 );
 
 -- Player identity mapping: our id for the platform's id.

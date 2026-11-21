@@ -282,6 +282,7 @@ policy (`info` or `debug`); warnings and errors are always written. Events:
   `platform.unreachable` (warn): one that was not; `retryInMs` says when we look again.
 - `outbox.retry` (debug): a job will run again. `outbox.dead` (error): a job failed ten times and stopped.
 - `admin.manual_resolution` (warn): an admin decided a redemption; `admin` is the actor.
+- `admin.login` (info): a back office sign-in; `userId`, `role`. `admin.login_failed` (warn): a refused one; `reason` is `bad_credentials` or `locked`. Many in a row for one tenant is worth a look. Neither line holds a password or a token.
 - `ledger.unavailable` (warn): a ledger call timed out; `op` is which one.
 - `unhandled` (error): an exception nobody handled.
 

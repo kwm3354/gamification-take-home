@@ -10,7 +10,6 @@ import {
   Param,
   Post,
   Query,
-  Req,
   UseGuards,
 } from "@nestjs/common";
 import { runAlerts } from "../alerts/alerts.ts";
@@ -25,8 +24,9 @@ import type { Log } from "../logging/log.ts";
 import { OUTBOX, type Outbox } from "../outbox/outbox.ts";
 import { toView } from "../store/redemption.ts";
 import { StoreService } from "../store/store.service.ts";
-import { AdminGuard, type AdminRequest } from "./admin.guard.ts";
+import { AdminGuard, CurrentAdmin, allow } from "./admin-auth.ts";
 import { auditTrail } from "./audit-trail.ts";
+import type { AdminUser } from "./permissions.ts";
 import { resolveRedemption } from "./resolve.ts";
 import { stuckRedemptions } from "./stuck.ts";
 
@@ -63,10 +63,11 @@ export class AdminController {
     @Param("tenantId") tenantId: string,
     @Param("id") id: string,
     @Body() body: unknown,
-    @Req() req: AdminRequest,
+    @CurrentAdmin() admin: AdminUser,
   ) {
+    allow(admin, "resolve", tenantId);
     const input = parseResolveBody(body);
-    const actor = req.admin?.actor ?? "admin";
+    const actor = `admin/${admin.id}`;
     const settle = this.config.inlineJobs ? (rid: string, who: string) => this.settle(rid, who) : undefined;
     const result = await resolveRedemption(
       { db: this.db, clock: this.clock, outbox: this.outbox, log: this.log },

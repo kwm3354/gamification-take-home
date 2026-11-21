@@ -9,7 +9,7 @@ import type pg from "pg";
 export type Row = Record<string, unknown>;
 export type AuditContext = {
   tenantId: string | null;
-  actor: string; // "platform/<tenantId>", "player/<id>", "system/<name>", "admin/<name>", "unknown"
+  actor: string; // "platform/<tenantId>", "player/<id>", "system/<name>", "admin/<user id>", "unknown"
   requestId?: string;
   now: Date; // the caller passes clock.now()
 };
@@ -25,15 +25,10 @@ const TABLES = new Set([
   "grant_policies",
   "ops_policies",
   "tenants",
+  "admin_users",
 ]);
 const COLUMN = /^[a-z_][a-z0-9_]*$/;
-const SECRET_FIELDS = new Set([
-  "webhook_secret",
-  "token_secret",
-  "wheel_secret",
-  "admin_key",
-  "platform_key",
-]);
+const SECRET_FIELDS = new Set(["webhook_secret", "token_secret", "wheel_secret", "platform_key"]);
 
 function checkTable(table: string): void {
   if (!TABLES.has(table)) throw new Error(`table ${table} is not audited`);
@@ -60,7 +55,9 @@ function same(a: unknown, b: unknown): boolean {
 }
 
 function shown(table: string, field: string, value: unknown): unknown {
-  return table === "tenants" && SECRET_FIELDS.has(field) ? "***" : value;
+  if (table === "tenants" && SECRET_FIELDS.has(field)) return "***";
+  if (table === "admin_users" && field === "password_hash") return "***";
+  return value;
 }
 
 async function write(

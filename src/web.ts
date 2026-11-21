@@ -4,6 +4,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, extname, join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { INestApplication } from "@nestjs/common";
+import { demoAdmins } from "./tenants/demo-tenants.ts";
 
 type Next = (err?: unknown) => void;
 
@@ -38,7 +39,7 @@ function send(res: ServerResponse, status: number, type: string, body: Buffer | 
  */
 export function mountWeb(
   app: INestApplication,
-  options: { dir: string | null; fakeCasinoUrl: string },
+  options: { dir: string | null; fakeCasinoUrl: string; demoAdmins?: boolean },
 ): void {
   const root = options.dir === null ? null : normalize(options.dir);
 
@@ -56,7 +57,21 @@ export function mountWeb(
         res,
         200,
         TYPES[".json"]!,
-        JSON.stringify({ fakeCasinoUrl: options.fakeCasinoUrl }),
+        JSON.stringify({
+          fakeCasinoUrl: options.fakeCasinoUrl,
+          // This exposes the demo passwords on purpose, and only in demo mode (the seed is on).
+          // The sign-in page offers these accounts. The field is left out when the seed is off.
+          ...(options.demoAdmins
+            ? {
+                demoAdmins: demoAdmins.map((a) => ({
+                  email: a.email,
+                  password: a.password,
+                  role: a.role,
+                  tenantId: a.tenantId,
+                })),
+              }
+            : {}),
+        }),
         "no-store",
       );
     }

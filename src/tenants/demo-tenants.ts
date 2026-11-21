@@ -10,7 +10,6 @@ export interface DemoTenant {
   webhookSecret: string;
   tokenSecret: string;
   wheelSecret: string;
-  adminKey: string;
   platformKey: string;
 }
 
@@ -23,7 +22,6 @@ export const demoTenants: DemoTenant[] = [
     webhookSecret: "demo-alpha-webhook-secret",
     tokenSecret: "demo-alpha-token-secret-0123456789abcdef",
     wheelSecret: "demo-alpha-wheel-secret",
-    adminKey: "demo-alpha-admin-key",
     platformKey: "demo-alpha-platform-key",
   },
   {
@@ -34,7 +32,6 @@ export const demoTenants: DemoTenant[] = [
     webhookSecret: "demo-beta-webhook-secret",
     tokenSecret: "demo-beta-token-secret-0123456789abcdef",
     wheelSecret: "demo-beta-wheel-secret",
-    adminKey: "demo-beta-admin-key",
     platformKey: "demo-beta-platform-key",
   },
 ];
@@ -72,3 +69,46 @@ export const demoOpsPolicy = {
   maxPlayerRedeemShare: 0.5,
   minRedeemedForShare: 1000,
 };
+
+/**
+ * Demo back office users. The passwords are demo values, shown on purpose in demo mode only
+ * (the sign-in page offers them). The seed stores scrypt hashes, never these strings.
+ */
+export interface DemoAdmin {
+  email: string;
+  name: string;
+  password: string;
+  role: "platform_admin" | "tenant_admin" | "tenant_viewer";
+  tenantId: string | null;
+}
+
+export const demoAdmins: DemoAdmin[] = [
+  {
+    email: "ops@demo.local",
+    name: "Ops",
+    password: "demo-ops-password-1",
+    role: "platform_admin",
+    tenantId: null,
+  },
+  {
+    email: "manager@alpha.demo",
+    name: "Alpha Manager",
+    password: "demo-alpha-manager-1",
+    role: "tenant_admin",
+    tenantId: "alpha-casino",
+  },
+  {
+    email: "viewer@alpha.demo",
+    name: "Alpha Viewer",
+    password: "demo-alpha-viewer-1",
+    role: "tenant_viewer",
+    tenantId: "alpha-casino",
+  },
+  {
+    email: "manager@beta.demo",
+    name: "Beta Manager",
+    password: "demo-beta-manager-1",
+    role: "tenant_admin",
+    tenantId: "beta-casino",
+  },
+];

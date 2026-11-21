@@ -16,8 +16,8 @@ async function setup() {
   closers.push(fresh.close);
   const db = fresh.db;
   await db.query(
-    `INSERT INTO tenants (id, name, platform, ledger_no, webhook_secret, token_secret, wheel_secret, admin_key, platform_url, platform_key)
-     VALUES ('t1', 'T1', 'A', 1, 'a', 'b', 'c', 'd', 'http://x', 'k')`,
+    `INSERT INTO tenants (id, name, platform, ledger_no, webhook_secret, token_secret, wheel_secret, platform_url, platform_key)
+     VALUES ('t1', 'T1', 'A', 1, 'a', 'b', 'c', 'http://x', 'k')`,
   );
   const clock = new FakeClock();
   const outbox = new Outbox(db, clock);

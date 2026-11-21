@@ -131,15 +131,8 @@ progress { width: 220px; }
 </section>
 
 <section id="s-ops" aria-labelledby="h-ops">
-  <h2 id="h-ops"><span class="n">7</span>Operations</h2>
-  <p class="muted">Admin endpoints for the tenant, called with the tenant's demo admin key. If an endpoint is missing, the page says so.</p>
-  <div class="row">
-    <button id="opsAlerts" type="button">Alerts</button>
-    <button id="opsStuck" type="button">Stuck redemptions</button>
-    <label for="auditId">Entity id</label><input id="auditId" size="38" autocomplete="off" spellcheck="false">
-    <button id="opsAudit" type="button">Audit trail</button>
-  </div>
-  <div id="opsOut" class="muted">Nothing loaded.</div>
+  <h2 id="h-ops"><span class="n">7</span>Back office</h2>
+  <p class="muted">Alerts, stuck redemptions and the audit trail are in <a id="opsLink" href="#">the back office</a> (sign in there).</p>
 </section>
 
 <section id="s-log" aria-labelledby="h-log">
@@ -405,7 +398,6 @@ async function doSpin(times) {
   const spin = (STATE.me ? STATE.me.spins : []).find((s) => s.status === 'available');
   if (!spin) { say('No spin available.'); return; }
   STATE.lastSpinId = spin.id;
-  $('auditId').value = spin.id;
   const path = '/wheel/spins/' + spin.id + '/spin';
   const rs = await Promise.all(Array.from({ length: times }, () => pcall(t, p, 'POST', path)));
   const texts = rs.map((r) => 'HTTP ' + r.status + ' ' + JSON.stringify(r.body));
@@ -425,7 +417,6 @@ async function redeem(item, opts) {
       if ((r.status === 200 || r.status === 201) && !pl.redemptions.some((x) => x.id === r.body.id)) {
         pl.redemptions.push({ id: r.body.id, itemName: item.name, costCoins: r.body.costCoins, status: r.body.status, reason: r.body.reason });
         STATE.lastRedemptionId = r.body.id;
-        $('auditId').value = r.body.id;
       }
     }
     const ids = new Set(rs.filter((r) => r.body && r.body.id).map((r) => r.body.id));
@@ -652,53 +643,6 @@ async function runMany() {
   await refreshPlayer().catch(() => null);
 }
 
-/* ---------- section 7 ---------- */
-function adminCall(method, path, body, extra) {
-  const tenant = platformOf($('tenant').value);
-  return http('admin -> us', method, STATE.cfg.appUrl + '/admin/' + tenant.id + path, { headers: { 'X-Admin-Key': tenant.adminKey, 'X-Admin-Name': 'playground', ...(extra || {}) }, body });
-}
-function notAvailable(r) {
-  if (r.status === 404) { $('opsOut').replaceChildren(h('p', { class: 'muted', text: 'Not available yet (the server answered 404).' })); return true; }
-  if (r.status !== 200) { $('opsOut').replaceChildren(h('p', { text: 'HTTP ' + r.status + ' ' + JSON.stringify(r.body) })); return true; }
-  return false;
-}
-async function loadAlerts() {
-  const r = await adminCall('GET', '/alerts');
-  if (notAvailable(r)) return;
-  const a = r.body.alerts || [];
-  $('opsOut').replaceChildren(h('p', { class: 'muted', text: 'At ' + r.body.at + ', policy version ' + r.body.policyVersion + '. ' + a.length + ' alerts.' }),
-    a.length ? h('table', {}, h('thead', {}, h('tr', {}, ['Code', 'Severity', 'Subject', 'Value', 'Limit', 'Detail'].map((x) => h('th', { text: x })))),
-      h('tbody', {}, a.map((x) => h('tr', {}, [x.code, x.severity, x.subject, x.value, x.limit, x.detail].map((c) => h('td', { text: c === undefined || c === null ? '' : String(c) })))))) : null);
-}
-async function loadStuck() {
-  const r = await adminCall('GET', '/redemptions/stuck');
-  if (notAvailable(r)) return;
-  const items = r.body.items || [];
-  $('opsOut').replaceChildren(h('p', { class: 'muted', text: 'Redemptions older than ' + r.body.limitSec + ' s and not settled: ' + items.length + '.' }),
-    ...items.map((it) => {
-      const note = h('input', { type: 'text', size: '30', placeholder: 'Note (why)', 'aria-label': 'Note for ' + it.id });
-      const resolve = (outcome) => async () => {
-        const res = await adminCall('POST', '/redemptions/' + it.id + '/resolve', { outcome, note: note.value });
-        say('Resolve ' + it.id + ' as ' + outcome + ': HTTP ' + res.status + ' ' + JSON.stringify(res.body));
-        await loadStuck();
-      };
-      return h('div', { class: 'row' }, h('code', { text: it.id }),
-        h('span', { text: it.status + (it.settled ? ', settled' : ', not settled') + ', player ' + it.playerExternalId + ', ' + it.costCoins + ' coins, ' + it.ageSec + ' s old' + (it.platformRef ? ', ref ' + it.platformRef : '') }),
-        note, h('button', { type: 'button', onclick: resolve('issued'), text: 'Resolve as issued' }), h('button', { type: 'button', onclick: resolve('refused'), text: 'Resolve as refused' }));
-    }));
-}
-async function loadAudit() {
-  const id = $('auditId').value.trim();
-  if (!id) { $('opsOut').textContent = 'Enter a spin or redemption id.'; return; }
-  const r = await adminCall('GET', '/audit?entityId=' + encodeURIComponent(id));
-  if (notAvailable(r)) return;
-  const rows = Array.isArray(r.body) ? r.body : [];
-  $('opsOut').replaceChildren(h('p', { class: 'muted', text: rows.length + ' audit rows for ' + id + '.' }),
-    h('ul', { class: 'timeline' }, rows.map((x) => h('li', {},
-      h('strong', { text: x.action }), ' ', h('span', { class: 'muted', text: x.entityType + ' by ' + x.actor + ' at ' + x.at }),
-      x.changes ? h('pre', { text: pretty(x.changes) }) : null))));
-}
-
 /* ---------- start ---------- */
 async function init() {
   const cfg = await fetch('/control/config').then((r) => r.json());
@@ -722,9 +666,7 @@ async function init() {
   $('runRate').addEventListener('input', () => { $('runRateOut').textContent = $('runRate').value + ' %'; });
   $('runGo').addEventListener('click', runMany);
   $('verdictGo').addEventListener('click', runVerdict);
-  $('opsAlerts').addEventListener('click', loadAlerts);
-  $('opsStuck').addEventListener('click', loadStuck);
-  $('opsAudit').addEventListener('click', loadAudit);
+  $('opsLink').href = cfg.appUrl + '/app/#/admin';
   $('logClear').addEventListener('click', () => { STATE.log = []; renderLog(); });
   renderContext();
   await loadFaults();

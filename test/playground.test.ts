@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type FakeCasino, startFakeCasino } from "../src/fake-casino/server.ts";
-import { demoTenants } from "../src/tenants/demo-tenants.ts";
+import { demoAdmins, demoTenants } from "../src/tenants/demo-tenants.ts";
 
 const page = readFileSync(new URL("../src/fake-casino/public/index.html", import.meta.url), "utf8");
 let fake: FakeCasino;
@@ -30,22 +30,21 @@ describe("the playground page is served", () => {
       "Faults",
       "Run many players",
       "Verdict",
-      "Operations",
+      "Back office",
       "Request log",
     ]) {
       expect(text).toContain(heading);
     }
   });
 
-  it("GET /control/config gives the tenants, the app url and the admin keys", async () => {
+  it("GET /control/config gives the tenants, the app url and no admin key", async () => {
     const body = (await (await fetch(`${fake.url}/control/config`)).json()) as {
       appUrl: string;
-      tenants: { id: string; name: string; platform: string; adminKey: string }[];
+      tenants: { id: string; name: string; platform: string }[];
     };
     expect(body.appUrl).toBe("http://localhost:30080");
-    expect(body.tenants.map((t) => [t.id, t.platform, t.adminKey])).toEqual(
-      demoTenants.map((t) => [t.id, t.platform, t.adminKey]),
-    );
+    expect(body.tenants.map((t) => [t.id, t.platform])).toEqual(demoTenants.map((t) => [t.id, t.platform]));
+    expect(JSON.stringify(body)).not.toMatch(/admin_?key/i);
   });
 });
 
@@ -59,10 +58,14 @@ describe("static checks on the page", () => {
 
   it("holds none of the demo secrets", () => {
     for (const t of demoTenants) {
-      for (const secret of [t.webhookSecret, t.tokenSecret, t.wheelSecret, t.adminKey, t.platformKey]) {
+      for (const secret of [t.webhookSecret, t.tokenSecret, t.wheelSecret, t.platformKey]) {
         expect(page).not.toContain(secret);
       }
     }
+  });
+
+  it("holds none of the demo admin passwords", () => {
+    for (const u of demoAdmins) expect(page).not.toContain(u.password);
   });
 
   it("every id the script looks up exists in the markup", () => {

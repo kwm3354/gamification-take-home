@@ -16,6 +16,8 @@ export interface Config {
    * sees the result at once. Tests turn it off to stand for "the process died right after the commit".
    */
   inlineJobs: boolean;
+  /** Secret that signs back office tokens. At least 32 characters. */
+  adminTokenSecret: string;
   /** When true the two demo tenants are created at start. */
   seedDemo: boolean;
   /** Base address of the fake casino; the demo tenants' platform_url. */
@@ -33,6 +35,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     if (!value) throw new Error(`${name} is not set`);
     return value;
   };
+  const adminTokenSecret = need("ADMIN_TOKEN_SECRET");
+  if (adminTokenSecret.length < 32) throw new Error("ADMIN_TOKEN_SECRET must be at least 32 characters");
   return {
     databaseUrl: need("DATABASE_URL"),
     tbAddress: need("TB_ADDRESS"),
@@ -41,6 +45,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     platformTimeoutMs: Number(env.PLATFORM_TIMEOUT_MS ?? 2000),
     outboxTimer: env.OUTBOX_TIMER !== "off",
     inlineJobs: env.INLINE_JOBS !== "off",
+    adminTokenSecret,
     seedDemo: env.SEED_DEMO === "1",
     fakeCasinoUrl: env.FAKE_CASINO_URL ?? "http://fake-casino:4000",
     publicFakeCasinoUrl: env.PUBLIC_FAKE_CASINO_URL ?? "http://localhost:30081",
