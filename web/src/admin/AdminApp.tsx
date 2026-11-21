@@ -89,7 +89,11 @@ function Shell({ user, route }: { user: AdminUser; route: AdminRoute | null }) {
   const tenants = useTenants();
   const [picked, setPicked] = useState(readTenant);
   const isPlatform = user.role === "platform_admin";
-  const tenantId = isPlatform ? (tenants?.find((t) => t.id === picked)?.id ?? tenants?.[0]?.id ?? "") : (user.tenantId ?? "");
+  // A link from the player page names its tenant in `?tenant=`. Only a platform admin can switch tenant.
+  const linked = tenants?.find((t) => t.id === route?.query.tenant)?.id;
+  const tenantId = isPlatform
+    ? (tenants?.find((t) => t.id === picked)?.id ?? tenants?.[0]?.id ?? "")
+    : (user.tenantId ?? "");
   const tenantName = tenants?.find((t) => t.id === tenantId)?.name ?? tenantId;
 
   const pick = (id: string) => {
@@ -100,6 +104,10 @@ function Shell({ user, route }: { user: AdminUser; route: AdminRoute | null }) {
       // The choice is then kept for this page load only.
     }
   };
+
+  useEffect(() => {
+    if (linked) pick(linked);
+  }, [linked]);
 
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {

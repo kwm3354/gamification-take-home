@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
 import { boot, deposit, redeem, refreshMe, spin } from "../actions.ts";
-import { BehindScenes } from "../components/BehindScenes.tsx";
 import { CoinBurst } from "../components/CoinBurst.tsx";
 import { CountUp } from "../components/CountUp.tsx";
 import { DemoControls } from "../components/DemoControls.tsx";
 import { Rewards } from "../components/Rewards.tsx";
 import { Wheel, type WheelHandle } from "../components/Wheel.tsx";
+import { backOfficeHash } from "../back-office-link.ts";
 import { coins, rewardTitle } from "../format.ts";
 import { nextAction } from "../next-action.ts";
 import { currentPlayer } from "../state.ts";
@@ -23,7 +23,6 @@ export function PlayPage() {
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [win, setWin] = useState<{ coins: number; key: number } | null>(null);
   const [message, setMessage] = useState("");
-  const [scenes, setScenes] = useState(false);
   // The casino's own wallet, in cents. A demo figure kept in this page: each deposit adds 20.00.
   const [wallets, setWallets] = useState<Record<string, number>>({});
 
@@ -224,18 +223,14 @@ export function PlayPage() {
             </div>
           </div>
         </section>
-        <footer className="game-foot">
-          <button
-            type="button"
-            className="btn btn-quiet"
-            aria-expanded={scenes}
-            onClick={() => setScenes(!scenes)}
-          >
-            See what happened behind the scenes
-          </button>
-        </footer>
       </main>
-      <BehindScenes open={scenes} onClose={() => setScenes(false)} log={state.log} items={items} />
+      <p className="demo-behind">
+        <span className="demo-tag">demo</span>
+        <a href={backOfficeHash(state.tenantId, me?.playerId ?? null)} target="_blank" rel="noopener">
+          See what happened behind the scenes
+        </a>
+        <span className="muted">opens the back office</span>
+      </p>
     </div>
   );
 }

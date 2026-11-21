@@ -238,62 +238,6 @@ select {
   gap: var(--sp-2);
 }
 
-.call {
-  margin: var(--sp-2) 0 var(--sp-3);
-  padding: var(--sp-3);
-  border: 1px solid var(--line);
-  border-radius: var(--r-field);
-  background: var(--surface-2);
-  display: grid;
-  gap: var(--sp-2);
-  font-size: var(--fs-sm);
-}
-
-.call-who {
-  display: inline-block;
-  margin-right: var(--sp-2);
-  padding: 0 var(--sp-2);
-  border-radius: var(--r-pill);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  font-weight: 600;
-}
-
-.call-bodies {
-  display: grid;
-  gap: var(--sp-3);
-}
-
-@media (min-width: 700px) {
-  .call-bodies {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-.call h4 {
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  text-transform: none;
-  margin-bottom: var(--sp-1);
-}
-
-.call pre {
-  margin: 0;
-  max-height: 220px;
-  overflow: auto;
-  padding: var(--sp-2);
-  border-radius: 8px;
-  background: var(--bg);
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.call .btn {
-  justify-self: start;
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

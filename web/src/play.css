@@ -718,12 +718,6 @@ html[data-route="play"] body {
   }
 }
 
-.game-foot {
-  display: flex;
-  justify-content: center;
-  padding-top: var(--sp-8);
-}
-
 .notice {
   display: grid;
   gap: var(--sp-4);
@@ -780,95 +774,23 @@ html[data-route="play"] body {
   font-size: 13px;
 }
 
-/* Behind the scenes: a bottom sheet on a phone, a side drawer on a wide screen. */
-.scenes {
-  position: fixed;
-  z-index: 10;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  max-width: none;
-  max-height: 72dvh;
-  overflow: auto;
-  padding: var(--sp-4);
-  background: var(--surface);
-  border-top: 1px solid var(--line);
-  border-radius: var(--r-card) var(--r-card) 0 0;
-  text-align: left;
-}
-
-.scenes[hidden] {
-  display: none;
-}
-
-@media (min-width: 900px) {
-  .scenes {
-    left: auto;
-    top: 0;
-    width: 440px;
-    max-height: none;
-    border-radius: var(--r-card) 0 0 var(--r-card);
-    border-left: 1px solid var(--line);
-    border-top: 0;
-  }
-}
-
-.scenes-head {
-  position: sticky;
-  top: calc(-1 * var(--sp-4));
-  z-index: 1;
-  margin: calc(-1 * var(--sp-4)) calc(-1 * var(--sp-4)) var(--sp-2);
-  padding: var(--sp-3) var(--sp-4);
-  background: var(--surface);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--sp-2);
-}
-
-.scenes-intro {
-  margin-bottom: var(--sp-4);
-}
-
-.timeline {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: var(--sp-1);
-}
-
-.tl-row {
+/* A demo aid outside the widget frame: a link to the back office page of this player. */
+.demo-behind {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--sp-1) var(--sp-3);
-  width: 100%;
-  min-height: 40px;
-  padding: var(--sp-2) var(--sp-2);
-  border: 0;
-  border-radius: var(--r-field);
-  background: transparent;
-  color: var(--text);
-  font: inherit;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2) var(--sp-3);
+  padding: var(--sp-6) var(--sp-4);
   font-size: var(--fs-sm);
-  text-align: left;
-  cursor: pointer;
 }
 
-.tl-row:hover,
-.tl-row[aria-expanded="true"] {
-  background: var(--surface-2);
-}
-
-.tl-text {
-  flex: 1 1 200px;
-  min-width: 0;
-}
-
-.tl-who {
-  flex: 0 0 100%;
-  padding-left: 30px;
+.demo-tag {
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
   font-size: var(--fs-xs);
   color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
