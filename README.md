@@ -56,6 +56,45 @@ of the intake and the wheel.
 6. One tenant sees or changes anything of another tenant.
 7. An event without a valid signature changes anything.
 
+## The coins are not in PostgreSQL
+
+The coin ledger is **TigerBeetle**, a database built only for double-entry accounting. PostgreSQL
+keeps everything else. This is the most unusual decision in the project, so here it is in full.
+
+**Why.** Coins behave like money: they are won, reserved, spent, given back. A ledger written by
+hand in SQL is where such products get their worst bugs (a balance column updated twice, a debit
+without its credit, a race that goes below zero). TigerBeetle guarantees a correct ledger by
+construction, has headroom far above this load, and took most of the ledger work off the table, so
+the day went into the product.
+
+**How the model maps onto it** (`src/ledger/coin-ledger.tigerbeetle.ts`, port in
+`src/domain/coin-ledger.ts`):
+
+| In the product | In the ledger |
+|---|---|
+| A casino (tenant) | Its own `ledger` number. Accounts of two casinos can never be in one transfer. |
+| A player's coins | One account with the flag "debits must not exceed credits". The ledger itself refuses a negative balance; our code cannot get it wrong. |
+| A prize from the wheel | A transfer from the casino's issuer account to the player. |
+| A redemption starts | A **pending** transfer from the player back to the issuer: the coins are reserved, not spent. |
+| The casino issued the bonus | The pending transfer is **posted**. |
+| The casino refused | The pending transfer is **voided**: the coins are back. |
+| Coins owed to all players of a casino | The balance of ONE account, the issuer. Not a sum over players. |
+
+Every coin has a source and an owner, and the two-step transfer is exactly the life of a
+redemption.
+
+**Two stores, no shared transaction.** The decision and a job are written to PostgreSQL in one
+transaction. Then the job makes the ledger transfer. The transfer's id is derived from the id of
+the decision (a hash of `xfer:prize:<spin id>`, `xfer:reserve:<redemption id>` and so on), so running the
+job twice moves nothing the second time. If the process dies between the two stores, the job is
+still in PostgreSQL and a worker repeats it.
+
+**What it costs, honestly.** A second store to run and back up. No SQL: lists and reports read
+PostgreSQL, the ledger is asked only for balances. The server needs a CPU with AVX2 and io_uring
+(hence one extra line in `docker-compose.yml`). I set myself two conditions before using it:
+prove the official image on other hardware in the first hour (done on a CI runner at 11:13), and a
+deadline for the integration with a fallback to a ledger table in PostgreSQL (not needed).
+
 ## How it is built, in one screen
 
 - **One domain, one adapter per casino platform.** There are many casinos and one domain logic.
@@ -70,11 +109,7 @@ of the intake and the wheel.
 - **Look first, then repeat.** After an unknown outcome we ask the casino whether the reward exists
   before sending the request again. On a platform without idempotency this is the only thing that
   prevents a second bonus.
-- **The ledger is TigerBeetle.** It guarantees a correct double-entry ledger, has headroom far above
-  this load, and removed most of the work of writing a ledger by hand. PostgreSQL keeps everything
-  else. The two stores share no transaction: the decision and a job are written to PostgreSQL first,
-  the ledger transfer has an id derived from the decision, so repeating it changes nothing.
-  Code: `src/ledger/`, `src/outbox/`.
+- **The ledger is TigerBeetle**, see the section above. Code: `src/ledger/`, `src/outbox/`.
 - **Workers scale by count.** A job is claimed with a lease in one short statement, the casino and
   ledger calls run with no database transaction open, and only the holder of the lease writes the
   outcome.
