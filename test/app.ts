@@ -46,6 +46,7 @@ export async function startApp(
     ledgerTimeoutMs: 2000,
     platformTimeoutMs: 300,
     outboxTimer: false,
+    inlineJobs: true,
     seedDemo: false,
     fakeCasinoUrl: "http://127.0.0.1:1",
     ...options.config,

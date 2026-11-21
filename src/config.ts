@@ -11,6 +11,11 @@ export interface Config {
   platformTimeoutMs: number;
   /** When true a timer runs due outbox jobs every 500 ms. Tests turn it off and run jobs by hand. */
   outboxTimer: boolean;
+  /**
+   * When true a request runs its own outbox job right after its transaction commits, so the caller
+   * sees the result at once. Tests turn it off to stand for "the process died right after the commit".
+   */
+  inlineJobs: boolean;
   /** When true the two demo tenants are created at start. */
   seedDemo: boolean;
   /** Base address of the fake casino; the demo tenants' platform_url. */
@@ -33,6 +38,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     ledgerTimeoutMs: Number(env.LEDGER_TIMEOUT_MS ?? 2000),
     platformTimeoutMs: Number(env.PLATFORM_TIMEOUT_MS ?? 2000),
     outboxTimer: env.OUTBOX_TIMER !== "off",
+    inlineJobs: env.INLINE_JOBS !== "off",
     seedDemo: env.SEED_DEMO === "1",
     fakeCasinoUrl: env.FAKE_CASINO_URL ?? "http://fake-casino:4000",
   };
