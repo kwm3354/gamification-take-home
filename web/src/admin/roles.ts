@@ -2,7 +2,7 @@ import type { Section } from "./routes.ts";
 
 export type Role = "platform_admin" | "tenant_admin" | "tenant_viewer";
 
-export type Action = "read" | "resolve" | "propose" | "decide" | "see_other_tenant";
+export type Action = "read" | "resolve" | "propose" | "decide" | "see_other_tenant" | "manage_keys";
 
 /** A courtesy copy of the server's table in docs/contracts.md. The server is the authority. */
 const ALLOWED: Record<Action, readonly Role[]> = {
@@ -11,6 +11,7 @@ const ALLOWED: Record<Action, readonly Role[]> = {
   propose: ["tenant_admin", "platform_admin"],
   decide: ["platform_admin"],
   see_other_tenant: ["platform_admin"],
+  manage_keys: ["tenant_admin", "platform_admin"],
 };
 
 export function can(role: Role, action: Action): boolean {

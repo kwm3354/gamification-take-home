@@ -13,6 +13,7 @@ import { useAdmin, useGet } from "../admin/hooks.ts";
 import { can } from "../admin/roles.ts";
 import { Actor, DataTable, Id, Mark, Notice, PageTitle, Time } from "../admin/ui.tsx";
 import { coins } from "../format.ts";
+import { Keys } from "./Keys.tsx";
 
 export interface Seg {
   label: string;
@@ -186,6 +187,7 @@ function Body({ d, canPropose, tenantId, onChanged }: { d: SettingsData; canProp
         status="ok"
         empty="No store items."
       />
+      <Keys />
     </>
   );
 }

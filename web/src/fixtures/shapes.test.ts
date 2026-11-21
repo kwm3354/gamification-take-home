@@ -7,6 +7,7 @@ import { changeLines } from "../admin/audit-format.ts";
 import { expectedPrize } from "../admin/expected-prize.ts";
 import { type Page, appendPage, emptyPaged } from "../admin/pagination.ts";
 import type { AdminUser } from "../admin/auth.ts";
+import type { KeyItem, RotateAnswer } from "../admin/keys.ts";
 import type { AuditRow } from "../sections/Audit.tsx";
 import type { AlertsData } from "../sections/Alerts.tsx";
 import type { Detail } from "../sections/Redemption.tsx";
@@ -29,6 +30,10 @@ import betaSpins from "./beta-spins-page.json";
 import betaStuck from "./beta-stuck.json";
 import eventDetail from "./event-detail.json";
 import eventDetailIgnored from "./event-detail-ignored.json";
+import keysList from "./keys-list.json";
+import keysListBefore from "./keys-list-before.json";
+import keysRevoke from "./keys-revoke-200.json";
+import keysRotate from "./keys-rotate-201.json";
 import login from "./login.json";
 import platformChanges from "./platform-changes.json";
 import playerDetail from "./player-detail.json";
@@ -129,5 +134,18 @@ describe("the screen reads the shapes the real server sends", () => {
   it("the page computes the same expected prize as the server for every stored wheel", () => {
     expect(alphaSettings.wheel.length).toBeGreaterThan(1);
     for (const w of alphaSettings.wheel) expect(expectedPrize(w.segments)).toBe(w.expectedPrizeCoins);
+  });
+
+  it("tenant keys: list, replace and drop the previous one", () => {
+    const list: KeyItem[] = keysList as KeyItem[];
+    expect(list.map((k) => k.kind)).toEqual(["event_signing", "player_token"]);
+    expect(list[0]?.previous?.hint).toBeTypeOf("string");
+    expect((keysListBefore as KeyItem[]).every((k) => k.previous === null && k.rotatedAt === null)).toBe(true);
+    const answer: RotateAnswer = keysRotate as RotateAnswer;
+    expect(answer.secret.startsWith("pts_")).toBe(true);
+    const dropped: KeyItem = keysRevoke as KeyItem;
+    expect(dropped.previous).toBeNull();
+    // A list item never carries a secret.
+    for (const k of list) expect(Object.keys(k).sort()).toEqual(["hint", "kind", "previous", "rotatedAt"]);
   });
 });
