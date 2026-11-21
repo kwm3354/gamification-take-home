@@ -169,7 +169,7 @@ Today: `src/store/redemption.ts`. One internal model for both platforms: a redem
 that is created and then confirmed (my model, 11:39; the agent pointed out that the two platforms
 behave differently). The synchronous platform A is the same model with the two steps taken at once.
 `POST /store/redemptions` with an `Idempotency-Key` creates the row (`created`) and its outbox job in
-one transaction; a repeated key returns the first row and changes nothing. `advance` does one step
+one transaction; a repeated key with the same item returns the first row and changes nothing, and with another item it is a 409. `advance` does one step
 per call and is safe to repeat: `created -> reserved` (ledger reserve) or `insufficient`;
 `reserved -> submitting`, committed before any call to the platform; in `submitting`, look first
 with `findReward` and call `issueReward` only when the platform has never heard of the request;

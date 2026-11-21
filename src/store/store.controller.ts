@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Get,
   Headers,
@@ -46,6 +47,13 @@ export class StoreController {
       requestId: currentRequestId(),
     });
     if (result === "unknown_item") throw new NotFoundException();
+    if (result === "key_reused") {
+      throw new ConflictException({
+        statusCode: 409,
+        error: "idempotency_key_reused",
+        message: "This Idempotency-Key was already used for another item",
+      });
+    }
     res.status(result.created ? 201 : 200);
     return result.view;
   }

@@ -197,7 +197,7 @@ signed token.
 | `GET /wheel` | `{ "version": 1, "segments": [{ "label", "coins" }] }` |
 | `POST /wheel/spins/:spinId/spin` | 200 `{ "spinId", "segmentIndex", "label", "coins" }`; the same answer for every repeat; 404 if the spin is not this player's |
 | `GET /store/items` | `[{ "id", "code", "name", "costCoins", "reward" }]` |
-| `POST /store/redemptions` with header `Idempotency-Key`, body `{ "itemId" }` | 201 (first time) or 200 (repeat) `{ "id", "status", "costCoins", "reward", "reason" }`; 400 without the key; 404 unknown item |
+| `POST /store/redemptions` with header `Idempotency-Key`, body `{ "itemId" }` | 201 (first time) or 200 (repeat) `{ "id", "status", "costCoins", "reward", "reason" }`; the key is bound to the item: the same key with another `itemId` is 409 `idempotency_key_reused`; 400 without the key; 404 unknown item |
 | `GET /store/redemptions/:id` | the same object; 404 if not this player's |
 
 Admin calls: see "Admin and operations", "Back office API" and "Admin sign-in and roles" below.
