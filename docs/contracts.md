@@ -44,6 +44,18 @@ Wheel version 1: `10 coins` weight 50, `50 coins` weight 30, `100 coins` weight 
 weight 5. Demo secrets are fixed strings in `src/tenants/demo-tenants.ts`; `platform_url` comes from
 env `FAKE_CASINO_URL` (default `http://fake-casino:4000`).
 
+## Tenant isolation is checked per route
+
+Isolation is enforced in code: every query filters by tenant. The risk is a new route whose query
+forgets the filter. `test/tenant-isolation.test.ts` reads every HTTP route from the running app
+(the Express router stack) and wants a decision for each: a check in `CHECKED`, or a reason in
+`SKIPPED`. A route in neither list fails the test ("New route ...: decide"). An entry that matches
+no live route fails too ("stale entry"), and so does a route in both lists. The checks call each
+route as beta's actor with alpha's identifiers (collected from every table with a `tenant_id`
+column) and expect a 404 or a clean answer; for writes, all of alpha's rows must be the same
+afterwards. A request that is rejected for a bad signature is audited under the tenant of the path,
+so alpha's trail may show a rejected beta-signed request; that is the only change allowed.
+
 ## Actors and audit
 
 Every create, update and delete of a row in `players`, `inbound_events`, `spins`, `redemptions`,
