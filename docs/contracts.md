@@ -170,6 +170,7 @@ version 1: `{ "minAmountMinor": 1, "currencies": null, "spinsPerDeposit": 1 }`.
 
 Statuses: `created -> reserved -> submitting -> issued | refused`, or `created -> insufficient`.
 `issued` and `refused` are final for the player; `settled_at` says the ledger has caught up.
+`insufficient` reserved nothing, so `settled_at` is set in the same update that sets the status.
 
 `POST /store/redemptions` creates the row (`created`) and the job `redemption_advance` in one
 transaction, then runs the job at once and returns the current state. A repeated key returns the

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "vitest";
+import { stuckRedemptions } from "../src/admin/stuck.ts";
 import { PLATFORMS, type Platforms } from "../src/domain/casino-platform.ts";
 import { COIN_LEDGER, type CoinLedger, LedgerUnavailable } from "../src/domain/coin-ledger.ts";
 import type { FakeCasino } from "../src/fake-casino/server.ts";
@@ -237,6 +238,13 @@ describe.skipIf(!running)("bonus store", () => {
     const r = await redeem(p, await itemId(ALPHA, "bonus-1-eur"));
     expect(r.status).toBe(201);
     expect(r.json.status).toBe("insufficient");
+    // Nothing was reserved, so nothing is left to settle: the view says settled.
+    expect((await getRedemption(p, r.json.id)).json).toMatchObject({ status: "insufficient", settled: true });
+    // Such a redemption is final and never "stuck", however old it gets.
+    app().clock.advance(120_000);
+    expect((await stuckRedemptions(app().db, app().clock, ALPHA, 60)).map((i) => i.id)).not.toContain(
+      r.json.id,
+    );
     expect(await balanceOf(p)).toEqual({ available: 50n, reserved: 0n });
     expect((await fakeState()).requests.filter((q) => q.reference === r.json.id)).toHaveLength(0);
     expect(await verdict(p)).toEqual([]);

@@ -439,7 +439,14 @@ export async function advance(deps: StoreDeps, redemptionId: string, opts: StepO
   const move = async (from: RedemptionStatus, to: RedemptionStatus) => {
     const changed = await transaction(deps.db, (tx) =>
       update(tx, ctx, "redemptions", row.id, (cur) =>
-        cur.status === from ? { status: to, updated_at: ctx.now } : null,
+        cur.status === from
+          ? {
+              status: to,
+              updated_at: ctx.now,
+              // "insufficient" reserved nothing, so there is nothing left to settle.
+              ...(to === "insufficient" ? { settled_at: ctx.now } : {}),
+            }
+          : null,
       ),
     );
     if (changed)
