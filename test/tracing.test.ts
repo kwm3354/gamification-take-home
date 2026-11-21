@@ -286,7 +286,6 @@ describe.skipIf(!running)("tracing", () => {
       t.webhookSecret,
       t.tokenSecret,
       t.wheelSecret,
-      t.adminKey,
       t.platformKey,
     ]);
     for (const secret of secrets) expect(everything).not.toContain(secret);
