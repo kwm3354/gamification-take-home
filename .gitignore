@@ -10,3 +10,4 @@ CLAUDE.local.md
 .private/
 # local compose changes for a CPU without AVX2
 docker-compose.override.yml
+.claude/worktrees/
