@@ -73,7 +73,7 @@ export class StoreService implements OnModuleInit {
     }));
   }
 
-  /** `unknown_item` is a 404. Otherwise the redemption as it is after the inline run. */
+  /** `unknown_item` is a 404, `key_reused` a 409. Otherwise the redemption as it is after the inline run. */
   async redeem(input: {
     tenantId: string;
     playerId: string;
@@ -81,10 +81,10 @@ export class StoreService implements OnModuleInit {
     idempotencyKey: string;
     itemId: string;
     requestId?: string;
-  }): Promise<"unknown_item" | { view: RedemptionView; created: boolean }> {
+  }): Promise<"unknown_item" | "key_reused" | { view: RedemptionView; created: boolean }> {
     const actor = `player/${input.playerId}`;
     const made = await createRedemption(this.deps, { ...input, actor });
-    if (made === "unknown_item") return made;
+    if (made === "unknown_item" || made === "key_reused") return made;
     if (made.created && this.config.inlineJobs) await this.inline(made.row.id, actor);
     const row = await findRedemption(this.db, input.tenantId, made.row.id);
     return { view: toView(row ?? made.row), created: made.created };

@@ -137,7 +137,10 @@ export async function findRedemption(
   return (rows[0] as RedemptionRow | undefined) ?? null;
 }
 
-/** Creates the intent and its job in one transaction. A repeated key returns the first redemption. */
+/**
+ * Creates the intent and its job in one transaction. A repeated key with the same item returns the
+ * first redemption. The same key with another item is "key_reused": nothing is created or changed.
+ */
 export async function createRedemption(
   deps: StoreDeps,
   input: {
@@ -148,7 +151,7 @@ export async function createRedemption(
     actor: string;
     requestId?: string;
   },
-): Promise<{ row: RedemptionRow; created: boolean } | "unknown_item"> {
+): Promise<{ row: RedemptionRow; created: boolean } | "unknown_item" | "key_reused"> {
   const existing = () =>
     deps.db
       .query("SELECT * FROM redemptions WHERE tenant_id = $1 AND player_id = $2 AND idempotency_key = $3", [
@@ -158,9 +161,10 @@ export async function createRedemption(
       ])
       .then((r) => r.rows[0] as RedemptionRow | undefined);
 
-  // A repeat answers with what was stored, whatever item the body names this time.
+  // The key is bound to the item it was first used for (the only field of the body that matters).
+  const sameItem = (r: RedemptionRow) => r.item_id.toLowerCase() === input.itemId.toLowerCase();
   const first = await existing();
-  if (first) return { row: first, created: false };
+  if (first) return sameItem(first) ? { row: first, created: false } : "key_reused";
 
   const item = isUuid(input.itemId)
     ? (
@@ -207,7 +211,7 @@ export async function createRedemption(
   // Another request with the same key won the race. Its row is committed by now.
   const winner = await existing();
   if (!winner) throw new Error("redemption vanished after a key conflict");
-  return { row: winner, created: false };
+  return sameItem(winner) ? { row: winner, created: false } : "key_reused";
 }
 
 /**

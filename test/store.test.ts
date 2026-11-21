@@ -205,7 +205,7 @@ describe.skipIf(!running)("bonus store", () => {
     const item = await itemId(ALPHA, "bonus-1-eur");
     const key = randomUUID();
     const first = await redeem(p, item, key);
-    const second = await redeem(p, await itemId(ALPHA, "bonus-5-eur"), key); // a different item in the body is ignored
+    const second = await redeem(p, item, key);
     expect([first.status, second.status]).toEqual([201, 200]);
     expect(second.json.id).toBe(first.json.id);
     expect(second.json.costCoins).toBe("100");
@@ -230,6 +230,43 @@ describe.skipIf(!running)("bonus store", () => {
     expect(await grantsFor(id)).toHaveLength(1);
     expect(await balanceOf(p)).toEqual({ available: 400n, reserved: 0n });
     expect((await getRedemption(p, id)).json).toMatchObject({ status: "issued", settled: true });
+    expect(await verdict(p)).toEqual([]);
+  });
+
+  test("3b. the same key with another item is a 409: nothing created, nothing changed, no new job", async () => {
+    const p = await newPlayer(ALPHA, 500n);
+    const key = randomUUID();
+    const first = await redeem(p, await itemId(ALPHA, "bonus-1-eur"), key);
+    expect(first.status).toBe(201);
+    const jobs = async () => Number((await app().db.query("SELECT count(*) AS n FROM outbox")).rows[0].n);
+    const jobsBefore = await jobs();
+    const second = await redeem(p, await itemId(ALPHA, "bonus-5-eur"), key);
+    expect(second.status).toBe(409);
+    expect(second.json).toMatchObject({ statusCode: 409, error: "idempotency_key_reused" });
+    expect(String((second.json as { message?: string }).message)).toContain("another item");
+    const rows = await app().db.query("SELECT id, item_id FROM redemptions WHERE player_id = $1", [p.id]);
+    expect(rows.rows).toHaveLength(1);
+    expect(rows.rows[0].id).toBe(first.json.id);
+    expect(await balanceOf(p)).toEqual({ available: 400n, reserved: 0n });
+    expect(await jobs()).toBe(jobsBefore);
+    expect(await grantsFor(first.json.id)).toHaveLength(1);
+    expect(await verdict(p)).toEqual([]);
+  });
+
+  test("4b. the same key with two different items at once: one redemption, the other request is a 409", async () => {
+    const p = await newPlayer(ALPHA, 500n);
+    const key = randomUUID();
+    const items = [await itemId(ALPHA, "bonus-1-eur"), await itemId(ALPHA, "bonus-5-eur")];
+    const answers = await Promise.all(items.map((i) => redeem(p, i, key)));
+    const statuses = answers.map((a) => a.status).sort();
+    expect(statuses[1]).toBe(409);
+    expect([200, 201]).toContain(statuses[0]);
+    const rows = await app().db.query("SELECT id, cost_coins FROM redemptions WHERE player_id = $1", [p.id]);
+    expect(rows.rows).toHaveLength(1);
+    const winner = answers.find((a) => a.status !== 409);
+    expect(winner?.json.id).toBe(rows.rows[0].id);
+    expect(await balanceOf(p)).toEqual({ available: 500n - BigInt(rows.rows[0].cost_coins), reserved: 0n });
+    expect(await grantsFor(rows.rows[0].id)).toHaveLength(1);
     expect(await verdict(p)).toEqual([]);
   });
 
