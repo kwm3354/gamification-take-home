@@ -1,16 +1,31 @@
 # Gamification service for casino operators: a working slice
 
-A casino tells this service that a player made a deposit. The player gets a spin of a Wheel of Fortune
-and wins coins. The coins are kept in a ledger. The player spends coins in a bonus store, the service
-asks the casino to issue the bonus, and the final status is visible through the API. Two simulated
-casinos with different APIs go through the same internal logic.
+![Deposit, spin, coins, bonus: the main flow on the player page](docs/video/demo.gif)
 
-This is a prototype built in one working day. The part about money-like coins and the reward request
-is built to be correct under failure and is tested that way. The rest is as wide as the day allowed,
-and this page says plainly what is real, what is simulated and what is not built.
+## TL;DR
 
-To run it: `docker compose up -d --build --wait`, then open http://localhost:30080/app/ (details
-in "Run it" below).
+- **What it is.** A casino reports a player's deposit → the player spins a Wheel of Fortune → wins
+  coins → spends them in a bonus store → we ask the casino to issue the bonus → the final status is
+  in the API. Two simulated casinos with different APIs go through one internal logic.
+- **The coins are not in PostgreSQL.** The ledger is TigerBeetle, a double-entry accounting
+  database. A redemption is a two-step transfer: coins are reserved, then posted when the casino
+  issues the bonus or voided when it refuses. The ledger itself refuses a negative balance.
+- **It survives a casino that answers late, twice or never.** One model of a redemption for both
+  platforms, one adapter per platform, and the rule "look first, then repeat". No bonus is issued
+  twice and no coins are lost.
+- **It is proven, not claimed.** A fake casino that loses answers, a judge that trusts only the
+  casino's record and the ledger, random-fault tests, real processes killed mid-work, a measured
+  load run. More than 350 automated tests; CI runs them and the compose stack.
+- **It is operable.** Back office with sign-in and roles, full audit trail, alerts, stuck
+  redemptions with manual resolution, replaceable signing keys, logs, traces, workers that scale
+  by count.
+- **How it was made.** One engineer in one working day. I made the decisions; AI agents wrote the
+  code from written briefs; every decision and every AI mistake is in `docs/ai-log.md`.
+- **What is not there.** Both casinos are simulated. No database-level tenant isolation, no
+  secrets store, no migrations, no real integration.
+
+Run it: `docker compose up -d --build --wait`, then open http://localhost:30080/app/ (details in
+"Run it" below). A two-minute presentation: [`docs/video/presentation.mp4`](docs/video/presentation.mp4).
 
 Where to look:
 
