@@ -15,6 +15,8 @@ export interface OpsParams {
   maxPlayerRedeemShare: number;
   /** The share check runs only when the tenant's issued coins in 24 hours reach this. */
   minRedeemedForShare: number;
+  /** How much the service logs for this tenant. Missing means "info". See src/logging. */
+  logLevel?: "info" | "debug";
 }
 
 export interface OpsPolicy {
@@ -49,12 +51,17 @@ export function validateOpsParams(value: unknown): OpsParams {
   if (!isNumber(minRedeemedForShare) || minRedeemedForShare < 0) {
     throw new Error("minRedeemedForShare must be a number >= 0");
   }
+  const { logLevel } = v;
+  if (logLevel !== undefined && logLevel !== "info" && logLevel !== "debug") {
+    throw new Error('logLevel must be "info" or "debug"');
+  }
   return {
     pendingAgeLimitSec,
     maxExpectedPrizeCoins,
     maxSpinsPerPlayerPerDay,
     maxPlayerRedeemShare,
     minRedeemedForShare,
+    ...(logLevel !== undefined ? { logLevel } : {}),
   };
 }
 

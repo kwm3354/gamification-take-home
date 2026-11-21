@@ -1,6 +1,7 @@
 import { record } from "../audit/audited.ts";
 import type { Clock } from "../clock.ts";
 import type { Db } from "../db.ts";
+import type { Log } from "../logging/log.ts";
 import type { Outbox } from "../outbox/outbox.ts";
 import { type RedemptionRow, confirm, findRedemption } from "../store/redemption.ts";
 
@@ -20,7 +21,7 @@ export type Resolution =
  * `settle` (optional) runs the ledger step at once; without it the outbox job does it.
  */
 export async function resolveRedemption(
-  deps: { db: Db; clock: Clock; outbox: Outbox },
+  deps: { db: Db; clock: Clock; outbox: Outbox; log?: Log },
   tenantId: string,
   redemptionId: string,
   input: { outcome: ManualOutcome; note: string },

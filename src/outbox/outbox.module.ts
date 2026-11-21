@@ -1,7 +1,6 @@
 import {
   Global,
   Inject,
-  Logger,
   Module,
   type OnApplicationBootstrap,
   type OnApplicationShutdown,
@@ -11,6 +10,8 @@ import type { Clock } from "../clock.ts";
 import { CONFIG, type Config } from "../config.ts";
 import { DB } from "../db.module.ts";
 import type { Db } from "../db.ts";
+import { LOG } from "../logging/log.module.ts";
+import type { Log } from "../logging/log.ts";
 import { OUTBOX, Outbox } from "./outbox.ts";
 
 const TICK_MS = 500;
@@ -19,18 +20,22 @@ const TICK_MS = 500;
 @Global()
 @Module({
   providers: [
-    { provide: OUTBOX, inject: [DB, CLOCK], useFactory: (db: Db, clock: Clock) => new Outbox(db, clock) },
+    {
+      provide: OUTBOX,
+      inject: [DB, CLOCK, LOG],
+      useFactory: (db: Db, clock: Clock, log: Log) => new Outbox(db, clock, log),
+    },
   ],
   exports: [OUTBOX],
 })
 export class OutboxModule implements OnApplicationBootstrap, OnApplicationShutdown {
-  private readonly log = new Logger("Outbox");
   private timer: NodeJS.Timeout | undefined;
   private running = false;
 
   constructor(
     @Inject(OUTBOX) private readonly outbox: Outbox,
     @Inject(CONFIG) private readonly config: Config,
+    @Inject(LOG) private readonly log: Log,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -49,7 +54,10 @@ export class OutboxModule implements OnApplicationBootstrap, OnApplicationShutdo
     try {
       await this.outbox.runDue();
     } catch (e) {
-      this.log.error(`outbox run failed: ${e instanceof Error ? e.message : String(e)}`);
+      this.log.event("error", "unhandled", {
+        where: "outbox_tick",
+        error: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       this.running = false;
     }

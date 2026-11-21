@@ -23,6 +23,8 @@ import {
   type Platforms,
   type RewardNotice,
 } from "../domain/casino-platform.ts";
+import { LOG } from "../logging/log.module.ts";
+import { type Log, currentRequestId } from "../logging/log.ts";
 import { StoreService } from "../store/store.service.ts";
 import { findTenant } from "../tenants/tenants.ts";
 
@@ -39,6 +41,7 @@ export class RewardsController {
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(PLATFORMS) private readonly platforms: Platforms,
     private readonly store: StoreService,
+    @Inject(LOG) private readonly log: Log,
   ) {}
 
   @Post(":tenantId/rewards")
@@ -52,7 +55,7 @@ export class RewardsController {
     const headers: Record<string, string | undefined> = {};
     for (const [k, v] of Object.entries(req.headers)) headers[k.toLowerCase()] = Array.isArray(v) ? v[0] : v;
     const now = this.clock.now();
-    const rejection = { tenantId, requestId: headers["x-request-id"] ?? randomUUID(), now };
+    const rejection = { tenantId, requestId: currentRequestId() ?? randomUUID(), now };
     const reject = (actor: string, action: string, reason: string) =>
       transaction(this.db, (tx) =>
         record(
@@ -83,10 +86,16 @@ export class RewardsController {
     } catch (e) {
       if (e instanceof InvalidSignature) {
         await reject("unknown", "webhook_rejected", "bad signature");
+        this.log.event("warn", "webhook.rejected", {
+          tenantId,
+          reason: "bad signature",
+          bytes: rawBody.length,
+        });
         throw new UnauthorizedException();
       }
       if (e instanceof InvalidPayload) {
         await reject(`platform/${tenantId}`, "webhook_invalid", e.message);
+        this.log.event("warn", "webhook.invalid", { tenantId, reason: e.message });
         throw new BadRequestException();
       }
       if (e instanceof NotSupported) throw new BadRequestException();

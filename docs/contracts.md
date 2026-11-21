@@ -293,6 +293,33 @@ rest of `src/` except `src/tenants/demo-tenants.ts`. It plays both platforms for
 Secrets and keys of the demo tenants are fixed strings in one small file,
 `src/tenants/demo-tenants.ts` (plain data, no imports). The seed and the fake casino both read it.
 
+## Logs
+
+Code: `src/logging/`. One JSON object per line on stdout:
+`{ "at", "level", "event", "tenantId", "requestId", ...fields }`. `at` comes from the injected clock.
+`tenantId` is null when a line has no tenant. `requestId` is the `x-request-id` of the request (valid:
+`[A-Za-z0-9._-]{1,64}`; otherwise a new uuid; always echoed in the response header) or
+`job:<kind>:<refId>` inside an outbox job.
+
+Levels: error, warn, info, debug. A line is written when its level is at or above the level of its
+tenant. The level of a tenant is `logLevel` (`"info"` or `"debug"`, default `"info"`) in its newest ops
+policy, read at most every 30 s (injected clock) and never awaited by the caller: the first line of a
+tenant, and the first line after the cache expires, still use the old value. Lines without a tenant
+use `info`.
+
+Events (the only ones): `event.accepted`, `event.duplicate`, `event.ignored` (debug), `webhook.rejected`,
+`webhook.invalid`, `spin.used`, `spin.credited` (debug), `spin.credit_deferred`, `redemption.created`,
+`redemption.status`, `redemption.contradicted`, `platform.call`, `platform.unreachable`,
+`outbox.retry` (debug), `outbox.dead`, `admin.manual_resolution`, `ledger.unavailable`, `unhandled`.
+Each is explained in `docs/monitoring-playbook.md`. A duplicate event is a log line and not an audit
+entry: it changes nothing.
+
+Redaction: a field whose key matches `/secret|token|signature|authorization|key|password/i` is written
+as `"***"` at any depth (so `idempotencyKey` is redacted too). `Bearer <token>` inside a text value
+becomes `Bearer ***`. Bigint values are written as strings. Request and response bodies are not logged.
+Logging never throws into the caller: a value that cannot be serialised gives a minimal line with
+`logError`.
+
 ## Admin and operations
 
 Code: `src/admin/` (guard, controller, plain logic in `stuck.ts`, `resolve.ts`, `audit-trail.ts`) and

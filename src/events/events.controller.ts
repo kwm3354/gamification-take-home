@@ -22,6 +22,8 @@ import {
   type PlatformEvent,
   type Platforms,
 } from "../domain/casino-platform.ts";
+import { LOG } from "../logging/log.module.ts";
+import { type Log, currentRequestId } from "../logging/log.ts";
 import { findTenant } from "../tenants/tenants.ts";
 import { ingestEvent } from "./deposit.ts";
 
@@ -36,6 +38,7 @@ export class EventsController {
     @Inject(DB) private readonly db: Db,
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(PLATFORMS) private readonly platforms: Platforms,
+    @Inject(LOG) private readonly log: Log,
   ) {}
 
   @Post(":tenantId/events")
@@ -49,7 +52,7 @@ export class EventsController {
     const headers: Record<string, string | undefined> = {};
     for (const [k, v] of Object.entries(req.headers)) headers[k.toLowerCase()] = Array.isArray(v) ? v[0] : v;
     const now = this.clock.now();
-    const requestId = headers["x-request-id"] ?? randomUUID();
+    const requestId = currentRequestId() ?? randomUUID();
     const rejection = { tenantId, requestId, now };
 
     let events: PlatformEvent[];
@@ -79,6 +82,11 @@ export class EventsController {
             },
           ),
         );
+        this.log.event("warn", "webhook.rejected", {
+          tenantId,
+          reason: "bad signature",
+          bytes: rawBody.length,
+        });
         throw new UnauthorizedException();
       }
       if (e instanceof InvalidPayload) {
@@ -94,6 +102,7 @@ export class EventsController {
             },
           ),
         );
+        this.log.event("warn", "webhook.invalid", { tenantId, reason: e.message });
         throw new BadRequestException();
       }
       throw e;
@@ -104,10 +113,23 @@ export class EventsController {
     const ctx = { ...rejection, actor: `platform/${tenantId}` };
     const counts = { accepted: 0, duplicates: 0, ignored: 0 };
     for (const event of events) {
-      const outcome = await transaction(this.db, (tx) => ingestEvent(tx, ctx, tenantId, event, raw));
-      if (outcome === "accepted") counts.accepted++;
-      else if (outcome === "duplicate") counts.duplicates++;
-      else counts.ignored++;
+      const done = await transaction(this.db, (tx) => ingestEvent(tx, ctx, tenantId, event, raw));
+      const externalEventId = event.externalEventId;
+      if (done.outcome === "accepted") {
+        counts.accepted++;
+        this.log.event("info", "event.accepted", {
+          tenantId,
+          externalEventId,
+          kind: event.kind,
+          spinsGranted: done.spinsGranted,
+        });
+      } else if (done.outcome === "duplicate") {
+        counts.duplicates++;
+        this.log.event("info", "event.duplicate", { tenantId, externalEventId });
+      } else {
+        counts.ignored++;
+        this.log.event("debug", "event.ignored", { tenantId, externalEventId, why: done.why });
+      }
     }
     return counts;
   }

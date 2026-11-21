@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, type OnModuleInit } from "@nestjs/common";
+import { Inject, Injectable, type OnModuleInit } from "@nestjs/common";
 import { CLOCK } from "../clock.module.ts";
 import type { Clock } from "../clock.ts";
 import { CONFIG, type Config } from "../config.ts";
@@ -6,6 +6,8 @@ import { DB } from "../db.module.ts";
 import type { Db } from "../db.ts";
 import { PLATFORMS, type Platforms, type RewardNotice } from "../domain/casino-platform.ts";
 import { COIN_LEDGER, type CoinLedger } from "../domain/coin-ledger.ts";
+import { LOG } from "../logging/log.module.ts";
+import type { Log } from "../logging/log.ts";
 import { OUTBOX, type Outbox } from "../outbox/outbox.ts";
 import {
   JOB_KIND,
@@ -25,7 +27,6 @@ import {
 /** Thin wiring around src/store/redemption.ts. */
 @Injectable()
 export class StoreService implements OnModuleInit {
-  private readonly log = new Logger("Store");
   private readonly deps: StoreDeps;
 
   constructor(
@@ -35,6 +36,7 @@ export class StoreService implements OnModuleInit {
     @Inject(OUTBOX) private readonly outbox: Outbox,
     @Inject(PLATFORMS) platforms: Platforms,
     @Inject(CONFIG) private readonly config: Config,
+    @Inject(LOG) private readonly log: Log,
   ) {
     this.deps = {
       db,
@@ -44,6 +46,7 @@ export class StoreService implements OnModuleInit {
       platforms,
       platformTimeoutMs: config.platformTimeoutMs,
       slots: new Slots(2),
+      log,
     };
   }
 
@@ -112,7 +115,11 @@ export class StoreService implements OnModuleInit {
       await runInline(this.deps, id, actor, maxSteps);
     } catch (e) {
       // The job stays in the outbox; the timer will run it again.
-      this.log.warn(`inline run of ${id} failed: ${e instanceof Error ? e.message : String(e)}`);
+      this.log.event("error", "unhandled", {
+        where: "inline_run",
+        redemptionId: id,
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 }

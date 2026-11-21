@@ -4,6 +4,8 @@ import { CONFIG, type Config } from "../config.ts";
 import { DB } from "../db.module.ts";
 import type { Db } from "../db.ts";
 import { LedgerUnavailable } from "../domain/coin-ledger.ts";
+import { LOG } from "../logging/log.module.ts";
+import { type Log, currentRequestId } from "../logging/log.ts";
 import { CurrentPlayer, type PlayerAuth, PlayerAuthGuard } from "../tenants/player-auth.guard.ts";
 import type { Segment } from "./pick-segment.ts";
 import { SpinService } from "./spin.ts";
@@ -15,6 +17,7 @@ export class WheelController {
     @Inject(DB) private readonly db: Db,
     @Inject(CONFIG) private readonly config: Config,
     @Inject(SpinService) private readonly spins: SpinService,
+    @Inject(LOG) private readonly log: Log,
   ) {}
 
   @Get()
@@ -34,7 +37,12 @@ export class WheelController {
   @Post("spins/:spinId/spin")
   @HttpCode(200)
   async spin(@CurrentPlayer() auth: PlayerAuth, @Param("spinId") spinId: string) {
-    const done = await this.spins.spin(auth.tenant, auth.player.id, spinId, randomUUID());
+    const done = await this.spins.spin(
+      auth.tenant,
+      auth.player.id,
+      spinId,
+      currentRequestId() ?? randomUUID(),
+    );
     if (!done) throw new NotFoundException();
     if (done.fresh && this.config.inlineJobs) {
       try {
@@ -42,6 +50,11 @@ export class WheelController {
       } catch (e) {
         // The job is queued and will retry. The answer does not wait for a healthy ledger.
         if (!(e instanceof LedgerUnavailable)) throw e;
+        this.log.event("warn", "spin.credit_deferred", {
+          tenantId: auth.tenant.id,
+          spinId,
+          error: e.message,
+        });
       }
     }
     return done.result;

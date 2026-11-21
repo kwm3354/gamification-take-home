@@ -11,6 +11,7 @@ import {
   Res,
   UseGuards,
 } from "@nestjs/common";
+import { currentRequestId } from "../logging/log.ts";
 import { CurrentPlayer, type PlayerAuth, PlayerAuthGuard } from "../tenants/player-auth.guard.ts";
 import { StoreService } from "./store.service.ts";
 
@@ -30,7 +31,6 @@ export class StoreController {
   async redeem(
     @CurrentPlayer() auth: PlayerAuth,
     @Headers("idempotency-key") key: string | undefined,
-    @Headers("x-request-id") requestId: string | undefined,
     @Body() body: unknown,
     @Res({ passthrough: true }) res: { status(code: number): unknown },
   ) {
@@ -43,7 +43,7 @@ export class StoreController {
       externalPlayerId: auth.player.externalId,
       idempotencyKey: key,
       itemId,
-      requestId,
+      requestId: currentRequestId(),
     });
     if (result === "unknown_item") throw new NotFoundException();
     res.status(result.created ? 201 : 200);
