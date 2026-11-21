@@ -37,6 +37,15 @@ What goes wrong, what the system does, and which test proves it. Test names are 
 | An operator wants to revoke a reward after it was issued | Not built. The redemption is final once issued. | Not tested (not built) |
 | The same pending reserve is captured and also released | The ledger refuses the second one (LedgerConflict) and the job retries and goes dead, visible in the outbox. | Not tested in this file (ledger tests cover the conflict) |
 
+## Random faults
+
+Test name is in `test/properties.test.ts`.
+
+| What goes wrong | What the system does | Proved by |
+|---|---|---|
+| Any mix of faults (error, rate limit, refuse, lost request, lost answer, slow answer on grant and look; lost, twice or delayed callback on B) meets any mix of deposits, repeats, spins and redemptions, on both platforms, with time moving between actions | After the faults stop and the jobs run: no reward twice, every issued redemption has one grant, refused ones none, no negative balance, coins equal prizes minus issued costs, nothing reserved, every redemption final and settled, no dead job. | `property: faults and player actions > the judge finds nothing and every redemption ends final` (60 runs, fixed seed; 300 runs random seed in `npm run test:deep`) |
+| A late notice from B contradicts a final redemption | Nothing changes. | Same test (sent at the end of every run) |
+
 ## Operations: admin API, manual resolution, alerts
 
 Test names are in `test/admin.test.ts` and `test/alerts.test.ts`.

@@ -24,6 +24,23 @@ change, and they must be hard for the code under test to fool.
 | Mutation check | Before trusting a suite, break the code on purpose (remove a guard, skip a check) and confirm a test fails. | A suite that passes on broken code proves nothing. |
 | `verify` skill | `.claude/skills/verify/SKILL.md` tells the agent what to run and how to read a failure. | The agent verifies its own work the same way every time. |
 
+## What of this is in the project
+
+| Piece | Where | State |
+|---|---|---|
+| Fake outside world with faults | `src/fake-casino/`, started in tests by `test/fake.ts` | Built. |
+| Judge | `test/judge.ts` | Built. Reads the casino's record and the ledger. |
+| Flow tests | `test/store.test.ts`, `test/wheel.test.ts`, `test/outbox.test.ts` and others | Built. |
+| Property test | `test/properties.test.ts` | Built. Random players, actions, ticks and fault plans on both platforms; after the faults stop, the judge must find nothing and every redemption must be final and settled. Fixed seed in `npm run verify`; `npm run test:deep` uses a random seed and 300 runs. The file header says how to replay a seed. A late contradicting platform B notice is sent at the end of every run. |
+| Differential check | `test/store.test.ts`, test 20 | Only for the redemption flow with a few named faults. It is NOT built as a general check (a run with random faults compared with a clean run of the same input). |
+| Fake clock | `src/clock.ts`, `FakeClock` | Built. No test sleeps, except where a real time limit is the thing under test. |
+| Real processes | not built yet | See below. |
+| Mutation checks | by hand, results in `docs/ai-log.md` | Not automated. |
+
+What the property test cannot see: a platform that contradicts itself (the fake never does; the test
+adds one late contradicting notice by hand), faults of PostgreSQL or TigerBeetle, and a process that
+dies. Concurrent HTTP calls are not ordered by the seed, so a replay is close, not exact.
+
 ## Order of work
 
 1. Write down what must never happen. That list is the judge.
