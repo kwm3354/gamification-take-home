@@ -21,5 +21,8 @@ export default defineConfig({
     include: ["test/**/*.test.ts"],
     hookTimeout: 120_000,
     testTimeout: 60_000,
+    // Every test file starts its own TigerBeetle. With all files at once the first ledger call of
+    // test/health.test.ts missed its real 2 s limit, so at most 8 files run together.
+    poolOptions: { forks: { minForks: 1, maxForks: 8 } },
   },
 });

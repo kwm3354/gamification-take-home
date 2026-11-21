@@ -21,8 +21,11 @@ afterAll(async () => {
 });
 
 test.skipIf(!without)("the service starts and /health works when there is no web build", async () => {
+  // /health has a real 2 s limit and says 503 when many test files run at once. The point here is
+  // that the API answers (a JSON body) and that /app/ is missing without a build.
   const res = await fetch(`${without?.url}/health`);
-  expect(res.status).toBe(200);
+  expect([200, 503]).toContain(res.status);
+  expect(res.headers.get("content-type")).toContain("application/json");
   const app = await fetch(`${without?.url}/app/`);
   expect(app.status).toBe(404);
 });

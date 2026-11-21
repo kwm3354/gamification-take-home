@@ -13,7 +13,9 @@ import { startFake } from "./fake.ts";
 import { tokenFor } from "./signing.ts";
 
 // Whole app over real HTTP, real PostgreSQL, real TigerBeetle, the fake casino as the platform.
-const running = await startApp();
+// A long ledger time limit: a slow ledger on a busy machine must not turn a number into null here.
+// The "ledger away" case below is tested by making the ledger throw.
+const running = await startApp({ config: { ledgerTimeoutMs: 15_000 } });
 const fake: FakeCasino | undefined = running ? await startFake(running.url) : undefined;
 
 const ALPHA = "alpha-casino";
@@ -486,6 +488,7 @@ describe.skipIf(!running)("back office reads", () => {
   });
 
   test("overview numbers equal counts computed by SQL", async () => {
+    const ledgerBefore = await ledger().outstanding({ ledgerNo: tenantOf(ALPHA).ledgerNo });
     const o = await list(ALPHA, "/overview");
     const n = async (sql: string, params: unknown[] = []) =>
       Number((await app().db.query(sql, [ALPHA, ...params])).rows[0].n);
@@ -517,8 +520,10 @@ describe.skipIf(!running)("back office reads", () => {
     );
     expect(o.alerts).toEqual({ critical: 0, warning: 0 });
     // Coins outstanding is the ledger's number: what was issued minus what players spent.
-    const outstanding = await ledger().outstanding({ ledgerNo: tenantOf(ALPHA).ledgerNo });
-    expect(o.coinsOutstanding).toBe(String(outstanding));
+    // The ledger is read before and after the call: under load a transfer whose client call timed out
+    // can still land in between, and the page must show one of the two real numbers.
+    const after = await ledger().outstanding({ ledgerNo: tenantOf(ALPHA).ledgerNo });
+    expect([String(ledgerBefore), String(after)]).toContain(o.coinsOutstanding);
     // Beta has its own, different numbers.
     const b = await list(BETA, "/overview");
     expect(b.players).toBe(
