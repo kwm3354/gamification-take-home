@@ -25,7 +25,9 @@ import { OUTBOX, type Outbox } from "../outbox/outbox.ts";
 import { toView } from "../store/redemption.ts";
 import { StoreService } from "../store/store.service.ts";
 import { AdminGuard, CurrentAdmin, allow } from "./admin-auth.ts";
-import { auditTrail } from "./audit-trail.ts";
+import { auditTrail, recentAudit } from "./audit-trail.ts";
+import { checked } from "./backoffice.controller.ts";
+import { parseLimit } from "./paging.ts";
 import type { AdminUser } from "./permissions.ts";
 import { resolveRedemption } from "./resolve.ts";
 import { stuckRedemptions } from "./stuck.ts";
@@ -44,9 +46,14 @@ export class AdminController {
   ) {}
 
   @Get("audit")
-  audit(@Param("tenantId") tenantId: string, @Query("entityId") entityId?: string) {
-    if (!entityId) throw new BadRequestException("entityId is required");
-    return auditTrail(this.db, tenantId, entityId);
+  audit(@Param("tenantId") tenantId: string, @Query() query: Record<string, unknown>) {
+    if (typeof query.entityId === "string" && query.entityId) {
+      return auditTrail(this.db, tenantId, query.entityId);
+    }
+    if (query.recent === "1") {
+      return checked(() => recentAudit(this.db, tenantId, query, parseLimit(query.limit)));
+    }
+    throw new BadRequestException("entityId or recent=1 is required");
   }
 
   @Get("redemptions/stuck")

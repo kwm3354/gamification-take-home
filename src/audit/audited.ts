@@ -26,6 +26,7 @@ const TABLES = new Set([
   "ops_policies",
   "tenants",
   "admin_users",
+  "settings_changes",
 ]);
 const COLUMN = /^[a-z_][a-z0-9_]*$/;
 const SECRET_FIELDS = new Set(["webhook_secret", "token_secret", "wheel_secret", "platform_key"]);

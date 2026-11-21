@@ -52,6 +52,12 @@ function weighted(segments: Segment[]): { cw: bigint; w: bigint } {
   return { cw, w };
 }
 
+/** Expected prize per spin: sum(coins * weight) / sum(weight). 0 for a wheel without weight. */
+export function expectedPrizeCoins(segments: Segment[]): number {
+  const { cw, w } = weighted(segments);
+  return w === 0n ? 0 : Number(cw) / Number(w);
+}
+
 export async function redemptionPendingTooLong(c: Ctx): Promise<Alert[]> {
   const items = await stuckRedemptions(c.db, c.clock, c.tenantId, c.params.pendingAgeLimitSec);
   if (items.length === 0) return [];

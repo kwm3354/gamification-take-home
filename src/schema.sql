@@ -85,6 +85,25 @@ CREATE TABLE IF NOT EXISTS ops_policies (
   UNIQUE (tenant_id, version)
 );
 
+-- A change of settings is an intent: proposed, then applied (by the ops policy or by us) or rejected.
+-- The change is a new row of the settings table (now only wheel_configs); `result_id` points to it.
+CREATE TABLE IF NOT EXISTS settings_changes (
+  id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id             text NOT NULL REFERENCES tenants(id),
+  kind                  text NOT NULL CHECK (kind IN ('wheel_config')),
+  proposed              jsonb NOT NULL,                -- { "segments": [...] }
+  status                text NOT NULL CHECK (status IN ('proposed', 'applied', 'rejected')),
+  expected_prize_coins  numeric NOT NULL,
+  limit_coins           numeric NOT NULL,              -- maxExpectedPrizeCoins of the ops policy at proposal time
+  proposed_by           text NOT NULL,                 -- 'admin/<user id>'
+  decided_by            text,                          -- 'admin/<user id>' or 'policy/ops-v<N>'
+  decision_note         text,
+  result_id             uuid REFERENCES wheel_configs(id),
+  created_at            timestamptz NOT NULL,
+  decided_at            timestamptz
+);
+CREATE INDEX IF NOT EXISTS settings_changes_by_status ON settings_changes (status, created_at);
+
 -- A deposit gives `spinsPerDeposit` spins, numbered by ordinal. The outcome is fixed by
 -- (wheel_secret, id, wheel_config) from the start.
 CREATE TABLE IF NOT EXISTS spins (
