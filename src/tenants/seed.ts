@@ -1,7 +1,7 @@
 import { create } from "../audit/audited.ts";
 import type { Clock } from "../clock.ts";
 import { type Db, transaction } from "../db.ts";
-import { demoStoreItems, demoTenants, demoWheelSegments } from "./demo-tenants.ts";
+import { demoGrantPolicy, demoStoreItems, demoTenants, demoWheelSegments } from "./demo-tenants.ts";
 
 /**
  * Creates the two demo tenants, wheel version 1 and the store items. Safe to run twice: rows that
@@ -34,6 +34,13 @@ export async function seedDemo(db: Db, clock: Clock, fakeCasinoUrl: string): Pro
         ctx,
         "wheel_configs",
         { tenant_id: t.id, version: 1, segments: demoWheelSegments },
+        { onConflict: "nothing" },
+      );
+      await create(
+        tx,
+        ctx,
+        "grant_policies",
+        { tenant_id: t.id, version: 1, params: demoGrantPolicy },
         { onConflict: "nothing" },
       );
       for (const item of demoStoreItems) {

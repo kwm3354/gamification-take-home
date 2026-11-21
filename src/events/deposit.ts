@@ -1,10 +1,12 @@
 import type pg from "pg";
-import { type AuditContext, create } from "../audit/audited.ts";
+import { type AuditContext, create, record } from "../audit/audited.ts";
 import type { PlatformEvent } from "../domain/casino-platform.ts";
+import { spinsForDeposit, validateGrantParams } from "../policies/grant-policy.ts";
 import { findOrCreatePlayer } from "../tenants/players.ts";
 
 /**
- * Stores one event and, for a succeeded deposit, gives the player one spin. Runs inside the
+ * Stores one event and, for a succeeded deposit, gives the player as many spins as the tenant's
+ * newest grant policy says (possibly none; then an audit record says why). Runs inside the
  * caller's transaction. The unique key (tenant, external event id) is the dedup: a repeat inserts
  * nothing and so grants nothing.
  */
@@ -42,11 +44,32 @@ export async function ingestEvent(
     [tenantId],
   );
   if (!wheel.rows[0]) throw new Error(`tenant ${tenantId} has no wheel config`);
-  await create(tx, ctx, "spins", {
-    tenant_id: tenantId,
-    player_id: playerId,
-    source_event_id: stored.id,
-    wheel_config_id: wheel.rows[0].id,
-  });
+  const policy = await tx.query(
+    "SELECT id, params FROM grant_policies WHERE tenant_id = $1 ORDER BY version DESC LIMIT 1",
+    [tenantId],
+  );
+  if (!policy.rows[0]) throw new Error(`tenant ${tenantId} has no grant policy`);
+  const grantPolicyId = policy.rows[0].id as string;
+
+  const decision = spinsForDeposit(event, validateGrantParams(policy.rows[0].params));
+  if (decision.spins === 0) {
+    await record(tx, ctx, {
+      action: "spin_not_granted",
+      entityType: "inbound_event",
+      entityId: String(stored.id),
+      changes: { reason: "reason" in decision ? decision.reason : "zero_spins", grantPolicyId },
+    });
+    return "accepted";
+  }
+  for (let ordinal = 1; ordinal <= decision.spins; ordinal++) {
+    await create(tx, ctx, "spins", {
+      tenant_id: tenantId,
+      player_id: playerId,
+      source_event_id: stored.id,
+      ordinal,
+      wheel_config_id: wheel.rows[0].id,
+      grant_policy_id: grantPolicyId,
+    });
+  }
   return "accepted";
 }

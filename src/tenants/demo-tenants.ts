@@ -60,3 +60,6 @@ export const demoStoreItems = [
     reward: { type: "bonus", amountMinor: 100, currency: "EUR" },
   },
 ];
+
+/** Grant policy version 1: every deposit gives one spin. */
+export const demoGrantPolicy = { minAmountMinor: 1, currencies: null, spinsPerDeposit: 1 };

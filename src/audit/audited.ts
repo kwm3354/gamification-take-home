@@ -22,6 +22,7 @@ const TABLES = new Set([
   "redemptions",
   "store_items",
   "wheel_configs",
+  "grant_policies",
   "tenants",
 ]);
 const COLUMN = /^[a-z_][a-z0-9_]*$/;
