@@ -12,67 +12,75 @@ How I run it:
   dates, people, tasks, regular calls with the casino's team.
 - A pilot with the casino starts as early as possible. Feedback from production is worth more than
   a later, larger launch.
-- I do not promise a go-live date, because it depends on the casino's side too. My own estimate is
-  that three months are enough for the integration with a first real platform.
+- I do not promise a date for opening to all players, because it depends on the casino's side too.
+  My own estimate is that three months are enough for the integration with a first real platform.
 
-## Month 1: the plan and the ground
+## Month 1: the plan, the ground, and a first narrow pilot
 
-Goal: the test plan is written and agreed, the integration project is running, and the production
-ground is in place.
+Goal: the test plan is agreed, the integration project is running, the production environment
+exists, and a first small group of real players can spin the wheel.
 
 What we do:
 
 - Write the test plan for the MVP and agree it inside the team.
 - Start the integration project with the casino: people on both sides, dates, tasks, a regular
   call.
-- Do the first three production steps: tenant isolation enforced by the database, backups with a
-  tested restore including the ledger, load tests with real numbers.
-- Basic hygiene: tenant secrets in a secrets store, database migrations.
-- Set up the production environment in the cloud, with backups and monitoring.
+- Set up the production environment in the cloud, with backups and monitoring, and the basic
+  hygiene: tenant secrets in a secrets store, database migrations.
+- Write the adapter for the casino's platform: events in, reward requests out, a status query if
+  the platform has one. Run the same flow tests against the fake casino and against their test
+  environment.
+- Start the pilot on a narrow group (for example the casino's own staff or a small share of
+  players) with the wheel only. The wheel can be switched off for a casino by one setting.
 
 What depends on the casino: access to their platform documentation and a test environment; people
-for the regular call.
+for the regular call; the decision to start a narrow pilot and who is in it.
 
-How we know it is done: the test plan exists; a restore was run and checked; the load test gave
-numbers that we wrote down; the project has dates and owners on both sides.
+How we know it is done: the test plan exists; the flow tests pass against their test environment;
+the first real players have spun the wheel; the project has dates and owners on both sides.
 
-## Month 2: the real platform
+## Month 2: widen the pilot, add the store and missions
 
-Goal: the wheel and the bonus store work against the casino's real platform in its test
-environment.
+Goal: the pilot grows as it proves itself, and the bonus store runs in production.
 
 What we do:
 
-- Write the adapter for the casino's platform: events in, reward requests out, status query if the
-  platform has one.
-- Run the same flow tests against the fake casino and then against their test environment.
-- Bring the back office to the level the MVP needs: alerts, stuck redemptions, audit trail.
-- Make the player widget, with agents, as source code that we can change.
+- Widen the pilot step by step.
+- Before each widening, close the first three production steps: tenant isolation enforced by the
+  database, backups with a tested restore including the ledger, load tests with real numbers.
+- Turn on the bonus store in production: redemptions against the real platform.
+- Run operations on live data: alerts delivered to people, stuck redemptions, the audit trail, the
+  daily digest. The back office for this exists in the prototype; here it meets real traffic.
+- Make the player widget for real, with agents, as source code that we can change; the team
+  chooses among several variants.
 - Start missions.
 
-What depends on the casino: a test environment that behaves like production; answers about their
-API; what happens to a redemption whose outcome cannot be learned at all (this is an agreement
-between our business and the casino, not an engineering decision).
+What depends on the casino: how fast the pilot may widen; answers about their API; what happens to
+a redemption whose outcome cannot be learned at all (an agreement between our business and the
+casino, not an engineering decision).
 
-How we know it is done: the flow tests pass against their test environment; the QA has accepted
-the test plan items for this month.
+How we know it is done: a restore was run and checked; the load test gave numbers that we wrote
+down; redemptions are issued by the real platform; the QA has accepted the test plan items for
+this month.
 
-## Month 3: the pilot
+## Month 3: all players, experiments, missions done
 
-Goal: real players of the casino use the product in a pilot that grows step by step.
+Goal: the product is on for all of the casino's players, and we learn from the traffic.
 
 What we do:
 
-- Start the pilot as soon as the casino agrees, and widen it step by step.
-- Watch alerts, stuck redemptions and the daily digest.
-- Run A/B tests of widget versions once there is traffic.
+- Open the product to all players of the casino, when the casino agrees.
+- Run A/B tests of widget versions, now that there is traffic. One open question they should
+  answer: how much of the widget is built into a per-casino bundle and how much is read from the
+  server at run time.
 - Finish missions.
+- Deliver the widget the way a client's site needs it: bundles built ahead, served from a CDN,
+  caches warmed after a deploy.
 
-What depends on the casino: the decision to start the pilot and how wide it is; showing the widget
-on their site.
+What depends on the casino: the decision to open to all players; showing the widget on their site.
 
-How we know it is done: the pilot runs with real players; alerts reach someone; incidents during the
-pilot were handled through the back office.
+How we know it is done: all players can use the wheel and the store; an experiment has run and
+produced a decision; incidents so far were handled through the back office.
 
 ## Risks and what we do about them
 
@@ -89,6 +97,15 @@ pilot were handled through the back office.
 ## What is not in these 90 days
 
 - Contests (PvP and tournaments) and Kingdom Builder.
-- A self-service console for the casino's manager, and the settings-change intent behind it.
+- A self-service console for the casino's manager as a finished product. The prototype already has
+  the mechanism behind it (a change of the wheel is an intent that a policy applies or leaves for
+  us); a console a casino can be given alone needs more than that.
 - A second casino on another platform.
 - The gateway for real-time player connections.
+
+## What I do not know
+
+I am new to the casino industry. The order above rests on general engineering practice and on what
+the prototype taught me, not on knowledge of how a casino's own teams work, how long their
+approvals take or what their platforms really offer. The first weeks of the integration project are
+where I expect this plan to change.
