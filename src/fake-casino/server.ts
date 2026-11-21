@@ -192,7 +192,7 @@ export async function startFakeCasino(options: FakeCasinoOptions = {}): Promise<
       return;
     }
 
-    // For the playground page. The admin keys are demo values.
+    // For the playground page.
     if (method === "GET" && path === "/control/config") {
       return send(res, {
         status: 200,
@@ -202,7 +202,6 @@ export async function startFakeCasino(options: FakeCasinoOptions = {}): Promise<
             id: t.id,
             name: t.name,
             platform: t.platform,
-            adminKey: t.adminKey,
           })),
         },
       });

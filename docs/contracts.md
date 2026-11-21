@@ -316,7 +316,7 @@ use `info`.
 Events (the only ones): `event.accepted`, `event.duplicate`, `event.ignored` (debug), `webhook.rejected`,
 `webhook.invalid`, `spin.used`, `spin.credited` (debug), `spin.credit_deferred`, `redemption.created`,
 `redemption.status`, `redemption.contradicted`, `platform.call`, `platform.unreachable`,
-`outbox.retry` (debug), `outbox.dead`, `outbox.revived` (warn), `admin.manual_resolution`, `ledger.unavailable`, `unhandled`.
+`outbox.retry` (debug), `outbox.dead`, `outbox.revived` (warn), `admin.manual_resolution`, `admin.login` (info, `userId`, `role`), `admin.login_failed` (warn, `reason`: `bad_credentials` or `locked`), `ledger.unavailable`, `unhandled`.
 Each is explained in `docs/monitoring-playbook.md`. A duplicate event is a log line and not an audit
 entry: it changes nothing.
 

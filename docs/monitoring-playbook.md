@@ -284,6 +284,7 @@ policy (`info` or `debug`); warnings and errors are always written. Events:
   `outbox.revived` (warn): a dead job was enqueued again by a new request; `previousError` is what it died of.
   Several of these for one job mean the same fault keeps killing it.
 - `admin.manual_resolution` (warn): an admin decided a redemption; `admin` is the actor.
+- `admin.login` (info): a back office sign-in; `userId`, `role`. `admin.login_failed` (warn): a refused one; `reason` is `bad_credentials` or `locked`. Many in a row for one tenant is worth a look. Neither line holds a password or a token.
 - `ledger.unavailable` (warn): a ledger call timed out; `op` is which one.
 - `unhandled` (error): an exception nobody handled.
 

@@ -14,6 +14,8 @@ import { mountWeb } from "../src/web.ts";
 import { freshDb } from "./harness.ts";
 import { startTigerBeetle } from "./tigerbeetle.ts";
 
+export const TEST_ADMIN_TOKEN_SECRET = "test-admin-token-secret-0123456789abcdef";
+
 export interface TestApp {
   /** Base address of the running app, for example `http://127.0.0.1:41234`. */
   url: string;
@@ -55,6 +57,7 @@ export async function startApp(
     platformTimeoutMs: 300,
     outboxTimer: false,
     inlineJobs: true,
+    adminTokenSecret: TEST_ADMIN_TOKEN_SECRET,
     seedDemo: false,
     fakeCasinoUrl: "http://127.0.0.1:1",
     publicFakeCasinoUrl: "http://localhost:30081",
@@ -79,7 +82,11 @@ export async function startApp(
     .useValue(sink)
     .compile();
   const app = moduleRef.createNestApplication({ rawBody: true });
-  mountWeb(app, { dir: options.webDir ?? null, fakeCasinoUrl: config.publicFakeCasinoUrl });
+  mountWeb(app, {
+    dir: options.webDir ?? null,
+    fakeCasinoUrl: config.publicFakeCasinoUrl,
+    demoAdmins: config.seedDemo,
+  });
   app.enableShutdownHooks();
   await app.listen(0, "127.0.0.1");
   const { port } = app.getHttpServer().address() as AddressInfo;

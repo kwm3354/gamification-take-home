@@ -52,6 +52,19 @@ function weighted(segments: Segment[]): { cw: bigint; w: bigint } {
   return { cw, w };
 }
 
+/** True when the expected prize is above the limit. Exact on integers when the limit is a whole number. */
+export function expectedPrizeAbove(segments: Segment[], limit: number): boolean {
+  const { cw, w } = weighted(segments);
+  if (w === 0n) return false;
+  return Number.isInteger(limit) ? cw > BigInt(limit) * w : Number(cw) / Number(w) > limit;
+}
+
+/** Expected prize per spin: sum(coins * weight) / sum(weight). 0 for a wheel without weight. */
+export function expectedPrizeCoins(segments: Segment[]): number {
+  const { cw, w } = weighted(segments);
+  return w === 0n ? 0 : Number(cw) / Number(w);
+}
+
 export async function redemptionPendingTooLong(c: Ctx): Promise<Alert[]> {
   const items = await stuckRedemptions(c.db, c.clock, c.tenantId, c.params.pendingAgeLimitSec);
   if (items.length === 0) return [];
@@ -95,11 +108,8 @@ export async function wheelExpectedPrizeHigh(c: Ctx): Promise<Alert[]> {
   const config = rows[0];
   if (!config) return [];
   const { cw, w } = weighted(config.segments as Segment[]);
-  if (w === 0n) return [];
   const limit = c.params.maxExpectedPrizeCoins;
-  // Exact on integers when the limit is a whole number; one division only for display.
-  const high = Number.isInteger(limit) ? cw > BigInt(limit) * w : Number(cw) / Number(w) > limit;
-  if (!high) return [];
+  if (!expectedPrizeAbove(config.segments as Segment[], limit)) return [];
   return [
     {
       code: "wheel_expected_prize_high",

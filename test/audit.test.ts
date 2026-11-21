@@ -209,7 +209,7 @@ describe("audited writes", () => {
       )
     ).rows;
     const changes = rows[0].changes as { field: string; to: string }[];
-    for (const f of ["webhook_secret", "token_secret", "wheel_secret", "admin_key", "platform_key"]) {
+    for (const f of ["webhook_secret", "token_secret", "wheel_secret", "platform_key"]) {
       expect(changes.find((c) => c.field === f)?.to).toBe("***");
     }
     expect(JSON.stringify(rows)).not.toContain("demo-alpha");

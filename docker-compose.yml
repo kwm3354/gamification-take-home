@@ -47,6 +47,7 @@ services:
       TB_ADDRESS: tigerbeetle:3000
       PORT: "3000"
       SEED_DEMO: "1"
+      ADMIN_TOKEN_SECRET: demo-only-admin-token-secret-change-me-0123456789
       FAKE_CASINO_URL: http://fake-casino:4000
       # The fake casino's address as the browser sees it. The web app at /app/ uses it.
       PUBLIC_FAKE_CASINO_URL: http://localhost:${FAKE_PORT:-30081}

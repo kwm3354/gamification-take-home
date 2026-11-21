@@ -6,6 +6,7 @@ import type { FakeState } from "../src/fake-casino/state.ts";
 import { OUTBOX, type Outbox } from "../src/outbox/outbox.ts";
 import { demoTenants } from "../src/tenants/demo-tenants.ts";
 import { seedDemo } from "../src/tenants/seed.ts";
+import { ALPHA_MANAGER, BETA_MANAGER, OPS, adminHeaders, userIdOf } from "./admin-login.ts";
 import { startApp } from "./app.ts";
 import { startFake } from "./fake.ts";
 import { type JudgedPlayer, collect, judge } from "./judge.ts";
@@ -108,32 +109,24 @@ async function deliver(): Promise<number> {
   return ((await r.json()) as { delivered: unknown[] }).delivered.length;
 }
 
-/** A call to the admin API. `key` and `name` default to the right key of `tenant`. */
+/** A call to the admin API, signed in as `as` (default: the manager of the tenant). */
 async function admin(
   tenant: string,
   path: string,
-  options: { method?: string; body?: unknown; key?: string | null; name?: string } = {},
+  options: { method?: string; body?: unknown; as?: string } = {},
 ) {
-  const headers: Record<string, string> = { "content-type": "application/json" };
-  const key = options.key === undefined ? tenantOf(tenant).adminKey : options.key;
-  if (key !== null) headers["x-admin-key"] = key;
-  if (options.name) headers["x-admin-name"] = options.name;
+  const as = options.as ?? (tenant === BETA ? BETA_MANAGER : ALPHA_MANAGER);
   const r = await fetch(`${app().url}/admin/${tenant}${path}`, {
     method: options.method ?? "GET",
-    headers,
+    headers: await adminHeaders(app(), as, { "content-type": "application/json" }),
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });
   const text = await r.text();
   return { status: r.status, text, json: text ? JSON.parse(text) : null };
 }
 
-const resolve = (
-  tenant: string,
-  id: string,
-  outcome: string,
-  note = "agreed with the casino",
-  name = "dana",
-) => admin(tenant, `/redemptions/${id}/resolve`, { method: "POST", body: { outcome, note }, name });
+const resolve = (tenant: string, id: string, outcome: string, note = "agreed with the casino") =>
+  admin(tenant, `/redemptions/${id}/resolve`, { method: "POST", body: { outcome, note } });
 
 const balanceOf = (p: P) => ledger().balance({ ledgerNo: tenantOf(p.tenantId).ledgerNo, playerId: p.id });
 const auditOf = async (id: string) =>
@@ -162,24 +155,19 @@ beforeEach(async () => {
 });
 
 describe.skipIf(!running)("admin API", () => {
-  test("1. auth: no key, wrong key, another tenant's key, unknown tenant are all 401; the right key works", async () => {
-    const bodies = new Set<string>();
-    for (const [tenant, key] of [
-      [ALPHA, null],
-      [ALPHA, "wrong"],
-      [ALPHA, tenantOf(BETA).adminKey],
-      ["no-such-tenant", tenantOf(ALPHA).adminKey],
-    ] as const) {
-      const r = await admin(tenant, "/alerts", { key });
-      expect(r.status).toBe(401);
-      bodies.add(r.text);
-    }
-    expect(bodies.size).toBe(1); // unknown tenant and wrong key look the same
+  test("1. auth: no token, a bad token and another tenant's manager are refused; the right manager works", async () => {
+    const none = await fetch(`${app().url}/admin/${ALPHA}/alerts`);
+    expect(none.status).toBe(401);
+    const bad = await fetch(`${app().url}/admin/${ALPHA}/alerts`, {
+      headers: { authorization: "Bearer nope" },
+    });
+    expect(bad.status).toBe(401);
+    expect((await admin(ALPHA, "/alerts", { as: BETA_MANAGER })).status).toBe(404);
+    expect((await admin("no-such-tenant", "/alerts", { as: OPS })).status).toBe(404);
     expect((await admin(ALPHA, "/alerts")).status).toBe(200);
-    expect((await admin(ALPHA, "/alerts", { name: "Bad Name!" })).status).toBe(400);
   });
 
-  test("2. audit: the rows of a spin come oldest first; another tenant's key sees nothing", async () => {
+  test("2. audit: the rows of a spin come oldest first; another tenant sees nothing", async () => {
     const external = `p-${randomUUID()}`;
     const dep = await fetch(`${fakeUrl()}/control/deposit`, {
       method: "POST",
@@ -240,7 +228,8 @@ describe.skipIf(!running)("admin API", () => {
   test("4. resolve as issued: final, coins debited once, audit names the admin; the judge sees the cost", async () => {
     const { p, id } = await stuckB(500n, true); // the grant call was lost: the casino has no grant
     expect(await grantsFor(id)).toHaveLength(0);
-    const r = await resolve(BETA, id, "issued", "casino confirmed by email", "dana");
+    const dana = `admin/${await userIdOf(app(), BETA_MANAGER)}`;
+    const r = await resolve(BETA, id, "issued", "casino confirmed by email");
     expect(r.status).toBe(200);
     expect(r.json).toMatchObject({ id, status: "issued", platformRef: "manual", settled: true });
     expect(await balanceOf(p)).toEqual({ available: 400n, reserved: 0n });
@@ -249,7 +238,7 @@ describe.skipIf(!running)("admin API", () => {
     const manual = rows.filter((a) => a.action === "manual_resolution");
     expect(manual).toHaveLength(1);
     expect(manual[0]).toMatchObject({
-      actor: "admin/dana",
+      actor: dana,
       entity_type: "redemption",
       tenant_id: BETA,
       changes: { outcome: "issued", note: "casino confirmed by email" },
@@ -261,7 +250,7 @@ describe.skipIf(!running)("admin API", () => {
           (c) => c.field === "status" && c.to === "issued",
         ),
     );
-    expect(statusUpdate?.actor).toBe("admin/dana");
+    expect(statusUpdate?.actor).toBe(dana);
 
     // The honest cost of a manual decision: our books say issued, the casino has nothing.
     const problems = judge(await collect(app(), { url: fakeUrl() }, [p]));
@@ -404,7 +393,7 @@ describe.skipIf(!running)("admin API", () => {
       if (manual.length === 1) {
         adminWins++;
         expect(answer.status).toBe(200);
-        expect(won[0]?.actor).toBe("admin/dana");
+        expect(won[0]?.actor).toBe(`admin/${await userIdOf(app(), BETA_MANAGER)}`);
         expect(row.status).toBe(outcome);
       } else {
         webhookWins++;

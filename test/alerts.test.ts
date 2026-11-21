@@ -9,6 +9,7 @@ import type { FakeCasino } from "../src/fake-casino/server.ts";
 import { demoOpsPolicy, demoTenants, demoWheelSegments } from "../src/tenants/demo-tenants.ts";
 import { findOrCreatePlayer } from "../src/tenants/players.ts";
 import { seedDemo } from "../src/tenants/seed.ts";
+import { BETA_MANAGER, OPS, adminHeaders } from "./admin-login.ts";
 import { startApp } from "./app.ts";
 import { startFake } from "./fake.ts";
 import { tokenFor } from "./signing.ts";
@@ -52,9 +53,8 @@ interface AlertsAnswer {
 
 let nextLedger = 100;
 /** A fresh tenant with the demo wheel (expected prize 60) and the demo ops policy as version 1. */
-async function newTenant(options: { policy?: boolean } = {}): Promise<{ id: string; adminKey: string }> {
+async function newTenant(options: { policy?: boolean } = {}): Promise<{ id: string }> {
   const id = `t-${randomUUID().slice(0, 8)}`;
-  const adminKey = `key-${id}`;
   await transaction(app().db, async (tx) => {
     const c = ctx(id);
     await create(tx, c, "tenants", {
@@ -65,7 +65,6 @@ async function newTenant(options: { policy?: boolean } = {}): Promise<{ id: stri
       webhook_secret: "w",
       token_secret: "t",
       wheel_secret: "s",
-      admin_key: adminKey,
       platform_url: "http://127.0.0.1:1",
       platform_key: "k",
     });
@@ -74,11 +73,12 @@ async function newTenant(options: { policy?: boolean } = {}): Promise<{ id: stri
       await create(tx, c, "ops_policies", { tenant_id: id, version: 1, params: demoOpsPolicy });
     }
   });
-  return { id, adminKey };
+  return { id };
 }
 
-async function alertsOf(t: { id: string; adminKey: string }): Promise<AlertsAnswer> {
-  const r = await fetch(`${app().url}/admin/${t.id}/alerts`, { headers: { "x-admin-key": t.adminKey } });
+// The platform admin may read any tenant. A fresh sign-in per call: some tests move the clock past a token's life.
+async function alertsOf(t: { id: string }): Promise<AlertsAnswer> {
+  const r = await fetch(`${app().url}/admin/${t.id}/alerts`, { headers: await adminHeaders(app(), OPS) });
   expect(r.status).toBe(200);
   return (await r.json()) as AlertsAnswer;
 }
@@ -189,8 +189,7 @@ describe.skipIf(!running)("alerts", () => {
   });
 
   test("redemption_pending_too_long: age decides, not errors; the limit comes from the policy", async () => {
-    const adminKey = beta?.adminKey ?? "";
-    const tenant = { id: BETA, adminKey };
+    const tenant = { id: BETA };
     const ledger = app().app.get<CoinLedger>(COIN_LEDGER);
     const external = `p-${randomUUID()}`;
     const token = () => tokenFor(BETA, beta?.tokenSecret ?? "", external, app().clock.now().getTime());
@@ -254,7 +253,7 @@ describe.skipIf(!running)("alerts", () => {
     expect(codes(await alertsOf(tenant))).toContain("redemption_pending_too_long");
     const res = await fetch(`${app().url}/admin/${BETA}/redemptions/${view.id}/resolve`, {
       method: "POST",
-      headers: { "x-admin-key": adminKey, "content-type": "application/json" },
+      headers: await adminHeaders(app(), BETA_MANAGER, { "content-type": "application/json" }),
       body: JSON.stringify({ outcome: "issued", note: "confirmed by the casino" }),
     });
     expect(res.status).toBe(200);

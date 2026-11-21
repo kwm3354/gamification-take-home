@@ -10,10 +10,24 @@ CREATE TABLE IF NOT EXISTS tenants (
   webhook_secret     text NOT NULL,                    -- the platform signs events with it
   token_secret       text NOT NULL,                    -- the operator signs player tokens with it
   wheel_secret       text NOT NULL,                    -- never leaves the server; wheel outcomes derive from it
-  admin_key          text NOT NULL,
   platform_url       text NOT NULL,                    -- base address of the platform's reward API
   platform_key       text NOT NULL,
   created_at         timestamptz NOT NULL DEFAULT now()
+);
+
+-- People who sign in to the back office. The hash is scrypt (see src/admin/password.ts).
+CREATE TABLE IF NOT EXISTS admin_users (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email         text NOT NULL UNIQUE CHECK (email = lower(email)),
+  name          text NOT NULL,
+  password_hash text NOT NULL,
+  role          text NOT NULL CHECK (role IN ('platform_admin', 'tenant_admin', 'tenant_viewer')),
+  tenant_id     text REFERENCES tenants(id),
+  failed_logins integer NOT NULL DEFAULT 0,
+  locked_until  timestamptz,
+  disabled      boolean NOT NULL DEFAULT false,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  CHECK ((role = 'platform_admin') = (tenant_id IS NULL))
 );
 
 -- Player identity mapping: our id for the platform's id.
@@ -70,6 +84,25 @@ CREATE TABLE IF NOT EXISTS ops_policies (
   created_at  timestamptz NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, version)
 );
+
+-- A change of settings is an intent: proposed, then applied (by the ops policy or by us) or rejected.
+-- The change is a new row of the settings table (now only wheel_configs); `result_id` points to it.
+CREATE TABLE IF NOT EXISTS settings_changes (
+  id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id             text NOT NULL REFERENCES tenants(id),
+  kind                  text NOT NULL CHECK (kind IN ('wheel_config')),
+  proposed              jsonb NOT NULL,                -- { "segments": [...] }
+  status                text NOT NULL CHECK (status IN ('proposed', 'applied', 'rejected')),
+  expected_prize_coins  numeric NOT NULL,
+  limit_coins           numeric NOT NULL,              -- maxExpectedPrizeCoins of the ops policy at proposal time
+  proposed_by           text NOT NULL,                 -- 'admin/<user id>'
+  decided_by            text,                          -- 'admin/<user id>' or 'policy/ops-v<N>'
+  decision_note         text,
+  result_id             uuid REFERENCES wheel_configs(id),
+  created_at            timestamptz NOT NULL,
+  decided_at            timestamptz
+);
+CREATE INDEX IF NOT EXISTS settings_changes_by_status ON settings_changes (status, created_at);
 
 -- A deposit gives `spinsPerDeposit` spins, numbered by ordinal. The outcome is fixed by
 -- (wheel_secret, id, wheel_config) from the start.

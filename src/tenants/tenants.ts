@@ -8,7 +8,6 @@ export interface Tenant {
   webhookSecret: string;
   tokenSecret: string;
   wheelSecret: string;
-  adminKey: string;
   platformUrl: string;
   platformKey: string;
 }
@@ -25,7 +24,6 @@ export async function findTenant(db: Pick<Db, "query">, id: string): Promise<Ten
     webhookSecret: r.webhook_secret,
     tokenSecret: r.token_secret,
     wheelSecret: r.wheel_secret,
-    adminKey: r.admin_key,
     platformUrl: r.platform_url,
     platformKey: r.platform_key,
   };

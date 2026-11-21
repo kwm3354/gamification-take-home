@@ -6,9 +6,10 @@ import { COIN_LEDGER, type CoinLedger } from "../src/domain/coin-ledger.ts";
 import type { FakeCasino } from "../src/fake-casino/server.ts";
 import { type Level, Log, MemorySink, withRequestId } from "../src/logging/log.ts";
 import { OUTBOX, type Outbox } from "../src/outbox/outbox.ts";
-import { demoOpsPolicy, demoTenants } from "../src/tenants/demo-tenants.ts";
+import { demoAdmins, demoOpsPolicy, demoTenants } from "../src/tenants/demo-tenants.ts";
 import { seedDemo } from "../src/tenants/seed.ts";
-import { startApp } from "./app.ts";
+import { BETA_MANAGER, adminHeaders, userIdOf } from "./admin-login.ts";
+import { TEST_ADMIN_TOKEN_SECRET, startApp } from "./app.ts";
 import { startFake } from "./fake.ts";
 import { alphaDeposit, betaTxn, signAlpha, signBeta, tokenFor } from "./signing.ts";
 
@@ -472,12 +473,13 @@ describe.skipIf(!running)("logs of the running service", () => {
     await fault("b.callback", "lost");
     const stuck = await flow(BETA, "stuck-b");
     await deliver();
+    const adminAuth = await adminHeaders(app(), BETA_MANAGER);
+    const adminToken = (adminAuth.authorization ?? "").replace("Bearer ", "");
     const resolved = await fetch(`${app().url}/admin/${BETA}/redemptions/${stuck.redemptionId}/resolve`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-admin-key": tenantOf(BETA).adminKey,
-        "x-admin-name": "dana",
+        ...adminAuth,
       },
       body: JSON.stringify({ outcome: "issued", note: "casino confirmed by email" }),
     });
@@ -485,24 +487,35 @@ describe.skipIf(!running)("logs of the running service", () => {
     expect(refusedB.redemptionId).toBeTruthy();
 
     expect(named("webhook.rejected").map((l) => l.tenantId)).toEqual([ALPHA, BETA]);
+    expect(named("admin.login")[0]).toMatchObject({
+      level: "info",
+      userId: await userIdOf(app(), BETA_MANAGER),
+      role: "tenant_admin",
+    });
+    const refused = await fetch(`${app().url}/admin/auth/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: BETA_MANAGER, password: "wrong-password-xyz" }),
+    });
+    expect(refused.status).toBe(401);
+    expect(named("admin.login_failed")[0]).toMatchObject({ level: "warn", reason: "bad_credentials" });
     expect(named("admin.manual_resolution")).toHaveLength(1);
     expect(named("admin.manual_resolution")[0]).toMatchObject({
       level: "warn",
       tenantId: BETA,
       redemptionId: stuck.redemptionId,
       outcome: "issued",
-      admin: "admin/dana",
+      admin: `admin/${await userIdOf(app(), BETA_MANAGER)}`,
     });
     expect(logs().some((l) => l.level === "debug" && l.tenantId === ALPHA)).toBe(true);
 
     const everything = app().rawLogs.join("\n");
-    const secrets = demoTenants.flatMap((t) => [
-      t.webhookSecret,
-      t.tokenSecret,
-      t.wheelSecret,
-      t.adminKey,
-      t.platformKey,
-    ]);
+    const secrets = [
+      ...demoAdmins.map((u) => u.password),
+      TEST_ADMIN_TOKEN_SECRET,
+      ...demoTenants.flatMap((t) => [t.webhookSecret, t.tokenSecret, t.wheelSecret, t.platformKey]),
+      adminToken,
+    ];
     for (const secret of [...secrets, ...sentSecrets, "wrong-secret-a", "wrong-secret-b"]) {
       expect(everything).not.toContain(secret);
     }
