@@ -215,7 +215,18 @@ describe.skipIf(!running)("back office reads", () => {
 
     const audit = await list(ALPHA, "/audit?recent=1");
     expect(Object.keys(audit.items[0]).sort()).toEqual(
-      ["action", "actor", "at", "changes", "cursor", "entityId", "entityType", "id", "requestId"].sort(),
+      [
+        "action",
+        "actor",
+        "actorEmail",
+        "at",
+        "changes",
+        "cursor",
+        "entityId",
+        "entityType",
+        "id",
+        "requestId",
+      ].sort(),
     );
 
     const settings = await list(ALPHA, "/settings");
