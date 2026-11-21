@@ -1,0 +1,53 @@
+{
+  "items": [
+    {
+      "id": "d560938e-152b-4583-bea9-195183ef604e",
+      "externalEventId": "evt_ign_1",
+      "kind": "ignored",
+      "playerId": null,
+      "playerExternalId": null,
+      "receivedAt": "2026-11-21T09:14:14.185Z",
+      "normalized": {
+        "why": "type login.succeeded",
+        "kind": "ignored",
+        "externalEventId": "evt_ign_1"
+      },
+      "cursor": "WyIyMDI2LTExLTIxVDA5OjE0OjE0LjE4NTAwMFoiLCJkNTYwOTM4ZS0xNTJiLTQ1ODMtYmVhOS0xOTUxODNlZjYwNGUiXQ"
+    },
+    {
+      "id": "29a7c571-914e-4676-bf02-6a6363383284",
+      "externalEventId": "evt_bd31dc63",
+      "kind": "deposit_succeeded",
+      "playerId": "f5636a74-d740-433e-95cf-c359185d20d0",
+      "playerExternalId": "p-4e4c7b",
+      "receivedAt": "2026-11-21T09:13:23.887Z",
+      "normalized": {
+        "kind": "deposit_succeeded",
+        "currency": "EUR",
+        "occurredAt": "2026-11-21T09:13:23.000Z",
+        "amountMinor": 2000,
+        "externalEventId": "evt_bd31dc63",
+        "externalPlayerId": "p-4e4c7b"
+      },
+      "cursor": "WyIyMDI2LTExLTIxVDA5OjEzOjIzLjg4NzAwMFoiLCIyOWE3YzU3MS05MTRlLTQ2NzYtYmYwMi02YTYzNjMzODMyODQiXQ"
+    },
+    {
+      "id": "9e5c99eb-7374-4f7c-8fe0-4196a386fe58",
+      "externalEventId": "evt_33b37c2e",
+      "kind": "deposit_succeeded",
+      "playerId": "07dbbd0c-23e7-4509-a751-a4ab8c63b585",
+      "playerExternalId": "a-small3",
+      "receivedAt": "2026-11-21T09:08:11.447Z",
+      "normalized": {
+        "kind": "deposit_succeeded",
+        "currency": "EUR",
+        "occurredAt": "2026-11-21T09:08:11.000Z",
+        "amountMinor": 2000,
+        "externalEventId": "evt_33b37c2e",
+        "externalPlayerId": "a-small3"
+      },
+      "cursor": "WyIyMDI2LTExLTIxVDA5OjA4OjExLjQ0NzAwMFoiLCI5ZTVjOTllYi03Mzc0LTRmN2MtOGZlMC00MTk2YTM4NmZlNTgiXQ"
+    }
+  ],
+  "nextCursor": "WyIyMDI2LTExLTIxVDA5OjA4OjExLjQ0NzAwMFoiLCI5ZTVjOTllYi03Mzc0LTRmN2MtOGZlMC00MTk2YTM4NmZlNTgiXQ"
+}

@@ -37,7 +37,7 @@ describe("the playground page is served", () => {
     }
   });
 
-  it("GET /control/config gives the tenants, the app url and no admin key", async () => {
+  it("GET /control/config gives the tenants, the app url and no secrets", async () => {
     const body = (await (await fetch(`${fake.url}/control/config`)).json()) as {
       appUrl: string;
       tenants: { id: string; name: string; platform: string }[];

@@ -1,0 +1,160 @@
+{
+  "items": [
+    {
+      "id": 865,
+      "at": "2026-11-21T09:20:29.175Z",
+      "actor": "admin/6a8b5022-521a-4426-8939-3bf87987bfc3",
+      "action": "admin_login",
+      "entityType": "admin_user",
+      "entityId": "6a8b5022-521a-4426-8939-3bf87987bfc3",
+      "changes": {
+        "email": "manager@alpha.demo"
+      },
+      "requestId": "edeba513-6ee5-465c-bc84-3b83d8ec5bba",
+      "cursor": "ODY1",
+      "actorEmail": "manager@alpha.demo"
+    },
+    {
+      "id": 792,
+      "at": "2026-11-21T09:14:14.695Z",
+      "actor": "admin/1372cc8f-3706-40d5-9811-dbc8cc8bbfbc",
+      "action": "admin_login",
+      "entityType": "admin_user",
+      "entityId": "1372cc8f-3706-40d5-9811-dbc8cc8bbfbc",
+      "changes": {
+        "email": "viewer@alpha.demo"
+      },
+      "requestId": "e5ed848a-a6e0-4bbd-aa08-6bece16da3a7",
+      "cursor": "Nzky",
+      "actorEmail": "viewer@alpha.demo"
+    },
+    {
+      "id": 791,
+      "at": "2026-11-21T09:14:14.597Z",
+      "actor": "admin/6a8b5022-521a-4426-8939-3bf87987bfc3",
+      "action": "admin_login",
+      "entityType": "admin_user",
+      "entityId": "6a8b5022-521a-4426-8939-3bf87987bfc3",
+      "changes": {
+        "email": "manager@alpha.demo"
+      },
+      "requestId": "4477fc81-902d-4413-9394-700e908f7090",
+      "cursor": "Nzkx",
+      "actorEmail": "manager@alpha.demo"
+    },
+    {
+      "id": 788,
+      "at": "2026-11-21T09:14:14.185Z",
+      "actor": "platform/alpha-casino",
+      "action": "create",
+      "entityType": "inbound_events",
+      "entityId": "d560938e-152b-4583-bea9-195183ef604e",
+      "changes": [
+        {
+          "to": "d560938e-152b-4583-bea9-195183ef604e",
+          "from": null,
+          "field": "id"
+        },
+        {
+          "to": "alpha-casino",
+          "from": null,
+          "field": "tenant_id"
+        },
+        {
+          "to": "evt_ign_1",
+          "from": null,
+          "field": "external_event_id"
+        },
+        {
+          "to": "ignored",
+          "from": null,
+          "field": "kind"
+        },
+        {
+          "to": null,
+          "from": null,
+          "field": "player_id"
+        },
+        {
+          "to": {
+            "why": "type login.succeeded",
+            "kind": "ignored",
+            "externalEventId": "evt_ign_1"
+          },
+          "from": null,
+          "field": "normalized"
+        },
+        {
+          "to": {
+            "type": "login.succeeded",
+            "event_id": "evt_ign_1",
+            "player_id": "a-big",
+            "occurred_at": "2026-11-21T09:14:14.083Z"
+          },
+          "from": null,
+          "field": "raw"
+        },
+        {
+          "to": "2026-11-21T09:14:14.185Z",
+          "from": null,
+          "field": "received_at"
+        }
+      ],
+      "requestId": "126e60ae-6020-45a3-81ed-44e3fea3e43d",
+      "cursor": "Nzg4",
+      "actorEmail": null
+    },
+    {
+      "id": 787,
+      "at": "2026-11-21T09:13:27.320Z",
+      "actor": "system/outbox",
+      "action": "update",
+      "entityType": "spins",
+      "entityId": "1a491c82-4869-4c47-afb3-8f3bcbb1276b",
+      "changes": [
+        {
+          "to": "2026-11-21T09:13:27.320Z",
+          "from": null,
+          "field": "credited_at"
+        }
+      ],
+      "requestId": "75348091-d99f-4e3e-9d09-e37d484364c4",
+      "cursor": "Nzg3",
+      "actorEmail": null
+    },
+    {
+      "id": 786,
+      "at": "2026-11-21T09:13:27.299Z",
+      "actor": "player/f5636a74-d740-433e-95cf-c359185d20d0",
+      "action": "update",
+      "entityType": "spins",
+      "entityId": "1a491c82-4869-4c47-afb3-8f3bcbb1276b",
+      "changes": [
+        {
+          "to": "used",
+          "from": "available",
+          "field": "status"
+        },
+        {
+          "to": 4,
+          "from": null,
+          "field": "segment_index"
+        },
+        {
+          "to": "17",
+          "from": null,
+          "field": "coins"
+        },
+        {
+          "to": "2026-11-21T09:13:27.299Z",
+          "from": null,
+          "field": "used_at"
+        }
+      ],
+      "requestId": "75348091-d99f-4e3e-9d09-e37d484364c4",
+      "cursor": "Nzg2",
+      "actorEmail": null
+    }
+  ],
+  "nextCursor": "Nzg2"
+}

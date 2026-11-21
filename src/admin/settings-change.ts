@@ -5,7 +5,7 @@ import { type AuditContext, create, update } from "../audit/audited.ts";
 import type { Clock } from "../clock.ts";
 import { type Db, transaction } from "../db.ts";
 import { BadQuery } from "./paging.ts";
-import { changeView } from "./settings.ts";
+import { changeView, withEmails } from "./settings.ts";
 
 /**
  * A change of the wheel is an intent. The casino's admin proposes it; the newest ops policy decides
@@ -166,5 +166,5 @@ export async function waitingChanges(db: Pick<Db, "query">, status: "proposed" |
     "SELECT * FROM settings_changes WHERE status = $1 ORDER BY created_at, id",
     [status],
   );
-  return rows.map(changeView);
+  return withEmails(db, rows.map(changeView));
 }

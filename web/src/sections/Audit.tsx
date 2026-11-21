@@ -1,12 +1,14 @@
 import { changeLines } from "../admin/audit-format.ts";
 import { tenantPath } from "../admin/client.ts";
 import { queryString, useAdmin, useFilters, useGet, usePaged } from "../admin/hooks.ts";
-import { type Column, DataTable, Filters, Id, LoadMore, PageTitle, Time, tableStatus } from "../admin/ui.tsx";
+import { Actor, type Column, DataTable, Filters, Id, LoadMore, PageTitle, Time, tableStatus } from "../admin/ui.tsx";
 
 export interface AuditRow {
-  id: string;
+  id: number;
   at: string;
   actor: string;
+  /** Set when the actor is an admin user; null for a player, the system or a policy. */
+  actorEmail: string | null;
   action: string;
   entityType: string;
   entityId: string;
@@ -17,7 +19,7 @@ export interface AuditRow {
 
 export const AUDIT_COLUMNS: Column<AuditRow>[] = [
   { header: "Time", render: (r) => <Time iso={r.at} /> },
-  { header: "Actor", render: (r) => <span className="mono">{r.actor}</span> },
+  { header: "Actor", render: (r) => <Actor actor={r.actor} email={r.actorEmail} /> },
   { header: "Action", render: (r) => r.action },
   { header: "Entity", render: (r) => <span>{r.entityType} <Id id={r.entityId} /></span> },
   {
@@ -72,7 +74,7 @@ function ByEntity({ tenantId, entityId }: { tenantId: string; entityId: string }
       caption="Audit rows of one entity, oldest first"
       columns={AUDIT_COLUMNS}
       rows={load.kind === "ok" ? load.data : []}
-      rowKey={(r) => r.id}
+      rowKey={(r) => String(r.id)}
       {...tableStatus(load)}
       empty="No audit rows for this id."
     />

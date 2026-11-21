@@ -38,15 +38,15 @@ export interface EventRow {
   cursor: string;
   externalEventId: string;
   kind: string;
-  playerId: string;
-  playerExternalId: string;
+  /** Null for an event that matched no player, such as an ignored one. */
+  playerId: string | null;
+  playerExternalId: string | null;
   receivedAt: string;
   normalized: unknown;
 }
 
-export const PlayerLink = ({ id, external }: { id: string; external: string }) => (
-  <a href={buildAdminHash({ section: "players", id })}>{external}</a>
-);
+export const PlayerLink = ({ id, external }: { id: string | null; external: string | null }) =>
+  id === null || external === null ? <span className="muted">-</span> : <a href={buildAdminHash({ section: "players", id })}>{external}</a>;
 
 export const REDEMPTION_COLUMNS = [
   { header: "Created", render: (r: RedemptionRow) => <Time iso={r.createdAt} /> },
@@ -116,7 +116,7 @@ export function Events() {
     <ListPage<EventRow>
       title="Events"
       endpoint="events"
-      filters={[{ name: "kind", label: "Kind" }]}
+      filters={[{ name: "kind", label: "Kind", options: ["deposit_succeeded", "ignored"] }]}
       columns={EVENT_COLUMNS}
       empty="No events match."
       detail="events"
@@ -124,7 +124,7 @@ export function Events() {
   );
 }
 
-interface PlayerRow {
+export interface PlayerRow {
   id: string;
   cursor: string;
   externalId: string;
@@ -154,8 +154,8 @@ export function Players() {
   );
 }
 
-interface OutboxRow {
-  id: string;
+export interface OutboxRow {
+  id: number;
   cursor: string;
   kind: string;
   refId: string;

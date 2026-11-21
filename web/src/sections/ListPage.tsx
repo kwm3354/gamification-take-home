@@ -19,7 +19,7 @@ interface Props<T> {
 }
 
 /** A list read page by page ("Load more"), with filters kept in the hash. */
-export function ListPage<T extends { id: string; cursor: string }>(p: Props<T>) {
+export function ListPage<T extends { id: string | number; cursor: string }>(p: Props<T>) {
   const { tenantId } = useAdmin();
   const [values, setValues] = useFilters();
   const known: Record<string, string> = {};
@@ -45,7 +45,7 @@ export function ListPage<T extends { id: string; cursor: string }>(p: Props<T>) 
         {...(detail
           ? {
               onRow: (r: T) => {
-                window.location.hash = buildAdminHash({ section: detail, id: r.id });
+                window.location.hash = buildAdminHash({ section: detail, id: String(r.id) });
               },
             }
           : {})}

@@ -59,6 +59,17 @@ const TONES: Record<string, Tone> = {
 };
 
 /** Status as text with a small mark; the colour is never the only signal. */
+/** An actor as the audit trail names it. For `admin/<user id>` the server also gives the email; it is shown first. */
+export function Actor({ actor, email }: { actor: string | null; email?: string | null }) {
+  if (actor === null) return <span className="mono">-</span>;
+  return (
+    <span className="mono" title={actor}>
+      {email ? <strong>{email}</strong> : null}
+      {email ? <span className="muted"> {actor}</span> : actor}
+    </span>
+  );
+}
+
 export function Mark({ status }: { status: string }) {
   return (
     <span className={`mark mark-${TONES[status] ?? "neutral"}`}>

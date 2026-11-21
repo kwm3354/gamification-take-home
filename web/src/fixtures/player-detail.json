@@ -1,0 +1,86 @@
+{
+  "player": {
+    "id": "7e952995-438f-404e-ba7b-d2242550b45c",
+    "externalId": "b-stuck2",
+    "createdAt": "2026-11-21T09:17:39.747Z"
+  },
+  "balance": {
+    "available": "640",
+    "reserved": "0"
+  },
+  "spins": [
+    {
+      "id": "ba6289ab-2702-4888-b427-2ef088e5434a",
+      "status": "used",
+      "coins": "10",
+      "createdAt": "2026-11-21T09:17:40.175Z",
+      "usedAt": "2026-11-21T09:17:40.247Z",
+      "creditedAt": "2026-11-21T09:17:40.291Z",
+      "wheelVersion": 1,
+      "grantPolicyVersion": 1
+    },
+    {
+      "id": "e911450a-22f4-4eef-9adb-dd4ce2bcb474",
+      "status": "used",
+      "coins": "500",
+      "createdAt": "2026-11-21T09:17:40.152Z",
+      "usedAt": "2026-11-21T09:17:40.316Z",
+      "creditedAt": "2026-11-21T09:17:40.349Z",
+      "wheelVersion": 1,
+      "grantPolicyVersion": 1
+    }
+  ],
+  "redemptions": [
+    {
+      "id": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+      "createdAt": "2026-11-21T09:17:40.983Z",
+      "updatedAt": "2026-11-21T09:18:19.042Z",
+      "playerId": "7e952995-438f-404e-ba7b-d2242550b45c",
+      "playerExternalId": "b-stuck2",
+      "itemCode": "bonus-1-eur",
+      "itemName": "Bonus 1 EUR",
+      "costCoins": "100",
+      "status": "issued",
+      "settled": true,
+      "platformRef": "manual",
+      "reason": null,
+      "cursor": "WyIyMDI2LTExLTIxVDA5OjE3OjQwLjk4MzAwMFoiLCJmYTQ1YjgwYi1hZTZiLTQ0ZmYtOGViOC1iYjE2YmU2ZGQ4NTMiXQ"
+    }
+  ],
+  "events": [
+    {
+      "id": "80ea1399-eb89-4e31-9f79-c3305ceb8723",
+      "externalEventId": "evt_152fde32",
+      "kind": "deposit_succeeded",
+      "playerId": "7e952995-438f-404e-ba7b-d2242550b45c",
+      "playerExternalId": "b-stuck2",
+      "receivedAt": "2026-11-21T09:17:40.175Z",
+      "normalized": {
+        "kind": "deposit_succeeded",
+        "currency": "EUR",
+        "occurredAt": "2026-11-21T09:17:40.000Z",
+        "amountMinor": 2000,
+        "externalEventId": "evt_152fde32",
+        "externalPlayerId": "b-stuck2"
+      },
+      "cursor": "WyIyMDI2LTExLTIxVDA5OjE3OjQwLjE3NTAwMFoiLCI4MGVhMTM5OS1lYjg5LTRlMzEtOWY3OS1jMzMwNWNlYjg3MjMiXQ"
+    },
+    {
+      "id": "86e22b0e-1892-42e8-acd5-333f36ab5d2b",
+      "externalEventId": "evt_127cd2ec",
+      "kind": "deposit_succeeded",
+      "playerId": "7e952995-438f-404e-ba7b-d2242550b45c",
+      "playerExternalId": "b-stuck2",
+      "receivedAt": "2026-11-21T09:17:40.152Z",
+      "normalized": {
+        "kind": "deposit_succeeded",
+        "currency": "EUR",
+        "occurredAt": "2026-11-21T09:17:40.000Z",
+        "amountMinor": 2000,
+        "externalEventId": "evt_127cd2ec",
+        "externalPlayerId": "b-stuck2"
+      },
+      "cursor": "WyIyMDI2LTExLTIxVDA5OjE3OjQwLjE1MjAwMFoiLCI4NmUyMmIwZS0xODkyLTQyZTgtYWNkNS0zMzNmMzZhYjVkMmIiXQ"
+    }
+  ]
+}

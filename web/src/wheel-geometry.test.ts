@@ -61,6 +61,20 @@ describe("wheel geometry", () => {
     expect(sliceGeometry(4, 3, "a").flip).toBe(true);
   });
 
+  it("keeps every label readable when the wheel has turned: flips by where the slice rests, not where it started", () => {
+    for (const n of [4, 8, 12]) {
+      for (const rotation of [0, 37.5, 90, 181, 400, 1000.25, -75]) {
+        for (let i = 0; i < n; i++) {
+          const g = sliceGeometry(n, i, "a", rotation);
+          const rest = (((g.mid + rotation) % 360) + 360) % 360;
+          // A label on the left half of the screen must be turned; on the right half it must not.
+          if (rest > 180.001 && rest < 359.999) expect(g.flip).toBe(true);
+          if (rest < 179.999 && rest > 0.001) expect(g.flip).toBe(false);
+        }
+      }
+    }
+  });
+
   it("refuses a wheel of fewer than 2 segments or an odd count", () => {
     expect(() => sliceGeometry(1, 0, "a")).toThrow();
     expect(() => sliceGeometry(2.5, 0, "a")).toThrow();

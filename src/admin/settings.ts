@@ -1,5 +1,6 @@
 import { expectedPrizeCoins } from "../alerts/alerts.ts";
 import type { Db } from "../db.ts";
+import { adminEmails } from "./actors.ts";
 
 type Q = Pick<Db, "query">;
 
@@ -53,7 +54,7 @@ export async function readSettings(db: Q, tenantId: string) {
       reward: r.reward,
       active: r.active,
     })),
-    changes: changes.rows.map(changeView),
+    changes: await withEmails(db, changes.rows.map(changeView)),
   };
 }
 
@@ -74,4 +75,20 @@ export function changeView(r: any) {
     createdAt: iso(r.created_at),
     decidedAt: r.decided_at ? iso(r.decided_at) : null,
   };
+}
+
+/** Adds the email of an admin who proposed or decided a change. Null for a policy or no decision. */
+export async function withEmails<T extends { proposedBy: string; decidedBy: string | null }>(
+  db: Pick<Db, "query">,
+  views: T[],
+): Promise<(T & { proposedByEmail: string | null; decidedByEmail: string | null })[]> {
+  const emails = await adminEmails(
+    db,
+    views.flatMap((v) => [v.proposedBy, v.decidedBy]),
+  );
+  return views.map((v) => ({
+    ...v,
+    proposedByEmail: emails.get(v.proposedBy) ?? null,
+    decidedByEmail: v.decidedBy ? (emails.get(v.decidedBy) ?? null) : null,
+  }));
 }

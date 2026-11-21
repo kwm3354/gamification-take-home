@@ -447,4 +447,24 @@ describe.skipIf(!running)("changing the wheel", () => {
     const trail = await call(ALPHA_MANAGER, "GET", `/admin/${ALPHA}/audit?entityId=${id}`);
     expect(trail.json.map((a: { actor: string }) => a.actor)).toEqual([person, "policy/ops-v1"]);
   });
+
+  test("audit rows and settings changes carry the email of an admin actor, and null for any other actor", async () => {
+    const r = await propose(ALPHA_MANAGER, ALPHA, RICH);
+    const id = r.json.change.id as string;
+    expect((await decide(OPS, id, "approve")).status).toBe(200);
+    const trail = await call(ALPHA_MANAGER, "GET", `/admin/${ALPHA}/audit?entityId=${id}`);
+    expect(trail.json.map((a: { actorEmail: string | null }) => a.actorEmail)).toEqual([ALPHA_MANAGER, OPS]);
+    const recent = await call(ALPHA_MANAGER, "GET", `/admin/${ALPHA}/audit?recent=1&limit=100`);
+    const system = recent.json.items.find((a: { actor: string }) => a.actor.startsWith("system/"));
+    expect(system.actorEmail).toBeNull();
+    const settings = await call(ALPHA_MANAGER, "GET", `/admin/${ALPHA}/settings`);
+    const mine = settings.json.changes.find((c: { id: string }) => c.id === id);
+    expect(mine).toMatchObject({ proposedByEmail: ALPHA_MANAGER, decidedByEmail: OPS });
+    const auto = settings.json.changes.find((c: { decidedBy: string }) => c.decidedBy?.startsWith("policy/"));
+    expect(auto).toMatchObject({ proposedByEmail: ALPHA_MANAGER, decidedByEmail: null });
+    const waiting = await propose(ALPHA_MANAGER, ALPHA, RICH);
+    const queue = await call(OPS, "GET", "/platform/settings-changes?status=proposed");
+    const row = queue.json.find((c: { id: string }) => c.id === waiting.json.change.id);
+    expect(row).toMatchObject({ proposedByEmail: ALPHA_MANAGER, decidedByEmail: null });
+  });
 });

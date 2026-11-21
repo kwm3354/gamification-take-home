@@ -3,7 +3,7 @@ import { plain } from "../admin/audit-format.ts";
 import { useAdmin, useGet } from "../admin/hooks.ts";
 import { Mark, Notice, PageTitle, formatTime } from "../admin/ui.tsx";
 
-interface AlertsData {
+export interface AlertsData {
   at: string;
   policyVersion: number;
   alerts: { code: string; severity: string; subject: string; value: number | string; limit: number | string; detail: unknown }[];

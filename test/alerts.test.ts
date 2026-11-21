@@ -402,7 +402,7 @@ describe.skipIf(!running)("alerts", () => {
     expect(codes(await alertsOf(t))).not.toContain("outcome_contradicted");
   });
 
-  test("the alerts endpoint answers 401 without the tenant's admin key", async () => {
+  test("the alerts endpoint answers 401 without a sign-in token", async () => {
     const t = await newTenant();
     const r = await fetch(`${app().url}/admin/${t.id}/alerts`);
     expect(r.status).toBe(401);

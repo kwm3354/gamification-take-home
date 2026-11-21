@@ -1,0 +1,31 @@
+{
+  "items": [
+    {
+      "id": "1a491c82-4869-4c47-afb3-8f3bcbb1276b",
+      "playerId": "f5636a74-d740-433e-95cf-c359185d20d0",
+      "playerExternalId": "p-4e4c7b",
+      "status": "used",
+      "coins": "17",
+      "segmentIndex": 4,
+      "createdAt": "2026-11-21T09:13:23.887Z",
+      "usedAt": "2026-11-21T09:13:27.299Z",
+      "creditedAt": "2026-11-21T09:13:27.320Z",
+      "wheelVersion": 5,
+      "cursor": "WyIyMDI2LTExLTIxVDA5OjEzOjIzLjg4NzAwMFoiLCIxYTQ5MWM4Mi00ODY5LTRjNDctYWZiMy04ZjNiY2JiMTI3NmIiXQ"
+    },
+    {
+      "id": "bcd29215-817d-49c6-a278-008a0b125d78",
+      "playerId": "07dbbd0c-23e7-4509-a751-a4ab8c63b585",
+      "playerExternalId": "a-small3",
+      "status": "used",
+      "coins": "500",
+      "segmentIndex": 3,
+      "createdAt": "2026-11-21T09:08:11.447Z",
+      "usedAt": "2026-11-21T09:08:11.485Z",
+      "creditedAt": "2026-11-21T09:08:11.520Z",
+      "wheelVersion": 1,
+      "cursor": "WyIyMDI2LTExLTIxVDA5OjA4OjExLjQ0NzAwMFoiLCJiY2QyOTIxNS04MTdkLTQ5YzYtYTI3OC0wMDhhMGIxMjVkNzgiXQ"
+    }
+  ],
+  "nextCursor": "WyIyMDI2LTExLTIxVDA5OjA4OjExLjQ0NzAwMFoiLCJiY2QyOTIxNS04MTdkLTQ5YzYtYTI3OC0wMDhhMGIxMjVkNzgiXQ"
+}

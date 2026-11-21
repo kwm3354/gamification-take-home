@@ -8,7 +8,7 @@ import { coins } from "../format.ts";
 import { AUDIT_COLUMNS, type AuditRow } from "./Audit.tsx";
 import { PlayerLink, type RedemptionRow } from "./Lists.tsx";
 
-interface Detail {
+export interface Detail {
   redemption: RedemptionRow;
   reward: unknown;
   audit: AuditRow[];
@@ -103,7 +103,7 @@ function Body({
         caption="Audit rows of this redemption, oldest first"
         columns={AUDIT_COLUMNS}
         rows={d.audit}
-        rowKey={(a) => a.id}
+        rowKey={(a) => String(a.id)}
         status="ok"
         empty="No audit rows."
       />

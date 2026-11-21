@@ -1,0 +1,16 @@
+{
+  "at": "2026-11-21T09:20:29.380Z",
+  "policyVersion": 1,
+  "alerts": [
+    {
+      "code": "many_spins_one_player",
+      "severity": "warning",
+      "subject": "player/a-big",
+      "value": 60,
+      "limit": 20,
+      "detail": {
+        "windowHours": 24
+      }
+    }
+  ]
+}

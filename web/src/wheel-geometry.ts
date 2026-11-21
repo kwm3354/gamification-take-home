@@ -18,10 +18,16 @@ export interface SliceGeometry {
   /** The label as drawn: the full text, or a shortened one ending in "..." when even the smallest size does not fit. */
   text: string;
   fontSize: number;
-  /** The label sits on the left half, so it is turned the other way to stay readable. */
+  /** The label rests on the left half of the screen, so it is turned the other way to stay readable. */
   flip: boolean;
   /** How far the label reaches from the rim toward the hub. */
   length: number;
+}
+
+/** Left half of the screen: the angle is past the bottom and before the top. The top and the bottom are not flipped. */
+function isLeftHalf(angle: number): boolean {
+  const a = ((angle % 360) + 360) % 360;
+  return a > 180 + 1e-6 && a < 360 - 1e-6;
 }
 
 const rad = (deg: number): number => (deg * Math.PI) / 180;
@@ -35,7 +41,11 @@ function fits(chars: number, fontSize: number, sliceAngle: number): boolean {
   return innerWidth >= fontSize * 1.2;
 }
 
-export function sliceGeometry(count: number, index: number, label: string): SliceGeometry {
+/**
+ * `rotation` is how far the wheel has turned (degrees, clockwise). The label is flipped by the place
+ * where its slice rests on the screen, so after any spin every label reads left to right.
+ */
+export function sliceGeometry(count: number, index: number, label: string, rotation = 0): SliceGeometry {
   if (!Number.isInteger(count) || count < 2) throw new Error("A wheel needs at least 2 segments");
   const angle = 360 / count;
   const from = index * angle;
@@ -65,7 +75,7 @@ export function sliceGeometry(count: number, index: number, label: string): Slic
     mid,
     text,
     fontSize,
-    flip: mid > 180,
+    flip: isLeftHalf(mid + rotation),
     length: text.length * CHAR_WIDTH * fontSize,
   };
 }

@@ -1,0 +1,50 @@
+{
+  "items": [
+    {
+      "id": "e61c98b8-b52f-469e-a6c6-e1015fe6ee5f",
+      "createdAt": "2026-11-21T09:08:11.621Z",
+      "updatedAt": "2026-11-21T09:08:11.630Z",
+      "playerId": "9f2b4f00-952e-438b-8db6-84238debebf6",
+      "playerExternalId": "a-zero",
+      "itemCode": "bonus-5-eur",
+      "itemName": "Bonus 5 EUR",
+      "costCoins": "500",
+      "status": "insufficient",
+      "settled": true,
+      "platformRef": null,
+      "reason": null,
+      "cursor": "WyIyMDI2LTExLTIxVDA5OjA4OjExLjYyMTAwMFoiLCJlNjFjOThiOC1iNTJmLTQ2OWUtYTZjNi1lMTAxNWZlNmVlNWYiXQ"
+    },
+    {
+      "id": "3e9026f0-438e-4dfc-ac16-0bc248f7f54c",
+      "createdAt": "2026-11-21T09:08:11.148Z",
+      "updatedAt": "2026-11-21T09:08:11.215Z",
+      "playerId": "94b2188e-d83b-4937-a2c6-8219902e9862",
+      "playerExternalId": "a-big",
+      "itemCode": "bonus-1-eur",
+      "itemName": "Bonus 1 EUR",
+      "costCoins": "100",
+      "status": "refused",
+      "settled": true,
+      "platformRef": null,
+      "reason": "player_blocked",
+      "cursor": "WyIyMDI2LTExLTIxVDA5OjA4OjExLjE0ODAwMFoiLCIzZTkwMjZmMC00MzhlLTRkZmMtYWMxNi0wYmMyNDhmN2Y1NGMiXQ"
+    },
+    {
+      "id": "173cd395-533c-4e45-91fb-b2dab4d8f804",
+      "createdAt": "2026-11-21T09:08:11.034Z",
+      "updatedAt": "2026-11-21T09:08:11.115Z",
+      "playerId": "94b2188e-d83b-4937-a2c6-8219902e9862",
+      "playerExternalId": "a-big",
+      "itemCode": "bonus-1-eur",
+      "itemName": "Bonus 1 EUR",
+      "costCoins": "100",
+      "status": "issued",
+      "settled": true,
+      "platformRef": "b_3",
+      "reason": null,
+      "cursor": "WyIyMDI2LTExLTIxVDA5OjA4OjExLjAzNDAwMFoiLCIxNzNjZDM5NS01MzNjLTRlNDUtOTFmYi1iMmRhYjRkOGY4MDQiXQ"
+    }
+  ],
+  "nextCursor": "x"
+}

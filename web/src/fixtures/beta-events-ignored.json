@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "id": "c298f153-1f24-4e4f-aba2-a4844fa9f7e1",
+      "externalEventId": "T-ign-1",
+      "kind": "ignored",
+      "playerId": null,
+      "playerExternalId": null,
+      "receivedAt": "2026-11-21T09:14:14.216Z",
+      "normalized": {
+        "why": "WITHDRAWAL COMPLETED",
+        "kind": "ignored",
+        "externalEventId": "T-ign-1"
+      },
+      "cursor": "WyIyMDI2LTExLTIxVDA5OjE0OjE0LjIxNjAwMFoiLCJjMjk4ZjE1My0xZjI0LTRlNGYtYWJhMi1hNDg0NGZhOWY3ZTEiXQ"
+    }
+  ],
+  "nextCursor": null
+}

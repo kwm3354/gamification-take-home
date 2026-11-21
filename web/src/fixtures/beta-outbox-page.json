@@ -1,0 +1,27 @@
+{
+  "items": [
+    {
+      "id": 192,
+      "kind": "redemption_advance",
+      "refId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+      "runAt": "2026-11-21T09:18:19.024Z",
+      "attempts": 0,
+      "lastError": null,
+      "doneAt": "2026-11-21T09:18:19.379Z",
+      "deadAt": null,
+      "cursor": "MTky"
+    },
+    {
+      "id": 191,
+      "kind": "spin_credit",
+      "refId": "9a80f5e9-85ca-492d-9cf4-3ec665957d17",
+      "runAt": "2026-11-21T09:17:40.881Z",
+      "attempts": 0,
+      "lastError": null,
+      "doneAt": "2026-11-21T09:17:40.959Z",
+      "deadAt": null,
+      "cursor": "MTkx"
+    }
+  ],
+  "nextCursor": "MTkx"
+}
