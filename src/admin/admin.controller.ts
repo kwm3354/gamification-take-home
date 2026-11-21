@@ -14,6 +14,7 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
+import { runAlerts } from "../alerts/alerts.ts";
 import { loadOpsPolicy } from "../alerts/ops-policy.ts";
 import { CLOCK } from "../clock.module.ts";
 import type { Clock } from "../clock.ts";
@@ -28,7 +29,7 @@ import { auditTrail } from "./audit-trail.ts";
 import { resolveRedemption } from "./resolve.ts";
 import { stuckRedemptions } from "./stuck.ts";
 
-/** Operations: audit trail, stuck redemptions, manual resolution. Thin; the logic is in the plain files. */
+/** Operations: audit trail, stuck redemptions, manual resolution, alerts. Thin; the logic is in the plain files. */
 @Controller("admin/:tenantId")
 @UseGuards(AdminGuard)
 export class AdminController {
@@ -83,6 +84,11 @@ export class AdminController {
       });
     }
     return toView(result.row);
+  }
+
+  @Get("alerts")
+  alerts(@Param("tenantId") tenantId: string) {
+    return runAlerts(this.db, this.clock, tenantId);
   }
 
   /** The ledger step now. If it fails the queued job does it later. */

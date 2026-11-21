@@ -296,7 +296,8 @@ Secrets and keys of the demo tenants are fixed strings in one small file,
 ## Admin and operations
 
 Code: `src/admin/` (guard, controller, plain logic in `stuck.ts`, `resolve.ts`, `audit-trail.ts`) and
-`src/alerts/ops-policy.ts`.
+`src/alerts/` (`alerts.ts`, `ops-policy.ts`). The playbook for the daily digest agent is
+`docs/monitoring-playbook.md`.
 
 Auth for every admin call: header `X-Admin-Key` equals the `admin_key` of the tenant in the path
 (timing-safe compare). An unknown tenant and a wrong key both give 401 with the same body. Header
@@ -308,6 +309,7 @@ Every query filters by the tenant in the path.
 | `GET /admin/:tenantId/audit?entityId=<id>` | `[{ id, at, actor, action, entityType, entityId, changes, requestId }]`, oldest first, this tenant's rows only; 400 without `entityId` |
 | `GET /admin/:tenantId/redemptions/stuck` | `{ limitSec, items: [{ id, status, settled, playerExternalId, costCoins, ageSec, platformRef, lastPlatformCall }] }`: redemptions that are `created`, `reserved`, `submitting`, or final and not settled, created more than `pendingAgeLimitSec` ago (age from `created_at`), oldest first |
 | `POST /admin/:tenantId/redemptions/:id/resolve` body `{ outcome: "issued" \| "refused", note }` | 200 with the redemption view; 404 if not this tenant's; 409 `{ message, view }` unless the status is `submitting`; 400 for a note outside 5..500 characters or another outcome |
+| `GET /admin/:tenantId/alerts` | `{ at, policyVersion, alerts: [{ code, severity, subject, value, limit, detail }] }`; empty `alerts` when all is well; one critical `no_ops_policy` when the tenant has no ops policy |
 
 Manual resolution goes through `confirm`, the same function as the platform's answers (lock order:
 job row, then redemption row). Outcome `issued` sets platform ref `manual`; `refused` sets the
@@ -324,3 +326,12 @@ writes nothing. A lost race of an admin's resolution is not a contradiction and 
 applies): `{ pendingAgeLimitSec` 10..86400, `maxExpectedPrizeCoins` > 0, `maxSpinsPerPlayerPerDay`
 1..1000, `maxPlayerRedeemShare` in (0, 1], `minRedeemedForShare` >= 0 `}`. Demo version 1 for both
 tenants: 300, 100, 20, 0.5, 1000.
+
+Alerts (all windows use the injected clock; all queries filter by tenant): `redemption_pending_too_long`
+(critical), `outbox_dead_jobs` (critical), `wheel_expected_prize_high` (warning),
+`wheel_paying_above_expectation` (warning; at least 200 used spins in 24 hours and a mean more than
+25 percent above expectation), `many_spins_one_player` (warning), `player_redeem_share_high`
+(warning), `outcome_contradicted` (critical).
+Not built: the alert for a deposit reversed after its spin was used (the adapters have no reversal
+event), and delivery of alerts to us and to the operator. The endpoint is what a scheduler or a
+monitoring system would poll.

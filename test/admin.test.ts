@@ -170,13 +170,13 @@ describe.skipIf(!running)("admin API", () => {
       [ALPHA, tenantOf(BETA).adminKey],
       ["no-such-tenant", tenantOf(ALPHA).adminKey],
     ] as const) {
-      const r = await admin(tenant, "/redemptions/stuck", { key });
+      const r = await admin(tenant, "/alerts", { key });
       expect(r.status).toBe(401);
       bodies.add(r.text);
     }
     expect(bodies.size).toBe(1); // unknown tenant and wrong key look the same
-    expect((await admin(ALPHA, "/redemptions/stuck")).status).toBe(200);
-    expect((await admin(ALPHA, "/redemptions/stuck", { name: "Bad Name!" })).status).toBe(400);
+    expect((await admin(ALPHA, "/alerts")).status).toBe(200);
+    expect((await admin(ALPHA, "/alerts", { name: "Bad Name!" })).status).toBe(400);
   });
 
   test("2. audit: the rows of a spin come oldest first; another tenant's key sees nothing", async () => {
@@ -353,6 +353,11 @@ describe.skipIf(!running)("admin API", () => {
     expect(row.settled_at).not.toBeNull();
     expect(await balanceOf(waiting)).toEqual({ available: 500n, reserved: 0n });
     expect(await grantsFor(w.id)).toHaveLength(1); // the casino did grant: the alert is why we look
+
+    const alerts = await admin(BETA, "/alerts");
+    const alert = alerts.json.alerts.find((x: { code: string }) => x.code === "outcome_contradicted");
+    expect(alert).toMatchObject({ severity: "critical", subject: BETA });
+    expect(alert.detail.redemptionIds).toContain(w.id);
 
     // A late answer that agrees: resolve as issued, then the casino says GRANTED. Nothing new.
     const agree = await newPlayer(BETA, 500n);

@@ -47,3 +47,12 @@ Test names are in `test/admin.test.ts` and `test/alerts.test.ts`.
 | An admin resolves a redemption that is final, `created`, insufficient, another tenant's, or sends a bad note | 409 with the view, 404, or 400; nothing changes; a second resolve is 409 and writes one record only. | `admin API > 6. not resolvable: ...` |
 | The casino's real answer arrives after a manual resolution and disagrees | Status and ledger stay as the admin left them; one `outcome_contradicted` audit row; a critical alert. An answer that agrees writes nothing. | `admin API > 7. a late real answer ...` |
 | The casino's answer and an admin's resolution arrive at the same moment | Exactly one makes the redemption final, in either order; the ledger is captured or released, never both; no false contradiction when the admin loses. | `admin API > 8. the real answer and a manual resolution at the same moment ...` (24 runs; both orders occurred in the runs I looked at, not guaranteed) |
+| A dead outbox job | Critical alert with the count. | `alerts > outbox_dead_jobs: ...` |
+| The wheel is changed so that it pays too much | Warning when the expected prize of the newest wheel is above the tenant's limit (exact integer arithmetic). | `alerts > wheel_expected_prize_high: ...` |
+| The wheel pays more than its weights say | Warning when at least 200 spins in 24 hours have a mean more than 25 percent above expectation. | `alerts > wheel_paying_above_expectation: ...` |
+| A player gets many deposits and spins (the deposit, spin, withdraw loop) | Warning per player above the daily limit. | `alerts > many_spins_one_player: ...` |
+| One player takes most of the issued coins | Warning for a player above the share limit, only when the tenant total is large enough. | `alerts > player_redeem_share_high: ...` |
+| A tenant has no ops policy | One critical alert `no_ops_policy`; no error. | `alerts > no ops policy: ...` |
+| Thresholds differ between operators | They are a versioned policy of the tenant; a new version changes the result, another tenant is not affected. | `alerts` tests with policy version 2 and 3; tenant isolation inside each alert test |
+| A deposit is reversed after its spin was used | Not built: the adapters have no reversal event. | Not tested (not built) |
+| The alert reaches nobody | Not built: no delivery to us or to the operator; the endpoint is for a scheduler to poll. | Not tested (not built) |
