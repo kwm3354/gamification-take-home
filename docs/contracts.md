@@ -294,6 +294,7 @@ rest of `src/` except `src/tenants/demo-tenants.ts`. It plays both platforms for
   (tests call it; in the demo a timer does, 1 s after the grant).
 - `GET /control/state` returns everything the judge needs: every grant with tenant, player,
   reference and amount; every request received.
+- `GET /control/players` returns the players the casino has met (token, deposit or grant request) with the references they asked for: `[{ tenantId, playerId, references }]`. The control page's check reads it.
 - `POST /control/reset`.
 
 Secrets and keys of the demo tenants are fixed strings in one small file,

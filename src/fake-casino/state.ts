@@ -67,8 +67,21 @@ export class World {
   idempotency = new Map<string, Reply>();
   /** Platform A: tenant|reference -> refusal reason. */
   rejected = new Map<string, string>();
+  /** Players the casino has met (token, deposit or grant request), with the references they asked for. */
+  players = new Map<string, { tenantId: string; playerId: string; references: Set<string> }>();
   private bonusSeq = 0;
   private requestSeq = 0;
+
+  meet(tenantId: string, playerId: string, reference?: string): void {
+    const key = `${tenantId}|${playerId}`;
+    const known = this.players.get(key) ?? { tenantId, playerId, references: new Set<string>() };
+    if (reference) known.references.add(reference);
+    this.players.set(key, known);
+  }
+
+  playerList(): { tenantId: string; playerId: string; references: string[] }[] {
+    return [...this.players.values()].map((p) => ({ ...p, references: [...p.references] }));
+  }
 
   nextBonusId(): string {
     this.bonusSeq += 1;
@@ -95,6 +108,7 @@ export class World {
     this.bRequests = [];
     this.idempotency.clear();
     this.rejected.clear();
+    this.players.clear();
     this.bonusSeq = 0;
     this.requestSeq = 0;
   }
