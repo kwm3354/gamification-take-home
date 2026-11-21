@@ -199,3 +199,51 @@ describe.skipIf(!tb)("coin ledger on TigerBeetle", () => {
     }
   });
 });
+
+describe.skipIf(!tb)("account creation is remembered", () => {
+  /** A client that counts every call that creates accounts. */
+  function counting(real: Client) {
+    const calls = { createAccounts: 0 };
+    const wrapped = new Proxy(real, {
+      get(target, prop, receiver) {
+        const value = Reflect.get(target, prop, receiver);
+        if (prop === "createAccounts") {
+          return (...args: Parameters<Client["createAccounts"]>) => {
+            calls.createAccounts++;
+            return target.createAccounts(...args);
+          };
+        }
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    return { wrapped, calls };
+  }
+
+  test("the second prize for a player makes one ledger request, not two", async () => {
+    const { wrapped, calls } = counting(client);
+    const mine = new TigerBeetleCoinLedger(wrapped, 5000);
+    const ledgerNo = newLedgerNo();
+    const playerId = randomUUID();
+    await mine.creditPrize({ ledgerNo, playerId, spinId: randomUUID(), coins: 10n });
+    expect(calls.createAccounts).toBe(1);
+    await mine.creditPrize({ ledgerNo, playerId, spinId: randomUUID(), coins: 10n });
+    expect(calls.createAccounts).toBe(1); // no second call to create accounts
+    expect(await mine.balance({ ledgerNo, playerId })).toEqual({ available: 20n, reserved: 0n });
+  });
+
+  test("a new process (a new ledger object) still works when the accounts exist", async () => {
+    const ledgerNo = newLedgerNo();
+    const playerId = randomUUID();
+    await new TigerBeetleCoinLedger(client, 5000).creditPrize({
+      ledgerNo,
+      playerId,
+      spinId: randomUUID(),
+      coins: 10n,
+    });
+    const { wrapped, calls } = counting(client);
+    const fresh = new TigerBeetleCoinLedger(wrapped, 5000);
+    await fresh.creditPrize({ ledgerNo, playerId, spinId: randomUUID(), coins: 5n });
+    expect(calls.createAccounts).toBe(1); // it asked once, learned "exists", and went on
+    expect(await fresh.balance({ ledgerNo, playerId })).toEqual({ available: 15n, reserved: 0n });
+  });
+});

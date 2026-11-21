@@ -10,9 +10,9 @@ import { LOG } from "../logging/log.module.ts";
 import type { Log } from "../logging/log.ts";
 import { OUTBOX, type Outbox } from "../outbox/outbox.ts";
 import {
+  InlineGate,
   JOB_KIND,
   type RedemptionView,
-  Slots,
   type Step,
   type StoreDeps,
   applyNotice,
@@ -45,7 +45,7 @@ export class StoreService implements OnModuleInit {
       outbox,
       platforms,
       platformTimeoutMs: config.platformTimeoutMs,
-      slots: new Slots(2),
+      inline: new InlineGate(config.inlineMax),
       log,
     };
   }

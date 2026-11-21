@@ -7,7 +7,13 @@ export const DB = Symbol("DB");
 
 @Global()
 @Module({
-  providers: [{ provide: DB, inject: [CONFIG], useFactory: (config: Config) => connect(config.databaseUrl) }],
+  providers: [
+    {
+      provide: DB,
+      inject: [CONFIG],
+      useFactory: (config: Config) => connect(config.databaseUrl, config.dbPoolMax),
+    },
+  ],
   exports: [DB],
 })
 export class DbModule implements OnModuleInit, OnApplicationShutdown {

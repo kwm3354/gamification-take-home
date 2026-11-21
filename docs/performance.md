@@ -310,3 +310,23 @@ docker compose exec -T postgres psql -U app app -c "select relname, n_live_tup, 
   read queries were explained.
 - The effect of the log lines, the cost inside the TigerBeetle client, and the behaviour with a
   failing PostgreSQL or TigerBeetle: not measured.
+
+## Change made after this measurement
+
+The numbers above are from BEFORE this change. They have not been measured again.
+
+The measurement found a design mistake: a job's handler (casino call, ledger call) ran while a
+database transaction was open and the job row was locked, and the redemption request did the same
+under a limit of two at a time. Changed:
+
+- The outbox claims jobs with a lease (`claimed_until`, `claim_token`) in one short statement and
+  runs the handlers with no transaction open. Handlers run at the same time (a batch of 16).
+  The outcome is written with the claim token, so a worker that lost its lease writes nothing.
+- A redemption request claims its own job the same way and runs its steps with nothing open. The
+  limit of two is gone. If a worker holds the job, the request returns the current state.
+- The pool default is 20 connections (`DB_POOL_MAX`) instead of 5.
+- The ledger remembers which accounts it has already seen, so the "create accounts" round trip is
+  made once per account per process instead of before every transfer.
+
+New tests show the mechanism (no session idle in a transaction while the casino delays its answer;
+forty redemptions with 200 ms answers finish in under 2 s). They are not a throughput measurement.

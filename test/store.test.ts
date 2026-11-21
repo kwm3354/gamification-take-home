@@ -597,7 +597,72 @@ describe.skipIf(!running)("bonus store", () => {
     expect(Number(rows.rows[0].n)).toBe(0);
   });
 
-  test("21. the timer and the request never run one redemption at the same time (B has no idempotency)", async () => {
+  test("21b. the request and a runDue started together: one grant, one settle", async () => {
+    const p = await newPlayer(BETA, 500n);
+    await fault("b.grant", "slow_answer", 1, { delayMs: 50 });
+    await fault("b.find", "slow_answer", 2, { delayMs: 100 });
+    const item = await itemId(BETA, "bonus-1-eur");
+    // The job exists only after the request creates it, so the runner polls until it has run something.
+    const posted = redeem(p, item);
+    const timer = (async () => {
+      let ran = 0;
+      for (let i = 0; i < 100 && ran === 0; i++) {
+        ran += await outbox().runDue();
+        if (ran === 0) await new Promise((resolve) => setTimeout(resolve, 5)); // real time: the request is a real HTTP call
+      }
+      return ran;
+    })();
+    const [r] = await Promise.all([posted, timer]);
+    expect(await requestsFor(r.json.id, "b.grant")).toHaveLength(1);
+    expect(await deliver()).toBe(1);
+    await outbox().drain();
+    expect((await getRedemption(p, r.json.id)).json).toMatchObject({ status: "issued", settled: true });
+    expect(await grantsFor(r.json.id)).toHaveLength(1);
+    expect(await verdict(p)).toEqual([]);
+  });
+
+  test("22. while the casino's answer is delayed, no database session is idle in a transaction", async () => {
+    const p = await newPlayer(ALPHA, 500n);
+    await fault("a.grant", "slow_answer", 1, { delayMs: 200 });
+    const posted = redeem(p, await itemId(ALPHA, "bonus-1-eur"));
+    let seen = false;
+    for (let i = 0; i < 400 && !seen; i++) {
+      seen = (await fakeState()).requests.some((q) => q.point === "a.grant");
+      if (!seen) await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    expect(seen).toBe(true);
+    const idle = await app().db.query(
+      `SELECT pid FROM pg_stat_activity
+       WHERE datname = current_database() AND state LIKE 'idle in transaction%' AND pid <> pg_backend_pid()`,
+    );
+    expect(idle.rowCount).toBe(0);
+    expect((await posted).json.status).toBe("issued");
+  });
+
+  test("23. forty redemptions at once on platform A all end issued, one grant each, none waits behind another's call", async () => {
+    const players: P[] = [];
+    for (let i = 0; i < 40; i++) players.push(await newPlayer(ALPHA, 500n));
+    const item = await itemId(ALPHA, "bonus-1-eur");
+    await fault("a.grant", "slow_answer", 40, { delayMs: 200 });
+    // Real clock on purpose: the claim is that the calls overlap in real time. The app's clock is fake and never moves.
+    const started = performance.now();
+    const results = await Promise.all(players.map((p) => redeem(p, item)));
+    const elapsed = performance.now() - started;
+    expect(results.map((r) => r.json.status)).toEqual(Array(40).fill("issued"));
+    for (const r of results) expect(await grantsFor(r.json.id)).toHaveLength(1);
+    // One after another it would be 40 x 200 ms = 8 s.
+    expect(elapsed).toBeLessThan(2000);
+    await outbox().drain();
+    for (const [i, r] of results.entries()) {
+      expect((await getRedemption(players[i] as P, r.json.id)).json).toMatchObject({
+        status: "issued",
+        settled: true,
+      });
+    }
+    expect(await verdict(...players)).toEqual([]);
+  });
+
+  test("21a. while the request holds the lease, the timer's runner skips the job (B has no idempotency)", async () => {
     const p = await newPlayer(BETA, 500n);
     await fault("b.grant", "slow_answer", 1, { delayMs: 50 }); // makes the issue call visible in the log
     await fault("b.find", "slow_answer", 1, { delayMs: 150 }); // the request's look takes a while
@@ -607,7 +672,7 @@ describe.skipIf(!running)("bonus store", () => {
       await new Promise((resolve) => setTimeout(resolve, 5));
     }
     expect((await fakeState()).requests.some((q) => q.point === "b.find")).toBe(true);
-    expect(await outbox().runDue()).toBe(0); // the job is locked by the request
+    expect(await outbox().runDue()).toBe(0); // the request holds the lease
     const r = await posted;
     expect(r.json.status).toBe("submitting");
     expect(await requestsFor(r.json.id, "b.grant")).toHaveLength(1);

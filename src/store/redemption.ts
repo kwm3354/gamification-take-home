@@ -72,24 +72,13 @@ export const toView = (r: RedemptionRow): RedemptionView => ({
 /** What one call of `advance` tells the caller. */
 export type Step = "done" | "again" | { retryInMs: number };
 
-/** At most `size` jobs hold a database connection for their whole run, so the pool is never used up by waiters. */
-export class Slots {
-  private free: number;
-  private readonly waiting: (() => void)[] = [];
-  constructor(size: number) {
-    this.free = size;
-  }
-  async run<T>(work: () => Promise<T>): Promise<T> {
-    if (this.free > 0) this.free--;
-    else await new Promise<void>((resolve) => this.waiting.push(resolve));
-    try {
-      return await work();
-    } finally {
-      const next = this.waiting.shift();
-      if (next) next();
-      else this.free++;
-    }
-  }
+/**
+ * A plain bound on how many inline runs are in flight in this process. It never queues anyone:
+ * over the bound, a request skips its inline run and the job is left to the outbox.
+ */
+export class InlineGate {
+  running = 0;
+  constructor(readonly max: number) {}
 }
 
 export interface StoreDeps {
@@ -99,7 +88,7 @@ export interface StoreDeps {
   outbox: Outbox;
   platforms: Platforms;
   platformTimeoutMs: number;
-  slots: Slots;
+  inline: InlineGate;
   /** Optional so that code which builds the deps by hand keeps working. */
   log?: Log;
 }
@@ -222,9 +211,11 @@ export async function createRedemption(
 
 /**
  * Makes a redemption final. It acts only when the status is "submitting"; any other call changes
- * nothing. `rearm` writes the job again so the ledger settles soon; a caller that is itself running
- * the job must pass false (the job row is locked by that very run) and return "again" instead.
- * The job row is touched first, then the redemption row: the same order the job runner uses.
+ * nothing, and it acts under the redemption row lock in one short transaction. `rearm` writes the job
+ * again in that same transaction so the ledger settles soon. If a worker holds the job at that moment,
+ * the enqueue sets `rerun` and the worker's finish leaves the job due. A caller that is itself running
+ * the job passes false and returns "again" instead: it knows it has to go on.
+ * No lock order to keep: no one holds a job row lock while it works (see the outbox lease).
  */
 export async function confirm(
   deps: Pick<StoreDeps, "db" | "clock" | "outbox" | "log">,
@@ -511,10 +502,10 @@ export async function step(deps: StoreDeps, redemptionId: string, opts: StepOpti
 }
 
 /**
- * Runs the redemption's own job now, for the request that created or changed it. It takes the same
- * row lock the outbox runner takes (FOR UPDATE SKIP LOCKED on the job row), so the timer and this
- * request never run the same redemption at the same time. If someone else holds the lock, it does
- * nothing: that run will do the work. It writes the job row like the runner would.
+ * Runs the redemption's own job now, for the request that created or changed it. It takes the lease
+ * on the job (`claimOne`) like a worker does, runs the steps with no transaction open, and writes
+ * the outcome with `finish`. If a worker holds the lease it does nothing and never waits: that
+ * worker will finish the job and the client polls. Over the inline bound it does nothing too.
  */
 export async function runInline(
   deps: StoreDeps,
@@ -522,53 +513,22 @@ export async function runInline(
   actor: string,
   maxSteps = INLINE_MAX_STEPS,
 ): Promise<void> {
-  await deps.slots.run(() =>
-    transaction(deps.db, async (tx: pg.PoolClient) => {
-      const { rows } = await tx.query(
-        "SELECT id, tenant_id, attempts FROM outbox WHERE kind = $1 AND ref_id = $2 FOR UPDATE SKIP LOCKED",
-        [JOB_KIND, redemptionId],
-      );
-      const job = rows[0];
-      if (!job) return; // busy, or no job
-      let result: Step | { error: string } = "again";
-      try {
-        for (let i = 0; i < maxSteps && result === "again"; i++) {
-          result = await step(deps, redemptionId, { attempts: job.attempts, actor });
-        }
-      } catch (e) {
-        result = { error: e instanceof Error ? e.message : String(e) };
+  if (deps.inline.running >= deps.inline.max) return; // the outbox will run it
+  deps.inline.running++;
+  try {
+    const claim = await deps.outbox.claimOne(JOB_KIND, redemptionId);
+    if (!claim) return; // someone else holds the lease
+    let result: Step | { error: string } = "again";
+    try {
+      for (let i = 0; i < maxSteps && result === "again"; i++) {
+        result = await step(deps, redemptionId, { attempts: claim.attempts, actor });
       }
-      const now = deps.clock.now();
-      const later = (ms: number) => new Date(now.getTime() + ms);
-      if (result === "done") {
-        await tx.query("UPDATE outbox SET done_at = $2, last_error = NULL WHERE id = $1", [job.id, now]);
-      } else if (typeof result === "object" && "retryInMs" in result) {
-        await tx.query("UPDATE outbox SET run_at = $2, attempts = attempts + 1 WHERE id = $1", [
-          job.id,
-          later(result.retryInMs),
-        ]);
-        deps.log?.event("debug", "outbox.retry", {
-          tenantId: job.tenant_id,
-          kind: JOB_KIND,
-          refId: redemptionId,
-          attempts: job.attempts + 1,
-          retryInMs: result.retryInMs,
-        });
-      } else if (typeof result === "object") {
-        await tx.query(
-          "UPDATE outbox SET run_at = $2, attempts = attempts + 1, last_error = $3 WHERE id = $1",
-          [job.id, later(backoffMs(job.attempts)), result.error],
-        );
-        deps.log?.event("debug", "outbox.retry", {
-          tenantId: job.tenant_id,
-          kind: JOB_KIND,
-          refId: redemptionId,
-          attempts: job.attempts + 1,
-          retryInMs: backoffMs(job.attempts),
-          error: result.error,
-        });
-      }
-      // "again" after the last step: the job stays due and the timer continues.
-    }),
-  );
+    } catch (e) {
+      result = { error: e instanceof Error ? e.message : String(e) };
+    }
+    // "again" after the last step: due at once, the timer continues.
+    await deps.outbox.finish(claim, result === "again" ? { retryInMs: 0 } : result);
+  } finally {
+    deps.inline.running--;
+  }
 }

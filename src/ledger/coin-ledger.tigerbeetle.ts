@@ -105,14 +105,20 @@ export class TigerBeetleCoinLedger implements CoinLedger {
     }
   }
 
+  /** Account ids this process has seen created or existing. An account is never deleted, so this stays true. */
+  private readonly known = new Set<bigint>();
+
   private async ensureAccounts(accounts: Account[]): Promise<void> {
-    const results = await this.client.createAccounts(accounts);
+    const missing = accounts.filter((a) => !this.known.has(a.id));
+    if (missing.length === 0) return; // no round trip
+    const results = await this.client.createAccounts(missing);
     results.forEach((r, i) => {
       if (r.status !== CreateAccountStatus.created && r.status !== CreateAccountStatus.exists) {
         throw new Error(
-          `creating account ${accounts[i]?.id} failed: ${CreateAccountStatus[r.status] ?? r.status}`,
+          `creating account ${missing[i]?.id} failed: ${CreateAccountStatus[r.status] ?? r.status}`,
         );
       }
+      this.known.add((missing[i] as Account).id);
     });
   }
 

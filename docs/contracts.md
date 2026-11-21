@@ -94,19 +94,72 @@ Port: `src/domain/coin-ledger.ts`. Model:
 
 `src/outbox/outbox.ts`, token `OUTBOX`.
 
+**No network call inside a database transaction.** A job's handler calls the casino and the ledger.
+It never runs while a transaction is open or while a pooled connection is held for it.
+
 ```ts
 enqueue(tx, job: { tenantId: string; kind: string; refId: string; runAt?: Date }): Promise<void>
   // one row per (kind, refId); enqueueing again makes an existing row due now and not done
 handle(kind: string, fn: (job: { tenantId: string; kind: string; refId: string; attempts: number }) => Promise<"done" | { retryInMs: number }>): void
-runDue(): Promise<number>   // claims due jobs (FOR UPDATE SKIP LOCKED, ordered by run_at), runs them, returns how many ran
+runDue(): Promise<number>   // claims up to `batch` due jobs, runs their handlers at the same time, repeats until nothing is due; returns how many ran
 drain(maxRounds = 20): Promise<void>  // runDue until nothing is due now; for tests
+claimOne(kind, refId): Promise<Claim | null>   // the lease on one job, for a request that runs its own job; null when someone holds it
+finish(claim, "done" | { retryInMs } | { error }): Promise<boolean>  // false: the lease was lost, nothing written
 ```
+
+How a job runs:
+
+1. Claim: one statement picks due jobs (`done_at` and `dead_at` null, `run_at` passed, no live claim;
+   ordered by `run_at, id`; `LIMIT batch`; `FOR UPDATE SKIP LOCKED`) and sets
+   `claimed_until = now + lease` and a fresh `claim_token`. It commits at once.
+2. Run: the handlers run with no transaction and no connection held. Several run at the same time.
+3. Finish: the outcome (done, retry with `run_at` and `attempts`, or dead) is written with
+   `WHERE id = $1 AND claim_token = $2` and the claim is cleared. This is the fence. If no row
+   matches, the lease went to another worker: nothing is written and the warning
+   `outbox.lease_lost` { kind, refId } is logged.
+
+A worker that dies while running a job leaves its claim. When `claimed_until` has passed the job is
+due again and another worker runs it. Handlers are safe to repeat; that was always the contract.
+The lease (option `leaseMs`, default 60 s) must be longer than the longest handler: the platform time
+limit plus the ledger time limit, 2 s each by default. If a handler does outlive its lease, two
+workers can overlap on that job. The money is then protected by what protects it on any repeat:
+fixed ledger transfer ids, `findReward` before every grant, and `confirm` acting only on `submitting`.
+
+`enqueue` on a job that a worker holds does not touch the claim (that would fence the running
+worker out and run the job twice at once). It sets `rerun`. When the worker finishes, the outcome is
+not written and the job stays due as the enqueue left it: exactly one more run, after the first.
 
 A handler that throws is retried with a delay of 1 s, 2 s, 4 s, ... up to 60 s; after 10 attempts
 the job gets `dead_at` and stays visible. Enqueueing a dead job again (a player repeats a request)
 revives it with `attempts` 0; this is allowed on purpose and never silent: the warning `outbox.revived`
 { kind, refId, previousError } is logged. In the running app a timer calls `runDue` every 500 ms
 (off when `OUTBOX_TIMER=off`, which tests use; they call `runDue` and move the clock).
+
+### Workers scale by count
+
+Because a job is claimed by lease, any number of processes can run jobs on one database, each
+taking different jobs. The process role is the env `ROLE`:
+
+| `ROLE` | HTTP API | Outbox timer |
+|---|---|---|
+| `all` (default) | yes | yes |
+| `api` | yes; a request still runs its own job inline under the lease | no |
+| `worker` | listens, but is not published: only `GET /health` is meant to be called | yes |
+
+`OUTBOX_TIMER=off` still turns the timer off in any role (tests use it). `OUTBOX_BATCH` (default 16)
+is how many jobs one claim takes; `OUTBOX_POLL_MS` (default 500) is how often the timer looks.
+There is no route filtering in a worker: it runs the same app, and nothing routes traffic to it.
+
+The schema (and the demo seed, when `SEED_DEMO=1`) is applied at start. Applying the schema runs under
+a PostgreSQL advisory lock, so several processes starting together do not collide; the demo seed is
+on for the `app` service only.
+
+In `docker-compose.yml` the `app` service is `ROLE: api` and the `worker` service has `replicas: 2`
+(no published port, no container name), so `docker compose up --scale worker=4` is possible.
+
+What was run: the outbox test with three `Outbox` objects on one database (30 jobs, each ran once,
+the three workers ran jobs at the same time) and the test that starts the schema from two
+connections at once. The compose file was not run by this change.
 
 ## Our HTTP API
 
@@ -172,7 +225,7 @@ Statuses: `created -> reserved -> submitting -> issued | refused`, or `created -
 `insufficient` reserved nothing, so `settled_at` is set in the same update that sets the status.
 
 `POST /store/redemptions` creates the row (`created`) and the job `redemption_advance` in one
-transaction, then runs the job at once and returns the current state. A repeated key returns the
+transaction, then runs the job at once under the job's lease (`claimOne`, no transaction open during the calls; if a worker holds the lease it returns the current state without waiting; over `INLINE_MAX` inline runs it skips and leaves the job to the outbox) and returns the current state. A repeated key returns the
 existing row and changes nothing.
 
 `advance(redemptionId)`, one step per call, safe to repeat:

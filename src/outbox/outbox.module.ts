@@ -14,16 +14,15 @@ import { LOG } from "../logging/log.module.ts";
 import type { Log } from "../logging/log.ts";
 import { OUTBOX, Outbox } from "./outbox.ts";
 
-const TICK_MS = 500;
-
-/** The queue of outgoing calls. A timer runs due jobs; tests turn it off and call `runDue` by hand. */
+/** The queue of outgoing calls. A timer runs due jobs (not in role `api`); tests turn it off and call `runDue` by hand. */
 @Global()
 @Module({
   providers: [
     {
       provide: OUTBOX,
-      inject: [DB, CLOCK, LOG],
-      useFactory: (db: Db, clock: Clock, log: Log) => new Outbox(db, clock, log),
+      inject: [DB, CLOCK, LOG, CONFIG],
+      useFactory: (db: Db, clock: Clock, log: Log, config: Config) =>
+        new Outbox(db, clock, log, { batch: config.outboxBatch }),
     },
   ],
   exports: [OUTBOX],
@@ -40,7 +39,7 @@ export class OutboxModule implements OnApplicationBootstrap, OnApplicationShutdo
 
   onApplicationBootstrap(): void {
     if (!this.config.outboxTimer) return;
-    this.timer = setInterval(() => void this.tick(), TICK_MS);
+    this.timer = setInterval(() => void this.tick(), this.config.outboxPollMs);
   }
 
   onApplicationShutdown(): void {
