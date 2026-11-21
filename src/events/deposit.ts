@@ -76,6 +76,7 @@ export async function ingestEvent(
       ordinal,
       wheel_config_id: wheel.rows[0].id,
       grant_policy_id: grantPolicyId,
+      created_at: ctx.now, // the injected clock, not the database's now()
     });
   }
   return { outcome: "accepted", spinsGranted: decision.spins };

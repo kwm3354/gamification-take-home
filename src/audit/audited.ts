@@ -1,4 +1,5 @@
 import type pg from "pg";
+import { currentRequestId } from "../logging/log.ts";
 
 /**
  * The only write path to the audited tables. Every function takes a client that is already inside
@@ -9,8 +10,8 @@ import type pg from "pg";
 export type Row = Record<string, unknown>;
 export type AuditContext = {
   tenantId: string | null;
-  actor: string; // "platform/<tenantId>", "player/<id>", "system/<name>", "admin/<name>", "unknown"
-  requestId?: string;
+  actor: string; // "platform/<tenantId>", "player/<our player uuid>", "system/<name>", "admin/<name>", "unknown"
+  requestId?: string; // when missing, the id of the running request or job is used (see write)
   now: Date; // the caller passes clock.now()
 };
 
@@ -81,7 +82,7 @@ async function write(
       entityType,
       entityId,
       JSON.stringify(changes ?? []),
-      ctx.requestId ?? null,
+      ctx.requestId ?? currentRequestId() ?? null,
       ctx.now,
     ],
   );

@@ -48,14 +48,32 @@ export class Outbox {
     this.handlers.set(kind, fn);
   }
 
-  /** Writes the job in the caller's transaction. Enqueueing again makes the job due and not done. */
+  /**
+   * Writes the job in the caller's transaction. Enqueueing again makes the job due and not done.
+   * That includes a dead job: a new request is a legitimate reason to try again. It is never silent:
+   * a revived dead job writes the warning `outbox.revived` with the error it died of.
+   */
   async enqueue(tx: pg.PoolClient, job: OutboxJob): Promise<void> {
-    await tx.query(
-      `INSERT INTO outbox (tenant_id, kind, ref_id, run_at) VALUES ($1, $2, $3, $4)
-       ON CONFLICT (kind, ref_id)
-       DO UPDATE SET run_at = EXCLUDED.run_at, done_at = NULL, dead_at = NULL, attempts = 0`,
+    // The CTE reads the row as it was before this statement changes it.
+    const { rows } = await tx.query(
+      `WITH before AS (SELECT dead_at, last_error FROM outbox WHERE kind = $2 AND ref_id = $3),
+       upsert AS (
+         INSERT INTO outbox (tenant_id, kind, ref_id, run_at) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (kind, ref_id)
+         DO UPDATE SET run_at = EXCLUDED.run_at, done_at = NULL, dead_at = NULL, attempts = 0
+         RETURNING id)
+       SELECT (SELECT dead_at FROM before) AS was_dead_at, (SELECT last_error FROM before) AS last_error
+       FROM upsert`,
       [job.tenantId, job.kind, job.refId, job.runAt ?? this.clock.now()],
     );
+    if (rows[0]?.was_dead_at) {
+      this.log?.event("warn", "outbox.revived", {
+        tenantId: job.tenantId,
+        kind: job.kind,
+        refId: job.refId,
+        previousError: rows[0].last_error ?? null,
+      });
+    }
   }
 
   /** Runs every job that is due now, one after the other. Returns how many ran. */

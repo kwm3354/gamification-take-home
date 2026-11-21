@@ -124,14 +124,14 @@ day), missions, other mechanics.
 
 Today: the port `CoinLedger` (`src/domain/coin-ledger.ts`), implemented on TigerBeetle 0.17.9 in
 `src/ledger/coin-ledger.tigerbeetle.ts`. Double entry, one TigerBeetle ledger per tenant. Per tenant:
-an `issuer` account and a `redeemed` account. Per player: one account with the flag
+one `issuer` account. Per player: one account with the flag
 `debits_must_not_exceed_credits`, so the ledger itself refuses a negative balance, also under
 concurrent requests. Every account and transfer id is the first 16 bytes of SHA-256 of a string built
 from our own ids (`xfer:prize:<spinId>`, `xfer:reserve:<redemptionId>`, and so on), so a repeated
 call moves nothing. A prize is a posted transfer from issuer to player. A redemption reserves coins as
-a pending transfer from player to redeemed; capture posts it, release voids it. The coins all players
-of a tenant still hold come from two tenant accounts, not from a sum over players: what left `issuer`
-minus what reached `redeemed` (`outstanding`). Every call has a time limit (`LEDGER_TIMEOUT_MS`)
+a pending transfer from player back to `issuer`; capture posts it, release voids it. The coins all
+players of a tenant still hold are the balance of one account, not a sum over players: what left
+`issuer` minus what came back to it (`outstanding`). Every call has a time limit (`LEDGER_TIMEOUT_MS`)
 and throws `LedgerUnavailable` after it; the client call is not cancelled, which is safe because
 the retry uses the same id.
 
@@ -201,7 +201,7 @@ the guard against two callers racing. Tenant secrets are written as `***`. A tri
 the model from my earlier payments project; the agent added the tenant column and the trigger (log,
 11:27 and 11:29).
 
-Logs: `src/logging/`, one JSON line per event, 18 named events, a request id that also goes into
+Logs: `src/logging/`, one JSON line per event, 19 named events, a request id that also goes into
 some of the audit rows of the request (not all: see difference 4 at the end), and fields whose key
 looks secret written as `***`. How much a tenant logs is `logLevel` in its ops policy. "Log little
 and correctly" and verbosity by policy are mine (12:52); the agent chose the list of events.
@@ -356,28 +356,20 @@ Found while writing this page, for the author to decide.
    (`src/audit/audited.ts:96`) that the contract does not list.
 2. The contract says `seedDemo(db)`; the code is `seedDemo(db, clock, fakeCasinoUrl)`
    (`src/tenants/seed.ts:16`).
-3. The contract names the actor `player/<playerId>`. The spin writes our internal id
-   (`src/wheel/spin.ts:78`); the token guard and the store write the platform's id
-   (`src/tenants/player-auth.guard.ts:46`, `src/store/store.service.ts:85`). One player has two actor
-   names in the audit trail.
-4. `docs/monitoring-playbook.md:268` says the request id is in the `request_id` column of the audit
-   rows of that request. Rows written through `ctxFor` in `src/store/redemption.ts:110` (status
-   changes, `platform_call`, `outcome_contradicted`), the `manual_resolution` record
-   (`src/admin/resolve.ts:50`) and the spin's `credited_at` update (`src/wheel/spin.ts:133`) carry no
-   request id.
+3. Fixed in review: one player had two actor names (our id in the spin, the platform's id in the guard
+   and the store). Every player row now uses `player/<our player uuid>`.
+4. Fixed in review: some audit rows had no request id. The audit functions now take the id of the
+   running request or job when the caller passes none.
 5. The contract says the spin request runs the job at once. The controller calls `creditSpin`
    directly (`src/wheel/wheel.controller.ts:49`); the job row stays due and runs once more later as a
    no-op.
-6. The contract says enqueueing again makes a job due and not done. The code also sets `attempts` to
-   0 and clears `dead_at` (`src/outbox/outbox.ts:56`), so a dead job comes back, for example when the
-   player repeats a spin request (`src/wheel/spin.ts:112`).
+6. Fixed in review: enqueueing again revives a dead job (attempts 0, `dead_at` cleared). The behaviour
+   stays, since a new request is a reason to try again, but it now writes the warning `outbox.revived`.
 7. Not in the contract: `GET /admin/:tenantId/redemptions/stuck` answers `{ limitSec: null, items: []
    }` for a tenant without an ops policy (`src/admin/admin.controller.ts:55`), and an `Idempotency-Key`
    longer than 200 characters is 400 (`src/store/store.controller.ts:37`).
-8. The port says `outstanding` is "the balance of ONE account" (`src/domain/coin-ledger.ts:32`); the
-   implementation reads two accounts, issuer debits minus redeemed credits
-   (`src/ledger/coin-ledger.tigerbeetle.ts:250`). Redeemed coins never return to `issuer`, so no single
-   account holds this number in the current model.
+8. Fixed in review: `outstanding` used to read two accounts (issuer and `redeemed`). Spent coins now
+   come back to `issuer`, so it is the net balance of that one account.
 
 Two observations that are not contract differences. The `spin_credit` job goes dead after 10 failed
 attempts when the ledger is away (`src/outbox/outbox.ts:26`), while a redemption turns

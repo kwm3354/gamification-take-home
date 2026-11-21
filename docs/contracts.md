@@ -52,7 +52,9 @@ transaction. There is no other write path to these tables.
 
 ```ts
 type AuditContext = { tenantId: string | null; actor: string; requestId?: string };
-// actor: "platform/<tenantId>", "player/<playerId>", "system/<name>", "admin/<name>", "unknown"
+// requestId missing: the audit functions take the id of the running HTTP request or outbox job
+// ("job:<kind>:<refId>"); null only outside both.
+// actor: "platform/<tenantId>", "player/<playerId>" (OUR player uuid, never the platform's id), "system/<name>", "admin/<name>", "unknown"
 
 create(tx, ctx, table, row): Promise<Row>                    // audit action "create", one change per column
 update(tx, ctx, table, id, change: (current: Row) => Partial<Row> | null): Promise<{ before: Row; after: Row } | null>
@@ -70,20 +72,22 @@ record(tx, ctx, fact: { action: string; entityType: string; entityId: string; ch
 Port: `src/domain/coin-ledger.ts`. Model:
 
 - TigerBeetle `ledger` = the tenant's `ledger_no`. Accounts of two tenants can never be in one transfer.
-- Per tenant: an `issuer` account (code 10) and a `redeemed` account (code 20). Per player: one
+- Per tenant: one `issuer` account (code 10; no balance flag, it issues coins). Per player: one
   account (code 1) with the flag `debits_must_not_exceed_credits`, so the ledger itself refuses a
   negative balance.
 - Account and transfer ids are the first 16 bytes of SHA-256 of a string, as a u128:
-  `acct:<ledgerNo>:issuer`, `acct:<ledgerNo>:redeemed`, `acct:<ledgerNo>:player:<playerId>`,
+  `acct:<ledgerNo>:issuer`, `acct:<ledgerNo>:player:<playerId>`,
   `xfer:prize:<spinId>`, `xfer:reserve:<redemptionId>`, `xfer:capture:<redemptionId>`,
   `xfer:release:<redemptionId>`.
-- Prize: issuer -> player, posted. Reserve: player -> redeemed, pending, no timeout. Capture posts
-  the pending transfer; release voids it.
+- Prize: issuer -> player, posted. Reserve: player -> issuer, pending, no timeout (spent coins
+  come back to where they came from). Capture posts the pending transfer; release voids it.
 - Accounts are created on first use; "exists" is success.
 - A repeated id with the same content is success. A reserve that failed for lack of coins stays
   failed for that redemption id (the ledger remembers the id), which is what we want.
 - `available = credits_posted - debits_posted - debits_pending`; `reserved = debits_pending`.
-- `outstanding` = issuer `debits_posted` minus redeemed `credits_posted`.
+- `outstanding` = issuer `debits_posted` minus issuer `credits_posted`: the balance of ONE account.
+  A pending reserve is not yet "come back", so it lowers the number only when captured. Total coins
+  ever redeemed is the issuer's `credits_posted`.
 - Every call has a time limit (env `LEDGER_TIMEOUT_MS`, default 2000) and throws `LedgerUnavailable` after it.
 
 ## Outbox
@@ -99,7 +103,9 @@ drain(maxRounds = 20): Promise<void>  // runDue until nothing is due now; for te
 ```
 
 A handler that throws is retried with a delay of 1 s, 2 s, 4 s, ... up to 60 s; after 10 attempts
-the job gets `dead_at` and stays visible. In the running app a timer calls `runDue` every 500 ms
+the job gets `dead_at` and stays visible. Enqueueing a dead job again (a player repeats a request)
+revives it with `attempts` 0; this is allowed on purpose and never silent: the warning `outbox.revived`
+{ kind, refId, previousError } is logged. In the running app a timer calls `runDue` every 500 ms
 (off when `OUTBOX_TIMER=off`, which tests use; they call `runDue` and move the clock).
 
 ## Our HTTP API
@@ -163,6 +169,7 @@ version 1: `{ "minAmountMinor": 1, "currencies": null, "spinsPerDeposit": 1 }`.
 
 Statuses: `created -> reserved -> submitting -> issued | refused`, or `created -> insufficient`.
 `issued` and `refused` are final for the player; `settled_at` says the ledger has caught up.
+`insufficient` reserved nothing, so `settled_at` is set in the same update that sets the status.
 
 `POST /store/redemptions` creates the row (`created`) and the job `redemption_advance` in one
 transaction, then runs the job at once and returns the current state. A repeated key returns the
@@ -309,7 +316,7 @@ use `info`.
 Events (the only ones): `event.accepted`, `event.duplicate`, `event.ignored` (debug), `webhook.rejected`,
 `webhook.invalid`, `spin.used`, `spin.credited` (debug), `spin.credit_deferred`, `redemption.created`,
 `redemption.status`, `redemption.contradicted`, `platform.call`, `platform.unreachable`,
-`outbox.retry` (debug), `outbox.dead`, `admin.manual_resolution`, `ledger.unavailable`, `unhandled`.
+`outbox.retry` (debug), `outbox.dead`, `outbox.revived` (warn), `admin.manual_resolution`, `ledger.unavailable`, `unhandled`.
 Each is explained in `docs/monitoring-playbook.md`. A duplicate event is a log line and not an audit
 entry: it changes nothing.
 

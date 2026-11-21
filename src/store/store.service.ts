@@ -82,7 +82,7 @@ export class StoreService implements OnModuleInit {
     itemId: string;
     requestId?: string;
   }): Promise<"unknown_item" | { view: RedemptionView; created: boolean }> {
-    const actor = `player/${input.externalPlayerId}`;
+    const actor = `player/${input.playerId}`;
     const made = await createRedemption(this.deps, { ...input, actor });
     if (made === "unknown_item") return made;
     if (made.created && this.config.inlineJobs) await this.inline(made.row.id, actor);
