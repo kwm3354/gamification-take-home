@@ -1,8 +1,9 @@
 # Gamification service for casino operators: a working slice
 
-![The player wins coins and takes a bonus; the casino's answer is lost and one bonus is still issued once; the back office shows the audit trail](docs/video/demo.gif)
+https://github.com/user-attachments/assets/c5292298-e908-4746-a1b6-c51b772ff8c2
 
-*Real footage of the running system, 25 seconds: the player page, a casino whose answer is lost, the back office.*
+*A two-minute presentation of the solution. The same file is in the repository:
+[`docs/video/presentation.mp4`](docs/video/presentation.mp4).*
 
 ## TL;DR
 
@@ -28,7 +29,7 @@
   named as "not built" below lies outside the task: it marks the edge of the prototype.
 
 Run it: `docker compose up -d --build --wait`, then open http://localhost:30080/app/ (details in
-"Run it" below). A two-minute presentation: [`docs/video/presentation.mp4`](docs/video/presentation.mp4).
+"Run it" below).
 
 Where to look:
 
@@ -144,6 +145,10 @@ The other decisions, in one line each:
   signing keys, structured logs, traces.
 
 ### 5. How I know it works
+
+![The player wins coins and takes a bonus; the casino's answer is lost and one bonus is still issued once; the back office shows the audit trail](docs/video/demo.gif)
+
+*Real footage of the running system, 25 seconds: the player page, a casino whose answer is lost, the back office.*
 
 The casino is simulated, and the simulation can lose a request, lose its answer, answer slowly,
 refuse, and send a result twice. The judge checks the promises against the casino's own record and
