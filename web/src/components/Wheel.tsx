@@ -44,6 +44,8 @@ interface Props {
 
 export function Wheel({ segments, dimmedText, ref }: Props) {
   const [rotation, setRotation] = useState(0);
+  // Where the wheel stopped. Labels are flipped by this, so they do not jump while the wheel turns.
+  const [settled, setSettled] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const rotor = useRef<SVGGElement>(null);
   const flapper = useRef<SVGGElement>(null);
@@ -61,12 +63,14 @@ export function Wheel({ segments, dimmedText, ref }: Props) {
           rotationRef.current = target;
           setRotation(target);
           if (prefersReducedMotion()) {
+            setSettled(target);
             resolve();
             return;
           }
           setSpinning(true);
           const done = window.setTimeout(() => {
             setSpinning(false);
+            setSettled(target);
             resolve();
           }, SPIN_MS + 120);
           // If the component goes away the timer is cleared by the effect below.
@@ -142,7 +146,7 @@ export function Wheel({ segments, dimmedText, ref }: Props) {
           }}
         >
           {segments.map((seg, i) => {
-            const g = sliceGeometry(n, i, seg.label);
+            const g = sliceGeometry(n, i, seg.label, settled);
             return (
               <g key={`${seg.label}-${i}`}>
                 <path
