@@ -2,7 +2,11 @@ import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module.ts";
 import { CONFIG, type Config } from "./config.ts";
+import { startTracing, tracingOptionsFromEnv } from "./tracing/tracing.ts";
 import { defaultWebDir, mountWeb } from "./web.ts";
+
+// Off unless OTEL_EXPORTER_OTLP_ENDPOINT is set. Pending spans are flushed when the app shuts down.
+startTracing({ ...tracingOptionsFromEnv(), stopOnAppClose: true });
 
 // rawBody: webhook signatures are computed over the exact bytes received (`req.rawBody`).
 const app = await NestFactory.create(AppModule, { rawBody: true });

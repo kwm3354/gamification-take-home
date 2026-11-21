@@ -18,6 +18,7 @@ export default defineConfig({
   esbuild: false,
   test: {
     globalSetup: ["test/global-setup.ts"],
+    setupFiles: ["test/tracing-setup.ts"],
     include: ["test/**/*.test.ts"],
     hookTimeout: 120_000,
     testTimeout: 60_000,

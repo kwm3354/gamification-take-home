@@ -2,6 +2,7 @@ import type pg from "pg";
 import type { Clock } from "../clock.ts";
 import { type Db, transaction } from "../db.ts";
 import { type Log, withRequestId } from "../logging/log.ts";
+import { span } from "../tracing/tracing.ts";
 
 /** Injection token: `@Inject(OUTBOX) private readonly outbox: Outbox`. */
 export const OUTBOX = Symbol("OUTBOX");
@@ -112,7 +113,22 @@ export class Outbox {
       try {
         const handler = this.handlers.get(job.kind);
         if (!handler) throw new Error(`no handler for ${job.kind}`);
-        outcome = await withRequestId(requestId, () => handler(job));
+        // Each run is a new trace of its own. Claiming the row (BEGIN, SELECT) is before it and is not traced.
+        outcome = await span(
+          `outbox ${job.kind}`,
+          { "tenant.id": job.tenantId, "outbox.attempts": job.attempts, "request.id": requestId },
+          async (s) => {
+            try {
+              const result = await withRequestId(requestId, () => handler(job));
+              s.setAttribute("outbox.result", result === "done" ? "done" : "retry");
+              return result;
+            } catch (e) {
+              s.setAttribute("outbox.result", job.attempts + 1 >= MAX_ATTEMPTS ? "dead" : "retry");
+              throw e;
+            }
+          },
+          { root: true },
+        );
       } catch (e) {
         outcome = { error: e instanceof Error ? e.message : String(e) };
       }

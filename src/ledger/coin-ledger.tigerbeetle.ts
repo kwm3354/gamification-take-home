@@ -11,6 +11,7 @@ import {
 } from "tigerbeetle-node";
 import { type CoinLedger, LedgerUnavailable } from "../domain/coin-ledger.ts";
 import type { Log } from "../logging/log.ts";
+import { setSpanAttribute, span } from "../tracing/tracing.ts";
 
 /** A capture came after a release, or a release after a capture. The two must never both happen. */
 export class LedgerConflict extends Error {}
@@ -83,7 +84,11 @@ export class TigerBeetleCoinLedger implements CoinLedger {
    * still finish after we gave up. That is safe: every transfer id is derived from the spin or
    * redemption id, so the caller's retry repeats the same transfer and the ledger answers "exists".
    */
-  private async limited<T>(op: string, work: () => Promise<T>): Promise<T> {
+  private limited<T>(op: string, work: () => Promise<T>): Promise<T> {
+    return span(`ledger ${op}`, {}, () => this.race(op, work));
+  }
+
+  private async race<T>(op: string, work: () => Promise<T>): Promise<T> {
     let timer: NodeJS.Timeout | undefined;
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
@@ -183,12 +188,15 @@ export class TigerBeetleCoinLedger implements CoinLedger {
           flags: TransferFlags.pending,
         }),
       );
-      if (status === CreateTransferStatus.created || status === CreateTransferStatus.exists)
+      if (status === CreateTransferStatus.created || status === CreateTransferStatus.exists) {
+        setSpanAttribute("ledger.result", "reserved");
         return "reserved";
+      }
       if (
         status === CreateTransferStatus.exceeds_credits ||
         status === CreateTransferStatus.id_already_failed
       ) {
+        setSpanAttribute("ledger.result", "insufficient");
         return "insufficient";
       }
       throw new Error(`reserve transfer failed: ${name(status)}`);
