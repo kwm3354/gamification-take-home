@@ -1,6 +1,18 @@
 import { Global, Module } from "@nestjs/common";
 
+/**
+ * What this process does. `all`: HTTP API and the outbox timer. `api`: HTTP API only; a request still
+ * runs its own job inline. `worker`: the outbox timer; the HTTP server listens too but a worker is not
+ * published: nothing routes traffic to it, and its health check is the only thing that calls it.
+ */
+export type Role = "all" | "api" | "worker";
+
 export interface Config {
+  role: Role;
+  /** How many jobs one outbox claim takes. */
+  outboxBatch: number;
+  /** How often the outbox timer looks for due jobs, in ms. */
+  outboxPollMs: number;
   databaseUrl: string;
   /** Largest number of PostgreSQL connections in this process's pool. */
   dbPoolMax: number;
@@ -11,7 +23,7 @@ export interface Config {
   ledgerTimeoutMs: number;
   /** Time limit for one call to a casino platform, in ms. */
   platformTimeoutMs: number;
-  /** When true a timer runs due outbox jobs every 500 ms. Tests turn it off and run jobs by hand. */
+  /** When true a timer runs due outbox jobs. Off for role `api`. Tests turn it off and run jobs by hand. */
   outboxTimer: boolean;
   /**
    * When true a request runs its own outbox job right after its transaction commits, so the caller
@@ -44,14 +56,20 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   };
   const adminTokenSecret = need("ADMIN_TOKEN_SECRET");
   if (adminTokenSecret.length < 32) throw new Error("ADMIN_TOKEN_SECRET must be at least 32 characters");
+  const role = env.ROLE ?? "all";
+  if (role !== "all" && role !== "api" && role !== "worker")
+    throw new Error("ROLE must be all, api or worker");
   return {
+    role,
+    outboxBatch: Number(env.OUTBOX_BATCH ?? 16),
+    outboxPollMs: Number(env.OUTBOX_POLL_MS ?? 500),
     databaseUrl: need("DATABASE_URL"),
     tbAddress: need("TB_ADDRESS"),
     dbPoolMax: Number(env.DB_POOL_MAX ?? 20),
     port: Number(env.PORT ?? 3000),
     ledgerTimeoutMs: Number(env.LEDGER_TIMEOUT_MS ?? 2000),
     platformTimeoutMs: Number(env.PLATFORM_TIMEOUT_MS ?? 2000),
-    outboxTimer: env.OUTBOX_TIMER !== "off",
+    outboxTimer: env.OUTBOX_TIMER !== "off" && role !== "api",
     inlineJobs: env.INLINE_JOBS !== "off",
     inlineMax: Number(env.INLINE_MAX ?? 32),
     adminTokenSecret,

@@ -73,8 +73,27 @@ function traced(pool: pg.Pool): pg.Pool {
   return pool;
 }
 
+/** Any fixed number; every process that applies the schema uses the same one. */
+const MIGRATE_LOCK_KEY = 7_340_011;
+
+/**
+ * Applies the schema. The file is safe to run twice, but two processes running it at the same
+ * moment can collide on CREATE TABLE. So it runs under an advisory lock, taken and released on one
+ * connection: the second process waits, then finds everything in place.
+ */
 export async function migrate(db: Db): Promise<void> {
-  await db.query(await readFile(new URL("schema.sql", import.meta.url), "utf8"));
+  const sql = await readFile(new URL("schema.sql", import.meta.url), "utf8");
+  const client = await db.connect();
+  try {
+    await client.query("SELECT pg_advisory_lock($1)", [MIGRATE_LOCK_KEY]);
+    try {
+      await client.query(sql);
+    } finally {
+      await client.query("SELECT pg_advisory_unlock($1)", [MIGRATE_LOCK_KEY]);
+    }
+  } finally {
+    client.release();
+  }
 }
 
 export async function transaction<T>(db: Db, fn: (tx: pg.PoolClient) => Promise<T>): Promise<T> {

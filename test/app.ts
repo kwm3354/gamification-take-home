@@ -51,6 +51,9 @@ export async function startApp(
   const clock = new FakeClock(new Date().toISOString());
   const config: Config = {
     databaseUrl: "replaced by the DB override",
+    role: "all",
+    outboxBatch: 16,
+    outboxPollMs: 500,
     dbPoolMax: 5,
     tbAddress: tb.address,
     port: 0,

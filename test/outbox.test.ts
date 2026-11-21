@@ -410,6 +410,52 @@ describe("outbox", () => {
     expect((await row()).claim_token).toBeNull();
   });
 
+  test("three workers on one database: every job runs once and the workers overlap in time", async () => {
+    const { db, clock } = await setup();
+    const batch = 5;
+    const workers = ["w1", "w2", "w3"].map((name) => ({
+      name,
+      outbox: new Outbox(db, clock, undefined, { batch }),
+    }));
+    const ranBy = new Map<string, string[]>(); // refId -> which workers ran it
+    const gate = latch();
+    let atOnce = 0;
+    let maxAtOnce = 0;
+    for (const w of workers) {
+      w.outbox.handle("k", async (job) => {
+        ranBy.set(job.refId, [...(ranBy.get(job.refId) ?? []), w.name]);
+        atOnce++;
+        maxAtOnce = Math.max(maxAtOnce, atOnce);
+        // More handlers running than one worker's batch can hold: the workers must be running together.
+        if (atOnce > batch) gate.open();
+        await gate.promise;
+        atOnce--;
+        return "done";
+      });
+    }
+    for (let i = 0; i < 30; i++) {
+      await transaction(
+        db,
+        (tx) =>
+          workers[0]?.outbox.enqueue(tx, { tenantId: "t1", kind: "k", refId: randomUUID() }) as Promise<void>,
+      );
+    }
+    const runs = Promise.all(workers.map((w) => w.outbox.runDue()));
+    try {
+      await within3s(gate.promise, "more than one batch running at once");
+    } finally {
+      gate.open();
+    }
+    const counts = await runs;
+    expect(counts.reduce((a, b) => a + b, 0)).toBe(30);
+    expect(ranBy.size).toBe(30);
+    for (const by of ranBy.values()) expect(by).toHaveLength(1); // each job ran exactly once
+    expect(new Set([...ranBy.values()].flat()).size).toBeGreaterThanOrEqual(2);
+    expect(maxAtOnce).toBeGreaterThan(batch);
+    const { rows } = await db.query("SELECT count(*)::int AS n FROM outbox WHERE done_at IS NOT NULL");
+    expect(rows[0].n).toBe(30);
+  });
+
   test("the claim query can use the outbox_due index", async () => {
     const { db, clock } = await setup();
     // The planner picks by table size, so the sequential scan is switched off for this check.

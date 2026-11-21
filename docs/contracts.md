@@ -135,6 +135,32 @@ revives it with `attempts` 0; this is allowed on purpose and never silent: the w
 { kind, refId, previousError } is logged. In the running app a timer calls `runDue` every 500 ms
 (off when `OUTBOX_TIMER=off`, which tests use; they call `runDue` and move the clock).
 
+### Workers scale by count
+
+Because a job is claimed by lease, any number of processes can run jobs on one database, each
+taking different jobs. The process role is the env `ROLE`:
+
+| `ROLE` | HTTP API | Outbox timer |
+|---|---|---|
+| `all` (default) | yes | yes |
+| `api` | yes; a request still runs its own job inline under the lease | no |
+| `worker` | listens, but is not published: only `GET /health` is meant to be called | yes |
+
+`OUTBOX_TIMER=off` still turns the timer off in any role (tests use it). `OUTBOX_BATCH` (default 16)
+is how many jobs one claim takes; `OUTBOX_POLL_MS` (default 500) is how often the timer looks.
+There is no route filtering in a worker: it runs the same app, and nothing routes traffic to it.
+
+The schema (and the demo seed, when `SEED_DEMO=1`) is applied at start. Applying the schema runs under
+a PostgreSQL advisory lock, so several processes starting together do not collide; the demo seed is
+on for the `app` service only.
+
+In `docker-compose.yml` the `app` service is `ROLE: api` and the `worker` service has `replicas: 2`
+(no published port, no container name), so `docker compose up --scale worker=4` is possible.
+
+What was run: the outbox test with three `Outbox` objects on one database (30 jobs, each ran once,
+the three workers ran jobs at the same time) and the test that starts the schema from two
+connections at once. The compose file was not run by this change.
+
 ## Our HTTP API
 
 Webhooks from a platform (signature checked by the tenant's adapter; tenant from the path):
