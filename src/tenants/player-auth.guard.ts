@@ -43,12 +43,12 @@ export class PlayerAuthGuard implements CanActivate {
     if (!verified) throw new UnauthorizedException();
     const ctx = {
       tenantId: verified.tenant.id,
-      actor: `player/${verified.externalId}`,
+      actor: "unknown", // the player row is made under player/<our player id>, see below
       requestId: currentRequestId() ?? randomUUID(),
       now: this.clock.now(),
     };
     const player = await transaction(this.db, (tx) =>
-      findOrCreatePlayer(tx, ctx, verified.tenant.id, verified.externalId),
+      findOrCreatePlayer(tx, ctx, verified.tenant.id, verified.externalId, (id) => `player/${id}`),
     );
     req.playerAuth = { tenant: verified.tenant, player };
     return true;

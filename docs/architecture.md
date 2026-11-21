@@ -356,10 +356,8 @@ Found while writing this page, for the author to decide.
    (`src/audit/audited.ts:96`) that the contract does not list.
 2. The contract says `seedDemo(db)`; the code is `seedDemo(db, clock, fakeCasinoUrl)`
    (`src/tenants/seed.ts:16`).
-3. The contract names the actor `player/<playerId>`. The spin writes our internal id
-   (`src/wheel/spin.ts:78`); the token guard and the store write the platform's id
-   (`src/tenants/player-auth.guard.ts:46`, `src/store/store.service.ts:85`). One player has two actor
-   names in the audit trail.
+3. Fixed in review: one player had two actor names (our id in the spin, the platform's id in the guard
+   and the store). Every player row now uses `player/<our player uuid>`.
 4. Fixed in review: some audit rows had no request id. The audit functions now take the id of the
    running request or job when the caller passes none.
 5. The contract says the spin request runs the job at once. The controller calls `creditSpin`

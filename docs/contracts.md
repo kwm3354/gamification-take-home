@@ -54,7 +54,7 @@ transaction. There is no other write path to these tables.
 type AuditContext = { tenantId: string | null; actor: string; requestId?: string };
 // requestId missing: the audit functions take the id of the running HTTP request or outbox job
 // ("job:<kind>:<refId>"); null only outside both.
-// actor: "platform/<tenantId>", "player/<playerId>", "system/<name>", "admin/<name>", "unknown"
+// actor: "platform/<tenantId>", "player/<playerId>" (OUR player uuid, never the platform's id), "system/<name>", "admin/<name>", "unknown"
 
 create(tx, ctx, table, row): Promise<Row>                    // audit action "create", one change per column
 update(tx, ctx, table, id, change: (current: Row) => Partial<Row> | null): Promise<{ before: Row; after: Row } | null>

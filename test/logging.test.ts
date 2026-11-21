@@ -667,4 +667,26 @@ describe.skipIf(!running)("request id in the audit trail", () => {
     expect(rows.some((r) => r.request_id === spin.requestId)).toBe(true);
     expect(rows.some((r) => r.request_id?.startsWith("job:redemption"))).toBe(true);
   });
+
+  test("one player has one actor name, player/<our player uuid>, in player create, spin and redemption rows", async () => {
+    const before = (await app().db.query("SELECT coalesce(max(id), 0) AS id FROM audit_log")).rows[0].id;
+    // The first call of the token creates the player; the flow then deposits, spins and redeems.
+    const first = await call<{ playerId: string }>(ALPHA, "p-actor", "/me");
+    const done = await flow(ALPHA, "actor");
+    expect(done.externalId).toBe("p-actor");
+    const actors = (
+      await app().db.query("SELECT DISTINCT actor FROM audit_log WHERE id > $1 AND actor LIKE 'player/%'", [
+        before,
+      ])
+    ).rows.map((r) => r.actor);
+    expect(actors).toEqual([`player/${first.json.playerId}`]);
+    // The rows really include the three kinds of row, so the check above means something.
+    const kinds = (
+      await app().db.query(
+        "SELECT DISTINCT entity_type FROM audit_log WHERE id > $1 AND actor = $2 ORDER BY 1",
+        [before, `player/${first.json.playerId}`],
+      )
+    ).rows.map((r) => r.entity_type);
+    expect(kinds).toEqual(expect.arrayContaining(["players", "spins", "redemptions"]));
+  });
 });

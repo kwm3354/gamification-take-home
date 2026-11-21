@@ -10,7 +10,7 @@ import { currentRequestId } from "../logging/log.ts";
 export type Row = Record<string, unknown>;
 export type AuditContext = {
   tenantId: string | null;
-  actor: string; // "platform/<tenantId>", "player/<id>", "system/<name>", "admin/<name>", "unknown"
+  actor: string; // "platform/<tenantId>", "player/<our player uuid>", "system/<name>", "admin/<name>", "unknown"
   requestId?: string; // when missing, the id of the running request or job is used (see write)
   now: Date; // the caller passes clock.now()
 };

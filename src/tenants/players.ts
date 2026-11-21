@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type pg from "pg";
 import { type AuditContext, create } from "../audit/audited.ts";
 
@@ -14,12 +15,15 @@ const toPlayer = (r: PlayerRow): Player => ({ id: r.id, tenantId: r.tenant_id, e
 /**
  * Our player for the platform's player id. Two callers racing on a new player both get the same
  * row: the insert does nothing for the loser, and the select then finds the winner's row.
+ * `actorOf` names the audit actor once the new player's id is known: the id is made here, before
+ * the insert, so a player can be the actor of the row that creates it.
  */
 export async function findOrCreatePlayer(
   tx: pg.PoolClient,
   ctx: AuditContext,
   tenantId: string,
   externalId: string,
+  actorOf?: (playerId: string) => string,
 ): Promise<Player> {
   const find = () =>
     tx.query<PlayerRow>("SELECT * FROM players WHERE tenant_id = $1 AND external_id = $2", [
@@ -28,11 +32,12 @@ export async function findOrCreatePlayer(
     ]);
   const found = await find();
   if (found.rows[0]) return toPlayer(found.rows[0]);
+  const id = randomUUID();
   const created = await create(
     tx,
-    ctx,
+    actorOf ? { ...ctx, actor: actorOf(id) } : ctx,
     "players",
-    { tenant_id: tenantId, external_id: externalId },
+    { id, tenant_id: tenantId, external_id: externalId },
     { onConflict: "nothing" },
   );
   if (created) return toPlayer(created as PlayerRow);
