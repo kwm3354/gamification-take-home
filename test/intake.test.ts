@@ -148,6 +148,16 @@ describe.skipIf(!running)("deposit intake", () => {
     expect(await count("spins s JOIN players p ON p.id = s.player_id", "p.external_id = 'b-late'")).toBe(1);
   });
 
+  test("4c. a timestamp out of the date range is a 400 with a webhook_invalid audit row, on both platforms", async () => {
+    const before = await count("audit_log", "action = 'webhook_invalid'");
+    const huge = await postBeta({ transactions: [betaTxn("T-huge", "b-huge", { completedAt: 1e20 })] });
+    expect(huge.status).toBe(400);
+    const farA = alphaDeposit("evt-far", "p-far").replace("2026-11-21T08:00:00Z", "+275760-09-14T00:00:00Z");
+    expect((await postAlpha(farA)).status).toBe(400);
+    expect(await count("audit_log", "action = 'webhook_invalid'")).toBe(before + 2);
+    expect(await count("inbound_events", "external_event_id IN ('T-huge', 'evt-far')")).toBe(0);
+  });
+
   test("5. bad signature on A and B: 401, nothing stored, one webhook_rejected audit row each", async () => {
     const before = {
       players: await count("players"),

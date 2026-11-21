@@ -77,7 +77,12 @@ export class PlatformB implements CasinoPlatform {
       if (typeof entry.currencyCode !== "string" || !/^[A-Za-z]{3}$/.test(entry.currencyCode)) {
         throw new InvalidPayload("currencyCode");
       }
-      if (typeof entry.completedAt !== "number" || !Number.isFinite(entry.completedAt)) {
+      // A date outside what JavaScript can print (about year 275760) would make toISOString throw.
+      if (
+        typeof entry.completedAt !== "number" ||
+        !Number.isFinite(entry.completedAt * 1000) ||
+        Math.abs(entry.completedAt * 1000) > 8.64e15
+      ) {
         throw new InvalidPayload("completedAt");
       }
       return {
