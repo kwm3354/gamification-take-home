@@ -37,7 +37,7 @@ export async function findOrCreatePlayer(
     tx,
     actorOf ? { ...ctx, actor: actorOf(id) } : ctx,
     "players",
-    { id, tenant_id: tenantId, external_id: externalId },
+    { id, tenant_id: tenantId, external_id: externalId, created_at: ctx.now }, // ctx.now is the injected clock
     { onConflict: "nothing" },
   );
   if (created) return toPlayer(created as PlayerRow);

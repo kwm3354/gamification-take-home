@@ -689,4 +689,20 @@ describe.skipIf(!running)("request id in the audit trail", () => {
     ).rows.map((r) => r.entity_type);
     expect(kinds).toEqual(expect.arrayContaining(["players", "spins", "redemptions"]));
   });
+
+  test("a new player and a new spin carry the injected clock's time, not the database's", async () => {
+    app().clock.advance(24 * 3600 * 1000); // a day ahead of the database clock
+    const at = app().clock.now();
+    await postDeposit(ALPHA, "evt-clock", "p-clock");
+    const player = (
+      await app().db.query(
+        "SELECT id, created_at FROM players WHERE tenant_id = $1 AND external_id = 'p-clock'",
+        [ALPHA],
+      )
+    ).rows[0];
+    const spin = (await app().db.query("SELECT created_at FROM spins WHERE player_id = $1", [player.id]))
+      .rows[0];
+    expect(player.created_at.toISOString()).toBe(at.toISOString());
+    expect(spin.created_at.toISOString()).toBe(at.toISOString());
+  });
 });
