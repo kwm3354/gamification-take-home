@@ -337,6 +337,7 @@ rest of `src/` except `src/tenants/demo-tenants.ts`. It plays both platforms for
   correctly signed event in that platform's format, sends it to us and returns our answer.
   `tamper: "signature"` sends a wrong signature. `repeat: n` sends the same event n times.
 - `POST /control/token { tenantId, playerId }` returns a player token (the casino signs it).
+- `PUT /control/tenants/:tenantId/secrets { webhookSecret?, tokenSecret? }` -> 204. From then on the fake signs with these (demo only: it stands for the casino's engineer pasting a new key into the casino's configuration). Each is a string of at least 8 characters; at least one is required; an unknown tenant is 400.
 - `POST /control/faults { point, fault, times }` scripts a fault for the next `times` calls at a point.
   Points: `a.grant`, `a.find`, `b.grant`, `b.find`, `b.callback`.
   Faults: `error_500`, `rate_limit` (429, Retry-After 1), `refuse`, `lost_request` (nothing done,
@@ -370,7 +371,7 @@ use `info`.
 Events (the only ones): `event.accepted`, `event.duplicate`, `event.ignored` (debug), `webhook.rejected`,
 `webhook.invalid`, `spin.used`, `spin.credited` (debug), `spin.credit_deferred`, `redemption.created`,
 `redemption.status`, `redemption.contradicted`, `platform.call`, `platform.unreachable`,
-`outbox.retry` (debug), `outbox.dead`, `outbox.revived` (warn), `admin.manual_resolution`, `admin.login` (info, `userId`, `role`), `admin.login_failed` (warn, `reason`: `bad_credentials` or `locked`), `ledger.unavailable`, `unhandled`.
+`outbox.retry` (debug), `outbox.dead`, `outbox.revived` (warn), `admin.manual_resolution`, `tenant.key_rotated` (info: `adminId`, `kind`, `previousValidForSec`, `hint`), `tenant.key_previous_revoked` (info), `admin.login` (info, `userId`, `role`), `admin.login_failed` (warn, `reason`: `bad_credentials` or `locked`), `ledger.unavailable`, `unhandled`.
 Each is explained in `docs/monitoring-playbook.md`. A duplicate event is a log line and not an audit
 entry: it changes nothing.
 
@@ -413,6 +414,45 @@ is no `x-trace-id` header and no `traceId` in log lines.
   line a minute. Spans wait in a queue of 2048 and are sent every 5 seconds in batches of 512; when the
   queue is full new spans are dropped, counted, and the count is written once as a warning.
 - Pending spans are flushed when the app shuts down.
+
+## Tenant keys
+
+Each tenant has two secrets that we use to check what comes in: the **event signing secret**
+(`tenants.webhook_secret`: the casino signs deposit events with it, and platform B signs reward result
+notices with it) and the **player token secret** (`tenants.token_secret`: the casino signs the player
+token with it). The back office can replace each one. The casino's own manager does it for his own casino.
+
+Rule: a signature is good if it is made with the current secret, or with the previous secret before its
+time (`previous_until`) has passed. This is one function, `activeSecrets` in `src/tenants/active-secrets.ts`,
+used by the platform A and B adapters and by the player token check. The time is the injected clock.
+A bad signature gets the same 401 as before; the answer does not say which key was tried. Tenants are
+read from the database on every request, so a replacement takes effect at once; there is no cache.
+
+Columns on `tenants`, for each of the two: `<name>_prev`, `<name>_prev_until`, `<name>_rotated_at`
+(`webhook_secret_*` and `token_secret_*`).
+
+| Call | Answers |
+|---|---|
+| `GET /admin/:tenantId/keys` | `[{ kind: "event_signing" \| "player_token", hint, rotatedAt, previous: { hint, validUntil } \| null }]`. `hint` is the first 4 and the last 4 characters with `…` between. A previous key whose time has passed is `null`. Roles: all three (own tenant, platform admin any) |
+| `POST /admin/:tenantId/keys/:kind/rotate` body `{ previousValidForSec }` (integer 0..86400, else 400) | 201 `{ kind, secret, hint, previous }`. Makes a new secret (`evs_` or `pts_` plus 32 random bytes in base64url). The old one becomes the previous one until now + `previousValidForSec`; with 0 it is dropped at once. The full `secret` is in this answer only. Roles: `tenant_admin` of the tenant, `platform_admin`; `tenant_viewer` gets 403 |
+| `POST /admin/:tenantId/keys/:kind/revoke-previous` | 200 with one list item. Drops the previous secret now. Repeating it is 200 and changes nothing. Same roles as rotate |
+
+`:kind` is `event_signing` or `player_token`; any other value is 404. A tenant that is not the caller's is
+404, as everywhere in the back office. The path is `/admin/:tenantId/keys` like the other admin calls.
+
+Two replacements at once: the tenant row is locked by the audit `update`, so they run one after the other
+and both answer 201. The one that ran last is current; the one that ran first is its previous key (valid for
+the time the second call asked for, dead at once if it asked for 0). The secret from before both is gone.
+
+Audited: every replacement and every drop is one `update` of the `tenants` row, in one transaction with the
+change, actor `admin/<user id>`, with the request id. The secret columns show as `***` (or null when empty),
+never the value. The log has one line per replacement (`tenant.key_rotated`: tenant, admin, kind, seconds,
+hint of the new secret) and one per drop (`tenant.key_previous_revoked`). No secret is in them.
+
+Honest limits. The secrets are stored in the database as plain text, because HMAC needs the raw value. In
+production they belong in a secrets store or encrypted at rest. Not built: replacing the wheel secret and the
+platform API key. In the demo the fake casino learns a new secret by `PUT /control/tenants/:tenantId/secrets`
+(see "Fake casino"); in real life the casino's engineer pastes it into the casino's configuration.
 
 ## Admin and operations
 
@@ -529,6 +569,7 @@ Roles (the check is one function, `can(admin, action, tenantId)`, in one file):
 | Resolve a stuck redemption | no | yes | yes |
 | Propose a wheel change | no | yes | yes |
 | Approve or reject a waiting change | no | no | yes |
+| Replace a key, drop a previous key (see "Tenant keys") | no | yes | yes |
 | See another tenant | no | no | yes |
 
 A token for tenant A on a path of tenant B answers 404 (the same as an unknown tenant), not 403, so

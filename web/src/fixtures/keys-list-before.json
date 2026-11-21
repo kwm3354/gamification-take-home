@@ -1,0 +1,14 @@
+[
+  {
+    "kind": "event_signing",
+    "hint": "demo…cret",
+    "rotatedAt": null,
+    "previous": null
+  },
+  {
+    "kind": "player_token",
+    "hint": "demo…cdef",
+    "rotatedAt": null,
+    "previous": null
+  }
+]

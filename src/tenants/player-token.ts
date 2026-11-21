@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import type { Tenant } from "./tenants.ts";
+import { type Tenant, activeTokenSecrets } from "./tenants.ts";
 
 const MAX_AHEAD_SECONDS = 15 * 60;
 
@@ -32,9 +32,13 @@ export async function verifyPlayerToken(
   if (typeof payload.iss !== "string" || payload.iss === "") return null;
   const tenant = await loadTenant(payload.iss);
   if (!tenant) return null;
-  const expected = createHmac("sha256", tenant.tokenSecret).update(`${h}.${p}`).digest();
   const given = b64(s);
-  if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
+  let signed = false;
+  for (const secret of activeTokenSecrets(tenant, now)) {
+    const expected = createHmac("sha256", secret).update(`${h}.${p}`).digest();
+    if (given.length === expected.length && timingSafeEqual(given, expected)) signed = true;
+  }
+  if (!signed) return null;
   const nowSeconds = now.getTime() / 1000;
   if (typeof payload.exp !== "number" || payload.exp <= nowSeconds) return null;
   if (payload.exp > nowSeconds + MAX_AHEAD_SECONDS) return null;

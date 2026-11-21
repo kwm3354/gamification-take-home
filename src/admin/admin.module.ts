@@ -3,6 +3,7 @@ import { StoreModule } from "../store/store.module.ts";
 import { AdminAuthController, AdminGuard } from "./admin-auth.ts";
 import { AdminController } from "./admin.controller.ts";
 import { BackofficeController, PlatformController } from "./backoffice.controller.ts";
+import { TenantKeysController } from "./keys.controller.ts";
 import { PlatformSettingsController, WheelSettingsController } from "./settings.controller.ts";
 
 /** Operations side: audit trail, stuck redemptions, manual resolution, alerts. */
@@ -15,6 +16,7 @@ import { PlatformSettingsController, WheelSettingsController } from "./settings.
     PlatformController,
     WheelSettingsController,
     PlatformSettingsController,
+    TenantKeysController,
   ],
   providers: [AdminGuard],
 })

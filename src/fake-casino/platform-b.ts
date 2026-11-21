@@ -1,5 +1,6 @@
 import { type DemoTenant, demoTenants } from "../tenants/demo-tenants.ts";
 import type { Faults } from "./faults.ts";
+import type { SecretOverrides } from "./secrets.ts";
 import { hmacBase64 } from "./signing.ts";
 import { type CallbackRecord, type Reply, type World, isoNow, toMinor } from "./state.ts";
 
@@ -89,7 +90,12 @@ async function post(url: string, raw: string, headers: Record<string, string>) {
 }
 
 /** Delivers every queued callback now. A `delay` fault leaves one queued for the next call. */
-export async function deliverAll(world: World, faults: Faults, appUrl: string): Promise<Delivered[]> {
+export async function deliverAll(
+  world: World,
+  faults: Faults,
+  appUrl: string,
+  secrets?: SecretOverrides,
+): Promise<Delivered[]> {
   const out: Delivered[] = [];
   const queued: CallbackRecord[] = world.callbacks.filter((c) => c.status === "queued");
   // Mark them at once so a second deliver call does not take the same ones.
@@ -101,8 +107,9 @@ export async function deliverAll(world: World, faults: Faults, appUrl: string): 
       continue;
     }
     const request = world.bRequests.find((r) => r.requestId === cb.requestId && r.tenantId === cb.tenantId);
-    const tenant = demoTenants.find((t) => t.id === cb.tenantId);
-    if (!request || !tenant) continue;
+    const known = demoTenants.find((t) => t.id === cb.tenantId);
+    if (!request || !known) continue;
+    const tenant = secrets ? secrets.apply(known) : known;
     request.state = request.plannedState;
     if (request.state === "GRANTED") {
       world.grants.push({

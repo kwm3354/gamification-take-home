@@ -24,7 +24,7 @@ import {
 } from "../domain/casino-platform.ts";
 import { LOG } from "../logging/log.module.ts";
 import { type Log, currentRequestId } from "../logging/log.ts";
-import { findTenant } from "../tenants/tenants.ts";
+import { activeWebhookSecrets, findTenant } from "../tenants/tenants.ts";
 import { ingestEvent } from "./deposit.ts";
 
 interface WebhookRequest {
@@ -63,6 +63,7 @@ export class EventsController {
           platformUrl: tenant.platformUrl,
           platformKey: tenant.platformKey,
           webhookSecret: tenant.webhookSecret,
+          webhookSecrets: activeWebhookSecrets(tenant, now),
         },
         headers,
         rawBody,

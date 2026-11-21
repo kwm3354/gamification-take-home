@@ -26,7 +26,7 @@ import {
 import { LOG } from "../logging/log.module.ts";
 import { type Log, currentRequestId } from "../logging/log.ts";
 import { StoreService } from "../store/store.service.ts";
-import { findTenant } from "../tenants/tenants.ts";
+import { activeWebhookSecrets, findTenant } from "../tenants/tenants.ts";
 
 interface WebhookRequest {
   rawBody?: Buffer;
@@ -78,6 +78,7 @@ export class RewardsController {
           platformUrl: tenant.platformUrl,
           platformKey: tenant.platformKey,
           webhookSecret: tenant.webhookSecret,
+          webhookSecrets: activeWebhookSecrets(tenant, now),
         },
         headers,
         rawBody,

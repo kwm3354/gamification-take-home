@@ -1,0 +1,17 @@
+[
+  {
+    "kind": "event_signing",
+    "hint": "evs_…h6tA",
+    "rotatedAt": "2026-11-21T10:08:43.452Z",
+    "previous": {
+      "hint": "demo…cret",
+      "validUntil": "2026-11-21T11:08:43.452Z"
+    }
+  },
+  {
+    "kind": "player_token",
+    "hint": "demo…cdef",
+    "rotatedAt": null,
+    "previous": null
+  }
+]

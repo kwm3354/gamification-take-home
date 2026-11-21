@@ -48,6 +48,8 @@ export interface TenantConnection {
   platformUrl: string;
   platformKey: string;
   webhookSecret: string;
+  /** Every secret that may verify an incoming signature now (current, and a previous one until its time). When missing, only `webhookSecret`. */
+  webhookSecrets?: string[];
 }
 
 /** Thrown when a call did not give a usable answer (timeout, connection lost, 5xx, 429). The outcome is unknown. */

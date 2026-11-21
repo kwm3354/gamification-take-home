@@ -64,6 +64,10 @@ function seedTenant(t, scale) {
     grant: [{ id: uuid(), version: 1, createdAt: ago(86400 * 5), params: { minAmountMinor: 1, currencies: null, spinsPerDeposit: 1 } }],
     ops: [{ id: uuid(), version: 1, createdAt: ago(86400 * 5), params: { pendingAgeLimitSec: 300, maxExpectedPrizeCoins: 100, maxSpinsPerPlayerPerDay: 20, maxPlayerRedeemShare: 0.5, minRedeemedForShare: 1000 } }],
     changes: [],
+    keys: {
+      event_signing: { secret: "demo-webhook-secret-0001", rotatedAt: null, prev: null, prevUntil: null },
+      player_token: { secret: "demo-token-secret-0001", rotatedAt: null, prev: null, prevUntil: null },
+    },
     live: new Map(), // player external id -> live game state
   };
   db[t.id] = s;
@@ -193,10 +197,24 @@ const player = (req) => {
   }
 };
 
+
+// ---- tenant keys (same shapes as the real server) ----
+const hint = (x) => (x.length < 12 ? "…" : `${x.slice(0, 4)}…${x.slice(-4)}`);
+const keyItem = (kind, k) => ({
+  kind,
+  hint: hint(k.secret),
+  rotatedAt: k.rotatedAt,
+  previous: k.prev && k.prevUntil && Date.parse(k.prevUntil) > Date.now() ? { hint: hint(k.prev), validUntil: k.prevUntil } : null,
+});
+
 // ---- the casino and player side ----
 async function casino(req, res, url) {
   const path = url.pathname;
   if (path === "/control/config") return json(res, 200, { tenants: TENANTS });
+  if (req.method === "PUT" && /^\/control\/tenants\/[^/]+\/secrets$/.test(path)) {
+    await readBody(req);
+    return json(res, 204, undefined);
+  }
   if (path === "/control/token") {
     const b = await readBody(req);
     return json(res, 200, { token: fakeJwt({ iss: b.tenantId, sub: b.playerId, exp: Math.floor(Date.now() / 1000) + 600 }) });
@@ -400,6 +418,28 @@ async function admin(req, res, url) {
     if (q("entityId")) return json(res, 200, s.audit.filter((a) => a.entityId === q("entityId")).sort((a, b) => (a.at < b.at ? -1 : 1)));
     if (!q("recent")) return json(res, 400, { message: "entityId required" });
     return json(res, 200, paged(s.audit.filter((a) => (!q("action") || a.action === q("action")) && (!q("actor") || a.actor.startsWith(q("actor")))).map(redactAudit), url));
+  }
+  if (rest === "keys" && req.method === "GET") return json(res, 200, ["event_signing", "player_token"].map((k) => keyItem(k, s.keys[k])));
+  const kr = rest.match(/^keys\/([^/]+)\/(rotate|revoke-previous)$/);
+  if (kr && req.method === "POST") {
+    if (u.role === "tenant_viewer") return json(res, 403, { message: "Forbidden" });
+    const k = s.keys[kr[1]];
+    if (!k) return json(res, 404, { message: "Not found" });
+    if (kr[2] === "revoke-previous") {
+      k.prev = null;
+      k.prevUntil = null;
+      return json(res, 200, keyItem(kr[1], k));
+    }
+    const b = await readBody(req);
+    const sec = b.previousValidForSec;
+    if (!Number.isInteger(sec) || sec < 0 || sec > 86400) return json(res, 400, { message: "previousValidForSec must be an integer from 0 to 86400" });
+    const secret = `${kr[1] === "event_signing" ? "evs_" : "pts_"}${uuid().replaceAll("-", "")}${uuid().slice(0, 11)}`;
+    k.prev = sec > 0 ? k.secret : null;
+    k.prevUntil = sec > 0 ? new Date(Date.now() + sec * 1000).toISOString() : null;
+    k.secret = secret;
+    k.rotatedAt = now();
+    const it = keyItem(kr[1], k);
+    return json(res, 201, { kind: it.kind, secret, hint: it.hint, previous: it.previous });
   }
   if (rest === "settings")
     return json(res, 200, {

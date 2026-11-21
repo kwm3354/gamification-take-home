@@ -9,7 +9,7 @@ import {
   type RewardRequest,
   type TenantConnection,
 } from "../domain/casino-platform.ts";
-import { hmacMatches, isNonEmptyString, isObject, parseJson } from "./hmac.ts";
+import { hmacMatchesAny, isNonEmptyString, isObject, parseJson, verifyingSecrets } from "./hmac.ts";
 import { callPlatform, unexpectedAnswer } from "./http.ts";
 
 const MAX_SKEW_SECONDS = 300;
@@ -26,7 +26,8 @@ export class PlatformA implements CasinoPlatform {
     const signature = headers["x-alpha-signature"];
     if (!timestamp || !signature || !/^\d+$/.test(timestamp)) throw new InvalidSignature();
     if (Math.abs(now.getTime() / 1000 - Number(timestamp)) > MAX_SKEW_SECONDS) throw new InvalidSignature();
-    if (!hmacMatches(conn.webhookSecret, `${timestamp}.${rawBody.toString("utf8")}`, signature, "hex")) {
+    const signed = `${timestamp}.${rawBody.toString("utf8")}`;
+    if (!hmacMatchesAny(verifyingSecrets(conn), signed, signature, "hex")) {
       throw new InvalidSignature();
     }
 

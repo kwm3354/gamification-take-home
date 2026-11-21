@@ -115,13 +115,14 @@ describe("permissions (plain code)", () => {
     role,
     tenantId,
   });
-  const actions: Action[] = ["read", "resolve", "propose_wheel", "decide_change"];
+  const actions: Action[] = ["read", "resolve", "propose_wheel", "decide_change", "manage_keys"];
   // [action] -> viewer own, manager own, platform own, viewer other, manager other, platform other
   const table: Record<Action, boolean[]> = {
     read: [true, true, true, false, false, true],
     resolve: [false, true, true, false, false, true],
     propose_wheel: [false, true, true, false, false, true],
     decide_change: [false, false, true, false, false, true],
+    manage_keys: [false, true, true, false, false, true],
   };
   test("every cell of the role table", () => {
     for (const action of actions) {

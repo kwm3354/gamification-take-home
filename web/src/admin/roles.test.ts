@@ -9,6 +9,7 @@ const TABLE: Record<Action, Record<Role, boolean>> = {
   propose: { tenant_viewer: false, tenant_admin: true, platform_admin: true },
   decide: { tenant_viewer: false, tenant_admin: false, platform_admin: true },
   see_other_tenant: { tenant_viewer: false, tenant_admin: false, platform_admin: true },
+  manage_keys: { tenant_viewer: false, tenant_admin: true, platform_admin: true },
 };
 
 describe("roles", () => {

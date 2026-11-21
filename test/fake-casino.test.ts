@@ -483,3 +483,57 @@ describe("bad input", () => {
     expect(page.headers.get("access-control-allow-origin")).toBe("*");
   });
 });
+
+describe("PUT /control/tenants/:tenantId/secrets", () => {
+  const put = (tenantId: string, body: unknown) =>
+    fetch(`${fake.url}/control/tenants/${tenantId}/secrets`, { method: "PUT", body: JSON.stringify(body) });
+  const tokenSignature = (token: string, secret: string) => {
+    const [h, p, s] = token.split(".") as [string, string, string];
+    return { given: s, expected: createHmac("sha256", secret).update(`${h}.${p}`).digest("base64url") };
+  };
+
+  it("the casino signs with the pasted secrets from then on; other tenants keep theirs", async () => {
+    const res = await put(beta.id, {
+      webhookSecret: "evs_pasted-secret-1",
+      tokenSecret: "pts_pasted-secret-2",
+    });
+    expect(res.status).toBe(204);
+    await control("/control/deposit", { tenantId: beta.id, playerId: "77", amount: "20.00", eventId: "T-9" });
+    const got = received[0]!;
+    expect(got.headers["x-beta-auth"]).toBe(
+      createHmac("sha256", "evs_pasted-secret-1").update(got.raw).digest("base64"),
+    );
+    const { body } = await control("/control/token", { tenantId: beta.id, playerId: "77" });
+    const sig = tokenSignature(body.token, "pts_pasted-secret-2");
+    expect(sig.given).toBe(sig.expected);
+    // Another tenant is not touched.
+    await control("/control/deposit", {
+      tenantId: alpha.id,
+      playerId: "p-1",
+      amount: "20.00",
+      eventId: "e-9",
+    });
+    const a = received[1]!;
+    const ts = a.headers["x-alpha-timestamp"] as string;
+    expect(a.headers["x-alpha-signature"]).toBe(
+      createHmac("sha256", alpha.webhookSecret).update(`${ts}.${a.raw}`).digest("hex"),
+    );
+    // Setting one secret leaves the other as it was.
+    expect((await put(beta.id, { webhookSecret: beta.webhookSecret })).status).toBe(204);
+    const again = tokenSignature(
+      (await control("/control/token", { tenantId: beta.id, playerId: "77" })).body.token,
+      "pts_pasted-secret-2",
+    );
+    expect(again.given).toBe(again.expected);
+    expect((await put(beta.id, { tokenSecret: beta.tokenSecret })).status).toBe(204);
+  });
+
+  it("answers 400 for a bad body or an unknown tenant, and allows PUT in CORS", async () => {
+    expect((await put(beta.id, {})).status).toBe(400);
+    expect((await put(beta.id, { webhookSecret: "short" })).status).toBe(400);
+    expect((await put(beta.id, { webhookSecret: 5 })).status).toBe(400);
+    expect((await put("no-such-tenant", { webhookSecret: "long-enough-secret" })).status).toBe(400);
+    const pre = await fetch(`${fake.url}/control/tenants/${beta.id}/secrets`, { method: "OPTIONS" });
+    expect(pre.headers.get("access-control-allow-methods")).toContain("PUT");
+  });
+});
