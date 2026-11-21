@@ -399,7 +399,8 @@ official image formatted, started, passed the smoke test with the official clien
 on the same data file. Without `seccomp=unconfined` it failed with "io_uring is not available", so
 the server, the app and the worker containers carry that line in `docker-compose.yml`. CI runs the
 tests against the official image and then starts the whole compose stack. The development machine
-has no AVX2 and uses a local build (`scripts/tb-old-cpu.sh`).
+is an old desktop without AVX2 and uses a local build (`scripts/tb-old-cpu.sh`); this is a quirk of
+that machine, not a hardware requirement worth planning for.
 
 Not built: a real casino platform, an API to create grant and ops policy versions, a password
 change or reset and a token refresh for admins, database-enforced tenant isolation (by choice, see

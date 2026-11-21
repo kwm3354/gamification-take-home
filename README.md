@@ -95,8 +95,8 @@ running the job twice moves nothing the second time. If the process dies between
 the job is still in PostgreSQL and a worker repeats it.
 
 **What it costs.** A second store to run and back up. No SQL: lists and reports read PostgreSQL,
-the ledger is asked only for balances. The server needs a CPU with AVX2 and io_uring (hence one
-extra line in `docker-compose.yml`). I set two conditions before using it: prove the official
+the ledger is asked only for balances. In a container it needs io_uring, which Docker's default
+security profile blocks (hence one extra line in `docker-compose.yml`). I set two conditions before using it: prove the official
 image on other hardware in the first hour (done on a CI runner), and keep a fallback to a ledger
 table in PostgreSQL (not needed).
 
@@ -251,9 +251,10 @@ The web app (`web/`) is built in the app image. To check it on its own: `npm run
 These commands are the ones CI runs on every push (`.github/workflows/ci.yml`), on a GitHub
 runner with the official images.
 
-The TigerBeetle server and its Node.js client need a CPU with AVX2 and Docker that allows
-io_uring (hence `seccomp=unconfined` in `docker-compose.yml`). On a CPU without AVX2 see
-`scripts/tb-old-cpu.sh`.
+TigerBeetle needs Docker to allow io_uring (hence `seccomp=unconfined` in `docker-compose.yml`).
+Its official builds use AVX2, which server CPUs and any desktop CPU of the last ten years have.
+The project was developed on an older desktop CPU without it; `scripts/tb-old-cpu.sh` is the
+workaround for such a machine and is not needed anywhere else.
 
 ## Design
 
