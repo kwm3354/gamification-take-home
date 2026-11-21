@@ -22,6 +22,7 @@ import {
   type RewardRequest,
 } from "../domain/casino-platform.ts";
 import { type CoinLedger, LedgerUnavailable } from "../domain/coin-ledger.ts";
+import { isUuid } from "../domain/uuid.ts";
 import type { Log } from "../logging/log.ts";
 import type { Outbox } from "../outbox/outbox.ts";
 import { type Tenant, findTenant } from "../tenants/tenants.ts";
@@ -128,7 +129,7 @@ export async function findRedemption(
   id: string,
   playerId?: string,
 ): Promise<RedemptionRow | null> {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  if (!isUuid(id)) return null;
   const { rows } = await db.query(
     "SELECT * FROM redemptions WHERE id = $1 AND tenant_id = $2 AND ($3::uuid IS NULL OR player_id = $3)",
     [id, tenantId, playerId ?? null],
@@ -161,7 +162,7 @@ export async function createRedemption(
   const first = await existing();
   if (first) return { row: first, created: false };
 
-  const item = /^[0-9a-f-]{36}$/i.test(input.itemId)
+  const item = isUuid(input.itemId)
     ? (
         await deps.db.query(
           "SELECT id, cost_coins, reward FROM store_items WHERE id = $1 AND tenant_id = $2 AND active",

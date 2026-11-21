@@ -2,6 +2,7 @@ import { type Row, update } from "../audit/audited.ts";
 import type { Clock } from "../clock.ts";
 import { type Db, transaction } from "../db.ts";
 import type { CoinLedger } from "../domain/coin-ledger.ts";
+import { isUuid } from "../domain/uuid.ts";
 import type { Log } from "../logging/log.ts";
 import type { Outbox } from "../outbox/outbox.ts";
 import { findTenant } from "../tenants/tenants.ts";
@@ -13,8 +14,6 @@ export interface SpinResult {
   label: string;
   coins: number;
 }
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Using a spin and crediting its prize. Two steps with two stores and no shared transaction:
@@ -33,7 +32,7 @@ export class SpinService {
 
   /** The spin of this player, or null. Never says whether a spin of someone else exists. */
   private async find(tenantId: string, playerId: string, spinId: string): Promise<Row | null> {
-    if (!UUID.test(spinId)) return null;
+    if (!isUuid(spinId)) return null;
     const r = await this.db.query("SELECT * FROM spins WHERE id = $1 AND tenant_id = $2 AND player_id = $3", [
       spinId,
       tenantId,

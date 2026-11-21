@@ -512,6 +512,20 @@ describe.skipIf(!running)("bonus store", () => {
     }
   });
 
+  test("16b. an id of 36 hyphens is not a redemption or an item: 404 or 400, never 500", async () => {
+    const p = await newPlayer(BETA, 500n);
+    const crafted = "-".repeat(36);
+    expect((await getRedemption(p, crafted)).status).toBe(404);
+    expect([400, 404]).toContain((await redeem(p, crafted)).status);
+    const body = JSON.stringify({ requestId: "r_x", externalRef: crafted, state: "GRANTED" });
+    const r = await fetch(`${app().url}/webhooks/${BETA}/rewards`, {
+      method: "POST",
+      headers: signBeta(tenantOf(BETA).webhookSecret, body),
+      body,
+    });
+    expect([400, 404]).toContain(r.status);
+  });
+
   test("17. reward webhook: bad signature, other tenant, platform A, and a notice too early", async () => {
     const beta = tenantOf(BETA);
     const notice = (ref: string, state = "GRANTED") =>
