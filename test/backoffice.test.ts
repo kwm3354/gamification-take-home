@@ -533,8 +533,23 @@ describe.skipIf(!running)("back office reads", () => {
     // Coins outstanding is the ledger's number: what was issued minus what players spent.
     // The ledger is read before and after the call: under load a transfer whose client call timed out
     // can still land in between, and the page must show one of the two real numbers.
-    const after = await ledger().outstanding({ ledgerNo: tenantOf(ALPHA).ledgerNo });
-    expect([String(ledgerBefore), String(after)]).toContain(o.coinsOutstanding);
+    // Found on CI: the page showed a third number, because transfers from earlier tests of this file were
+    // still landing. So: read the ledger, the page, the ledger again, and compare only when the ledger
+    // stood still across the call; try again otherwise.
+    void ledgerBefore;
+    let compared = false;
+    for (let i = 0; i < 50 && !compared; i++) {
+      const before = await ledger().outstanding({ ledgerNo: tenantOf(ALPHA).ledgerNo });
+      const page = await list(ALPHA, "/overview");
+      const after = await ledger().outstanding({ ledgerNo: tenantOf(ALPHA).ledgerNo });
+      if (before === after) {
+        expect(page.coinsOutstanding).toBe(String(before));
+        compared = true;
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
+    expect(compared, "the ledger never stood still for one call").toBe(true);
     // Beta has its own, different numbers.
     const b = await list(BETA, "/overview");
     expect(b.players).toBe(
