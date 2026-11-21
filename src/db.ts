@@ -1,10 +1,76 @@
 import { readFile } from "node:fs/promises";
+import { context, createContextKey } from "@opentelemetry/api";
 import pg from "pg";
+import { span, tracingOn } from "./tracing/tracing.ts";
 
 export type Db = pg.Pool;
 
 export function connect(url: string, max = 5): Db {
-  return new pg.Pool({ connectionString: url, max });
+  return traced(new pg.Pool({ connectionString: url, max }));
+}
+
+// ---- tracing -------------------------------------------------------------------------------
+// Every query is a span `db <KEYWORD> <table>` and getting a client is `db acquire`. It is done here,
+// in one place, so no caller changes. The statement attribute is the SQL text only: parameter values
+// are never passed to the span. With tracing off the wrapped functions call straight through.
+
+const IN_POOL_QUERY = createContextKey("db.in_pool_query");
+const TABLE = /(?:\bfrom|\binto|^\s*update)\s+"?([a-z_][a-z0-9_.]*)"?/i;
+
+/** The SQL text of a query call, or undefined for forms we do not trace (callbacks, submittables). */
+function sqlOf(args: unknown[]): string | undefined {
+  const first = args[0];
+  if (typeof args[args.length - 1] === "function") return undefined;
+  if (typeof first === "string") return first;
+  if (typeof first === "object" && first !== null && typeof (first as { text?: unknown }).text === "string") {
+    return (first as { text: string }).text;
+  }
+  return undefined;
+}
+
+function tracedQuery<A extends unknown[], R>(original: (...args: A) => R, self: object): (...args: A) => R {
+  return (...args: A): R => {
+    const sql = tracingOn() && context.active().getValue(IN_POOL_QUERY) !== true ? sqlOf(args) : undefined;
+    if (sql === undefined) return original.apply(self, args);
+    const flat = sql.replace(/\s+/g, " ").trim();
+    const keyword = (/^\(?\s*([a-z]+)/i.exec(flat)?.[1] ?? "query").toUpperCase();
+    const table = TABLE.exec(flat)?.[1];
+    return span(
+      `db ${keyword}${table ? ` ${table}` : ""}`,
+      { "db.system": "postgresql", "db.operation.name": keyword, "db.statement": flat.slice(0, 200) },
+      () => original.apply(self, args),
+    );
+  };
+}
+
+const WRAPPED = Symbol("traced");
+
+function traced(pool: pg.Pool): pg.Pool {
+  const poolQuery = tracedQuery(pool.query.bind(pool) as (...a: unknown[]) => unknown, pool);
+  const connectOriginal = pool.connect.bind(pool) as (...a: unknown[]) => unknown;
+  // pg-pool's own query() takes a client through connect(); the mark keeps that client's query from a second span.
+  pool.query = ((...args: unknown[]) =>
+    tracingOn()
+      ? context.with(context.active().setValue(IN_POOL_QUERY, true), () => poolQuery(...args))
+      : poolQuery(...args)) as typeof pool.query;
+  // Only the promise form of connect() is traced; the callback form goes straight through.
+  // Clients are wrapped even while tracing is off: they live long and tracing may start later.
+  const checkout = async (): Promise<pg.PoolClient> => {
+    const client = (await connectOriginal()) as pg.PoolClient & { [WRAPPED]?: true };
+    if (!client[WRAPPED]) {
+      client[WRAPPED] = true;
+      client.query = tracedQuery(
+        client.query.bind(client) as (...a: unknown[]) => unknown,
+        client,
+      ) as typeof client.query;
+    }
+    return client;
+  };
+  pool.connect = ((...args: unknown[]) => {
+    if (args.length > 0) return connectOriginal(...args);
+    return tracingOn() ? span("db acquire", {}, checkout) : checkout();
+  }) as typeof pool.connect;
+  return pool;
 }
 
 export async function migrate(db: Db): Promise<void> {

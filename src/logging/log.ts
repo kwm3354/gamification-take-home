@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Clock } from "../clock.ts";
+import { currentTraceId } from "../tracing/tracing.ts";
 
 /**
  * Structured logs: one JSON object per line, written to a sink.
@@ -78,8 +79,10 @@ export class Log {
       const { tenantId: _t, requestId: given, ...rest } = fields;
       const requestId = given ?? currentRequestId() ?? null;
       const at = this.clock.now().toISOString();
+      const traceId = currentTraceId(); // set only inside a traced request or job
+      const trace = traceId ? { traceId } : {};
       try {
-        this.sink.write(redactedJson({ at, level, event: name, tenantId, requestId, ...rest }));
+        this.sink.write(redactedJson({ at, level, event: name, tenantId, requestId, ...trace, ...rest }));
       } catch {
         this.sink.write(
           JSON.stringify({
@@ -88,6 +91,7 @@ export class Log {
             event: name,
             tenantId,
             requestId,
+            ...trace,
             logError: "fields not serialisable",
           }),
         );

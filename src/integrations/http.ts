@@ -1,4 +1,5 @@
 import { PlatformUnreachable, type TenantConnection } from "../domain/casino-platform.ts";
+import { injectTraceHeaders, setSpanAttribute } from "../tracing/tracing.ts";
 
 /** Used when the caller does not say how long a call may take. Normally env PLATFORM_TIMEOUT_MS. */
 export const DEFAULT_TIMEOUT_MS = 2000;
@@ -30,15 +31,18 @@ export async function callPlatform(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), limit);
   try {
+    const headers: Record<string, string> = {
+      ...(options.json !== undefined ? { "content-type": "application/json" } : {}),
+      ...options.headers,
+    };
+    injectTraceHeaders(headers); // traceparent: the casino can join its trace to ours
     const response = await fetch(url, {
       method,
-      headers: {
-        ...(options.json !== undefined ? { "content-type": "application/json" } : {}),
-        ...options.headers,
-      },
+      headers,
       body: options.json !== undefined ? JSON.stringify(options.json) : undefined,
       signal: controller.signal,
     });
+    setSpanAttribute("http.response.status_code", response.status);
     const text = await response.text();
     let body: unknown;
     try {

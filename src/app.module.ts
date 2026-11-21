@@ -12,6 +12,8 @@ import { RequestIdMiddleware } from "./logging/request-id.ts";
 import { OutboxModule } from "./outbox/outbox.module.ts";
 import { StoreModule } from "./store/store.module.ts";
 import { TenantsModule } from "./tenants/tenants.module.ts";
+import { TracingMiddleware } from "./tracing/tracing.middleware.ts";
+import { TracingModule } from "./tracing/tracing.module.ts";
 import { WheelModule } from "./wheel/wheel.module.ts";
 
 // ConfigModule, ClockModule, DbModule, LogModule and LedgerModule are global: any module can inject CONFIG, CLOCK, DB, LOG and LEDGER.
@@ -30,10 +32,13 @@ import { WheelModule } from "./wheel/wheel.module.ts";
     StoreModule,
     AdminModule,
     OutboxModule,
+    TracingModule,
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestIdMiddleware).forRoutes({ path: "{*path}", method: RequestMethod.ALL });
+    consumer
+      .apply(RequestIdMiddleware, TracingMiddleware)
+      .forRoutes({ path: "{*path}", method: RequestMethod.ALL });
   }
 }

@@ -32,6 +32,14 @@ Then open three pages in a browser:
 
 Sample requests are in `docs/samples.md`.
 
+Traces: open http://localhost:30086 (Jaeger), pick the service `gamification` and press "Find Traces".
+Each request is one trace; the response header `x-trace-id` is its id. A redemption on platform A shows
+`ledger reserve`, `platform find A`, `platform issue A` and `ledger capture` under one
+`http POST /store/redemptions` span, with every database call and its time. Platform B's later steps are
+traces of their own named `outbox redemption_advance`. Jaeger keeps at most 10000 traces in memory.
+Set `OTEL_TRACES_SAMPLE_RATIO` (0 to 1) to trace only a share of requests, for a load run. Details are in
+the "Tracing" section of `docs/contracts.md`.
+
 To look at the screens without the stack: `npm run web:build`, then `node web/dev/mock-server.mjs` and open
 http://localhost:4800/app/. The mock is a development aid built from `docs/contracts.md`, not the service.
 
