@@ -3,8 +3,8 @@ import { LOG_LIMIT, initialState, persistedOf, reducer } from "./state.ts";
 import type { CasinoTenant, LogEntry, Player } from "./types.ts";
 
 const tenants: CasinoTenant[] = [
-  { id: "alpha-casino", name: "Alpha Casino", platform: "A", adminKey: "k-a" },
-  { id: "beta-casino", name: "Beta Casino", platform: "B", adminKey: "k-b" },
+  { id: "alpha-casino", name: "Alpha Casino", platform: "A" },
+  { id: "beta-casino", name: "Beta Casino", platform: "B" },
 ];
 
 const player = (tenantId: string, externalId: string): Player => ({
@@ -33,10 +33,9 @@ const entry = (id: number): LogEntry => ({
 describe("reducer", () => {
   const ready = reducer(initialState, { type: "config", fakeCasinoUrl: "http://f", tenants });
 
-  it("picks the first casino and fills in the demo admin keys once the config arrives", () => {
+  it("picks the first casino and once the config arrives", () => {
     expect(ready.boot).toBe("ready");
     expect(ready.tenantId).toBe("alpha-casino");
-    expect(ready.adminKeys).toEqual({ "alpha-casino": "k-a", "beta-casino": "k-b" });
   });
 
   it("adds a player and makes it the current one", () => {
@@ -115,12 +114,10 @@ describe("reducer", () => {
         tenantId: "beta-casino",
         players: [player("beta-casino", "p-2")],
         currentKey: "beta-casino:p-2",
-        adminName: "me",
         redemptions: [],
       },
     });
     expect(s.players.map((p) => p.externalId)).toEqual(["p-2"]);
     expect(s.tenantId).toBe("beta-casino");
-    expect(s.adminName).toBe("me");
   });
 });

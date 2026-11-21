@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { boot, pollOnce } from "./actions.ts";
-import { AdminPage } from "./pages/AdminPage.tsx";
+import { AdminApp } from "./admin/AdminApp.tsx";
+import { isAdminHash } from "./admin/routes.ts";
 import { PlayPage } from "./pages/PlayPage.tsx";
 import { isFinal } from "./state.ts";
 import { startStore, useAppState } from "./store.ts";
@@ -10,14 +11,14 @@ const subscribeHash = (cb: () => void) => {
   return () => window.removeEventListener("hashchange", cb);
 };
 
-/** Two routes, chosen by the URL hash: `#/play` (also the default) and `#/admin`. */
+/** Two routes, chosen by the URL hash: `#/play` (also the default) and `#/admin/...`. */
 export function useRoute(): "play" | "admin" {
   const hash = useSyncExternalStore(subscribeHash, () => window.location.hash);
-  return hash.startsWith("#/admin") ? "admin" : "play";
+  return isAdminHash(hash) ? "admin" : "play";
 }
 
-export function App() {
-  const route = useRoute();
+/** The player page with its session store. The back office never mounts this, so it never reads that store. */
+function Play() {
   const state = useAppState();
   const pending = state.tracked.some((t) => !isFinal(t));
 
@@ -40,20 +41,16 @@ export function App() {
     };
   }, [pending]);
 
+  return <PlayPage />;
+}
+
+export function App() {
+  const route = useRoute();
+
   useEffect(() => {
     document.documentElement.dataset.route = route;
-    document.title = route === "admin" ? "Back office" : "Wheel of Fortune";
+    if (route === "play") document.title = "Casino with Wheel of Fortune";
   }, [route]);
 
-  return route === "admin" ? (
-    <>
-      <nav className="topnav" aria-label="Pages">
-        <strong>Gamification back office</strong>
-        <a href="#/play">Player page</a>
-      </nav>
-      <AdminPage />
-    </>
-  ) : (
-    <PlayPage />
-  );
+  return route === "admin" ? <AdminApp /> : <Play />;
 }
