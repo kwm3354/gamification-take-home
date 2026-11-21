@@ -1,0 +1,36 @@
+{
+  "at": "2026-11-21T09:20:29.358Z",
+  "players": 6,
+  "events24h": {
+    "accepted": 67,
+    "ignored": 1
+  },
+  "spins": {
+    "available": 0,
+    "used": 67
+  },
+  "redemptions": {
+    "created": 0,
+    "reserved": 0,
+    "submitting": 0,
+    "issued": 3,
+    "refused": 1,
+    "insufficient": 1,
+    "unsettled": 0
+  },
+  "coinsOutstanding": "5447",
+  "outbox": {
+    "due": 0,
+    "waiting": 0,
+    "dead": 0
+  },
+  "alerts": {
+    "critical": 0,
+    "warning": 1
+  },
+  "settings": {
+    "wheelVersion": 5,
+    "grantPolicyVersion": 1,
+    "opsPolicyVersion": 1
+  }
+}

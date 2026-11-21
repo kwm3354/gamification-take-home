@@ -1,0 +1,23 @@
+{
+  "items": [
+    {
+      "id": "7e952995-438f-404e-ba7b-d2242550b45c",
+      "externalId": "b-stuck2",
+      "createdAt": "2026-11-21T09:17:39.747Z",
+      "spinsAvailable": 0,
+      "spinsUsed": 12,
+      "redemptions": 1,
+      "cursor": "WyIyMDI2LTExLTIxVDA5OjE3OjM5Ljc0NzAwMFoiLCI3ZTk1Mjk5NS00MzhmLTQwNGUtYmE3Yi1kMjI0MjU1MGI0NWMiXQ"
+    },
+    {
+      "id": "f559074d-34ec-4022-9a79-b06d0c499da4",
+      "externalId": "b-stuck",
+      "createdAt": "2026-11-21T09:08:15.437Z",
+      "spinsAvailable": 0,
+      "spinsUsed": 30,
+      "redemptions": 1,
+      "cursor": "WyIyMDI2LTExLTIxVDA5OjA4OjE1LjQzNzAwMFoiLCJmNTU5MDc0ZC0zNGVjLTQwMjItOWE3OS1iMDZkMGM0OTlkYTQiXQ"
+    }
+  ],
+  "nextCursor": "WyIyMDI2LTExLTIxVDA5OjA4OjE1LjQzNzAwMFoiLCJmNTU5MDc0ZC0zNGVjLTQwMjItOWE3OS1iMDZkMGM0OTlkYTQiXQ"
+}

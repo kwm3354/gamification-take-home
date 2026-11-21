@@ -23,6 +23,8 @@ const uuid = () => {
   const h = () => Math.floor(rnd() * 0x10000).toString(16).padStart(4, "0");
   return `${h()}${h()}-${h()}-4${h().slice(1)}-a${h().slice(1)}-${h()}${h()}${h()}`;
 };
+let auditSeq = 700;
+let outboxSeq = 100;
 const now = () => new Date().toISOString();
 const ago = (sec) => new Date(Date.now() - sec * 1000).toISOString();
 
@@ -71,9 +73,9 @@ function seedTenant(t, scale) {
     s.players.push(p);
     const evId = uuid();
     const ev = {
-      id: evId, externalEventId: `evt_${1000 + i}`, kind: "deposit", playerId: p.id, playerExternalId: ext,
+      id: evId, externalEventId: `evt_${1000 + i}`, kind: "deposit_succeeded", playerId: p.id, playerExternalId: ext,
       receivedAt: ago(7200 - i * 40),
-      normalized: { kind: "deposit", playerExternalId: ext, amountMinor: 2000, currency: "EUR", occurredAt: ago(7200 - i * 40) },
+      normalized: { kind: "deposit_succeeded", externalEventId: `evt_${1000 + i}`, externalPlayerId: ext, amountMinor: 2000, currency: "EUR", occurredAt: ago(7200 - i * 40) },
       raw: t.platform === "A"
         ? { event_id: `evt_${1000 + i}`, type: "deposit.succeeded", player_id: ext, amount_minor: 2000, currency: "EUR", occurred_at: ago(7200 - i * 40) }
         : { batchId: `batch-${i}`, transactions: [{ txnId: `evt_${1000 + i}`, kind: "DEPOSIT", state: "COMPLETED", customer: { id: ext }, amount: "20.00", currencyCode: "EUR" }] },
@@ -96,8 +98,8 @@ function seedTenant(t, scale) {
       };
       s.redemptions.push(r);
       s.audit.push(
-        { id: uuid(), at: r.createdAt, actor: `player/${p.id}`, action: "create", entityType: "redemption", entityId: r.id, changes: { status: { from: null, to: "created" }, costCoins: { from: null, to: "100" } }, requestId: `req-${i}a` },
-        { id: uuid(), at: r.updatedAt, actor: `platform/${t.id}`, action: "update", entityType: "redemption", entityId: r.id, changes: { status: { from: "submitting", to: status } }, requestId: `req-${i}b` },
+        { id: ++auditSeq, at: r.createdAt, actor: `player/${p.id}`, actorEmail: null, action: "create", entityType: "redemptions", entityId: r.id, changes: [{ field: "status", from: null, to: "created" }, { field: "cost_coins", from: null, to: "100" }], requestId: `req-${i}a` },
+        { id: ++auditSeq, at: r.updatedAt, actor: `system/outbox`, actorEmail: null, action: "update", entityType: "redemptions", entityId: r.id, changes: [{ field: "status", from: "submitting", to: status }], requestId: `req-${i}b` },
       );
     }
   }
@@ -121,24 +123,29 @@ seedTenant(TENANTS[1], 24);
     s.redemptions.unshift(r);
     s.job[r.id] = { runAt: ago(-30), attempts: 7, lastError: "PlatformUnreachable: timeout after 2000 ms", doneAt: null, deadAt: null };
     s.audit.unshift(
-      { id: uuid(), at: ago(age - 100), actor: "system/outbox", action: "platform_call", entityType: "redemption", entityId: r.id, changes: { call: "GET /a/bonuses", outcome: "unreachable" }, requestId: `job:redemption_advance:${r.id}` },
-      { id: uuid(), at: ago(age), actor: `player/${p.id}`, action: "create", entityType: "redemption", entityId: r.id, changes: { status: { from: null, to: "created" } }, requestId: "req-stuck" },
+      { id: ++auditSeq, at: ago(age - 100), actor: "system/outbox", actorEmail: null, action: "platform_call", entityType: "redemption", entityId: r.id, changes: { call: "find", error: "find: unexpected answer, status 500" }, requestId: `job:redemption_advance:${r.id}` },
+      { id: ++auditSeq, at: ago(age), actor: `player/${p.id}`, actorEmail: null, action: "create", entityType: "redemptions", entityId: r.id, changes: [{ field: "status", from: null, to: "created" }], requestId: "req-stuck" },
     );
   }
+  s.events.unshift({
+    id: uuid(), externalEventId: "evt_ign_1", kind: "ignored", playerId: null, playerExternalId: null, receivedAt: ago(30),
+    normalized: { why: "type login.succeeded", kind: "ignored", externalEventId: "evt_ign_1" },
+    raw: { event_id: "evt_ign_1", type: "login.succeeded", player_id: "p100", occurred_at: ago(30) },
+  });
   s.outbox.push(
-    { id: uuid(), kind: "redemption_advance", refId: s.redemptions[0].id, runAt: ago(-30), attempts: 7, lastError: "PlatformUnreachable: timeout after 2000 ms", doneAt: null, deadAt: null },
-    { id: uuid(), kind: "spin_credit", refId: s.spins[1].id, runAt: ago(60), attempts: 10, lastError: "LedgerUnavailable", doneAt: null, deadAt: ago(30) },
+    { id: ++outboxSeq, kind: "redemption_advance", refId: s.redemptions[0].id, runAt: ago(-30), attempts: 7, lastError: "PlatformUnreachable: timeout after 2000 ms", doneAt: null, deadAt: null },
+    { id: ++outboxSeq, kind: "spin_credit", refId: s.spins[1].id, runAt: ago(60), attempts: 10, lastError: "LedgerUnavailable", doneAt: null, deadAt: ago(30) },
   );
   for (let i = 0; i < 60; i++)
-    s.outbox.push({ id: uuid(), kind: "spin_credit", refId: s.spins[i + 2]?.id ?? uuid(), runAt: ago(9000 - i * 100), attempts: 1, lastError: null, doneAt: ago(8990 - i * 100), deadAt: null });
+    s.outbox.push({ id: ++outboxSeq, kind: "spin_credit", refId: s.spins[i + 2]?.id ?? uuid(), runAt: ago(9000 - i * 100), attempts: 1, lastError: null, doneAt: ago(8990 - i * 100), deadAt: null });
   s.changes.push({
     id: uuid(), tenantId: "alpha-casino", kind: "wheel_config",
     proposed: { segments: [{ label: "20 coins", coins: 20, weight: 60 }, { label: "300 coins", coins: 300, weight: 40 }] },
-    status: "applied", expectedPrizeCoins: 132, limitCoins: 100, proposedBy: "admin/u-alpha-m", decidedBy: "admin/u-ops",
+    status: "applied", expectedPrizeCoins: 132, limitCoins: 100, proposedBy: "admin/u-alpha-m", proposedByEmail: "manager@alpha.demo", decidedBy: "admin/u-ops", decidedByEmail: "ops@demo.local",
     decisionNote: "Checked with the casino.", resultId: null, createdAt: ago(86400 * 2), decidedAt: ago(86400 * 2 - 600),
   });
 }
-db["beta-casino"].outbox.push({ id: uuid(), kind: "spin_credit", refId: uuid(), runAt: ago(5), attempts: 0, lastError: null, doneAt: null, deadAt: null });
+db["beta-casino"].outbox.push({ id: ++outboxSeq, kind: "spin_credit", refId: uuid(), runAt: ago(5), attempts: 0, lastError: null, doneAt: null, deadAt: null });
 
 // ---- helpers ----
 const sessions = new Map(); // admin token -> { user, exp }
@@ -278,7 +285,7 @@ function applyWheel(t, change, by, note) {
   const s = db[t];
   const row = { id: uuid(), version: s.wheel[0].version + 1, createdAt: now(), segments: change.proposed.segments };
   s.wheel.unshift(row);
-  change.status = "applied"; change.decidedBy = by; change.decisionNote = note; change.resultId = row.id; change.decidedAt = now();
+  change.status = "applied"; change.decidedBy = by; change.decidedByEmail = by.startsWith("admin/") ? USERS.find((x) => `admin/${x.id}` === by)?.email ?? null : null; change.decisionNote = note; change.resultId = row.id; change.decidedAt = now();
   return row;
 }
 
@@ -313,8 +320,8 @@ async function admin(req, res, url) {
       if (!c) continue;
       if (c.status !== "proposed") return json(res, 409, { message: "Change is not waiting" });
       if (dec[2] === "approve") applyWheel(t, c, `admin/${u.id}`, b.note);
-      else { c.status = "rejected"; c.decidedBy = `admin/${u.id}`; c.decisionNote = b.note; c.decidedAt = now(); }
-      return json(res, 200, { change: c });
+      else { c.status = "rejected"; c.decidedBy = `admin/${u.id}`; c.decidedByEmail = u.email; c.decisionNote = b.note; c.decidedAt = now(); }
+      return json(res, 200, dec[2] === "approve" ? { change: c, wheelVersion: s.wheel[0].version } : { change: c });
     }
     return json(res, 404, { message: "Not found" });
   }
@@ -329,7 +336,7 @@ async function admin(req, res, url) {
     const count = (st) => s.redemptions.filter((r) => r.status === st).length;
     const al = alertsFor(t);
     return json(res, 200, {
-      at: now(), players: s.players.length, events24h: { accepted: s.events.length, ignored: 3 },
+      at: now(), players: s.players.length, events24h: { accepted: s.events.filter((e) => e.kind !== "ignored").length, ignored: s.events.filter((e) => e.kind === "ignored").length },
       spins: { available: s.spins.filter((x) => x.status === "available").length, used: s.spins.filter((x) => x.status === "used").length },
       redemptions: { created: count("created"), reserved: count("reserved"), submitting: count("submitting"), issued: count("issued"), refused: count("refused"), insufficient: count("insufficient"), unsettled: s.redemptions.filter((r) => !r.settled).length },
       coinsOutstanding: t === "beta-casino" ? null : "48210",
@@ -342,7 +349,7 @@ async function admin(req, res, url) {
   if (rest === "redemptions/stuck") {
     const items = s.redemptions.filter((r) => ["created", "reserved", "submitting"].includes(r.status) || !r.settled)
       .filter((r) => Date.now() - Date.parse(r.createdAt) > 300000)
-      .map((r) => ({ id: r.id, status: r.status, settled: r.settled, playerExternalId: r.playerExternalId, costCoins: r.costCoins, ageSec: Math.round((Date.now() - Date.parse(r.createdAt)) / 1000), platformRef: r.platformRef, lastPlatformCall: r.status === "submitting" ? { at: ago(2300), action: "findReward", outcome: "unreachable" } : null }));
+      .map((r) => ({ id: r.id, status: r.status, settled: r.settled, playerExternalId: r.playerExternalId, costCoins: r.costCoins, ageSec: Math.round((Date.now() - Date.parse(r.createdAt)) / 1000), platformRef: r.platformRef, lastPlatformCall: r.status === "submitting" ? { call: "find", error: "find: unexpected answer, status 500" } : null }));
     return json(res, 200, { limitSec: 300, items });
   }
   if (rest === "redemptions") {
@@ -356,11 +363,11 @@ async function admin(req, res, url) {
     if (!r) return json(res, 404, { message: "Not found" });
     const b = await readBody(req);
     if (!["issued", "refused"].includes(b.outcome) || typeof b.note !== "string" || b.note.length < 5 || b.note.length > 500) return json(res, 400, { message: "bad outcome or note" });
-    if (r.status !== "submitting") return json(res, 409, { message: "Already final", view: r });
+    if (r.status !== "submitting") return json(res, 409, { message: "only a submitting redemption can be resolved", view: { id: r.id, status: r.status } });
     r.status = b.outcome; r.updatedAt = now(); r.settled = true; r.platformRef = b.outcome === "issued" ? "manual" : null; r.reason = b.outcome === "refused" ? `manual: ${b.note}` : null;
-    s.audit.unshift({ id: uuid(), at: now(), actor: `admin/${u.id}`, action: "manual_resolution", entityType: "redemption", entityId: r.id, changes: { outcome: b.outcome, note: b.note }, requestId: "req-resolve" });
+    s.audit.unshift({ id: ++auditSeq, at: now(), actor: `admin/${u.id}`, actorEmail: u.email, action: "manual_resolution", entityType: "redemption", entityId: r.id, changes: { outcome: b.outcome, note: b.note }, requestId: "req-resolve" });
     if (s.job?.[r.id]) s.job[r.id].doneAt = now();
-    return json(res, 200, r);
+    return json(res, 200, { id: r.id, status: r.status, costCoins: r.costCoins, reward: { type: "bonus", currency: "EUR", amountMinor: r.itemCode === "bonus-5-eur" ? 500 : 100 }, reason: r.reason, platformRef: r.platformRef, settled: r.settled });
   }
   if ((mm = rest.match(/^redemptions\/([^/]+)$/))) {
     const r = s.redemptions.find((x) => x.id === mm[1]);
@@ -376,6 +383,7 @@ async function admin(req, res, url) {
     if (!p) return json(res, 404, { message: "Not found" });
     return json(res, 200, { player: p, balance: t === "beta-casino" ? null : { available: "150", reserved: "0" }, spins: s.spins.filter((x) => x.playerId === p.id), redemptions: s.redemptions.filter((x) => x.playerId === p.id), events: s.events.filter((x) => x.playerId === p.id).map(({ raw, ...e }) => e) });
   }
+  if (rest === "events" && q("kind") && !["deposit_succeeded", "ignored"].includes(q("kind"))) return json(res, 400, { message: "kind must be one of deposit_succeeded, ignored", error: "Bad Request", statusCode: 400 });
   if (rest === "events") return json(res, 200, paged(s.events.filter((e) => !q("kind") || e.kind === q("kind")).map(({ raw, ...e }) => e), url));
   if ((mm = rest.match(/^events\/([^/]+)$/))) {
     const e = s.events.find((x) => x.id === mm[1]);
@@ -406,7 +414,7 @@ async function admin(req, res, url) {
     if (!ok) return json(res, 400, { message: "invalid segments" });
     const e = expected(segs);
     const limit = s.ops[0].params.maxExpectedPrizeCoins;
-    const change = { id: uuid(), tenantId: t, kind: "wheel_config", proposed: { segments: segs }, status: "proposed", expectedPrizeCoins: e, limitCoins: limit, proposedBy: `admin/${u.id}`, decidedBy: null, decisionNote: null, resultId: null, createdAt: now(), decidedAt: null };
+    const change = { id: uuid(), tenantId: t, kind: "wheel_config", proposed: { segments: segs }, status: "proposed", expectedPrizeCoins: e, limitCoins: limit, proposedBy: `admin/${u.id}`, proposedByEmail: u.email, decidedBy: null, decidedByEmail: null, decisionNote: null, resultId: null, createdAt: now(), decidedAt: null };
     s.changes.push(change);
     if (e <= limit) {
       const row = applyWheel(t, change, "policy/ops-v1", "Within the limit");

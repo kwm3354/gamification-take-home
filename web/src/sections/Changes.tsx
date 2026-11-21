@@ -2,7 +2,7 @@ import { useState } from "react";
 import { adminCall, describeAdminFailure } from "../admin/client.ts";
 import { expectedPrize } from "../admin/expected-prize.ts";
 import { useGet } from "../admin/hooks.ts";
-import { Id, Notice, PageTitle, Time } from "../admin/ui.tsx";
+import { Actor, Id, Notice, PageTitle, Time } from "../admin/ui.tsx";
 import { SegmentsTable, type SettingsChange, segmentsOf } from "./Settings.tsx";
 
 /** The list may be a bare array or wrapped; the contract does not say. */
@@ -57,7 +57,7 @@ function ChangeCard({ change, onDone }: { change: SettingsChange; onDone: () => 
     <section className="change">
       <h2>
         {change.tenantId ?? "tenant"} <span className="muted">proposed by </span>
-        <span className="mono">{change.proposedBy}</span> <span className="muted">at </span>
+        <Actor actor={change.proposedBy} email={change.proposedByEmail} /> <span className="muted">at </span>
         <Time iso={change.createdAt} />
       </h2>
       <p>

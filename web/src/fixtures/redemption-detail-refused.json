@@ -1,0 +1,255 @@
+{
+  "redemption": {
+    "id": "9c020117-1b19-459d-a3c2-bc01343bb0c3",
+    "createdAt": "2026-11-21T09:08:14.915Z",
+    "updatedAt": "2026-11-21T09:08:14.983Z",
+    "playerId": "c68379e9-f409-4bef-885c-2dcba9d9b661",
+    "playerExternalId": "b-big",
+    "itemCode": "bonus-1-eur",
+    "itemName": "Bonus 1 EUR",
+    "costCoins": "100",
+    "status": "refused",
+    "settled": true,
+    "platformRef": "r_4",
+    "reason": "player_blocked",
+    "cursor": "WyIyMDI2LTExLTIxVDA5OjA4OjE0LjkxNTAwMFoiLCI5YzAyMDExNy0xYjE5LTQ1OWQtYTNjMi1iYzAxMzQzYmIwYzMiXQ"
+  },
+  "reward": {
+    "type": "bonus",
+    "currency": "EUR",
+    "amountMinor": 100
+  },
+  "audit": [
+    {
+      "id": 581,
+      "at": "2026-11-21T09:08:14.915Z",
+      "actor": "player/c68379e9-f409-4bef-885c-2dcba9d9b661",
+      "action": "create",
+      "entityType": "redemptions",
+      "entityId": "9c020117-1b19-459d-a3c2-bc01343bb0c3",
+      "changes": [
+        {
+          "to": "9c020117-1b19-459d-a3c2-bc01343bb0c3",
+          "from": null,
+          "field": "id"
+        },
+        {
+          "to": "beta-casino",
+          "from": null,
+          "field": "tenant_id"
+        },
+        {
+          "to": "c68379e9-f409-4bef-885c-2dcba9d9b661",
+          "from": null,
+          "field": "player_id"
+        },
+        {
+          "to": "7eed5fa9-1999-4ab0-a211-bc03e9be0a37",
+          "from": null,
+          "field": "idempotency_key"
+        },
+        {
+          "to": "905fd1cb-6add-4502-9181-79d6430886f4",
+          "from": null,
+          "field": "item_id"
+        },
+        {
+          "to": "100",
+          "from": null,
+          "field": "cost_coins"
+        },
+        {
+          "to": {
+            "type": "bonus",
+            "currency": "EUR",
+            "amountMinor": 100
+          },
+          "from": null,
+          "field": "reward"
+        },
+        {
+          "to": "created",
+          "from": null,
+          "field": "status"
+        },
+        {
+          "to": null,
+          "from": null,
+          "field": "platform_ref"
+        },
+        {
+          "to": null,
+          "from": null,
+          "field": "reason"
+        },
+        {
+          "to": null,
+          "from": null,
+          "field": "settled_at"
+        },
+        {
+          "to": "2026-11-21T09:08:14.915Z",
+          "from": null,
+          "field": "created_at"
+        },
+        {
+          "to": "2026-11-21T09:08:14.915Z",
+          "from": null,
+          "field": "updated_at"
+        }
+      ],
+      "requestId": "3f2cc4e8-6037-482d-b1db-2392ec5e404b",
+      "actorEmail": null
+    },
+    {
+      "id": 582,
+      "at": "2026-11-21T09:08:14.928Z",
+      "actor": "player/c68379e9-f409-4bef-885c-2dcba9d9b661",
+      "action": "update",
+      "entityType": "redemptions",
+      "entityId": "9c020117-1b19-459d-a3c2-bc01343bb0c3",
+      "changes": [
+        {
+          "to": "reserved",
+          "from": "created",
+          "field": "status"
+        },
+        {
+          "to": "2026-11-21T09:08:14.928Z",
+          "from": "2026-11-21T09:08:14.915Z",
+          "field": "updated_at"
+        }
+      ],
+      "requestId": "3f2cc4e8-6037-482d-b1db-2392ec5e404b",
+      "actorEmail": null
+    },
+    {
+      "id": 583,
+      "at": "2026-11-21T09:08:14.943Z",
+      "actor": "player/c68379e9-f409-4bef-885c-2dcba9d9b661",
+      "action": "update",
+      "entityType": "redemptions",
+      "entityId": "9c020117-1b19-459d-a3c2-bc01343bb0c3",
+      "changes": [
+        {
+          "to": "submitting",
+          "from": "reserved",
+          "field": "status"
+        },
+        {
+          "to": "2026-11-21T09:08:14.943Z",
+          "from": "2026-11-21T09:08:14.928Z",
+          "field": "updated_at"
+        }
+      ],
+      "requestId": "3f2cc4e8-6037-482d-b1db-2392ec5e404b",
+      "actorEmail": null
+    },
+    {
+      "id": 584,
+      "at": "2026-11-21T09:08:14.951Z",
+      "actor": "player/c68379e9-f409-4bef-885c-2dcba9d9b661",
+      "action": "platform_call",
+      "entityType": "redemption",
+      "entityId": "9c020117-1b19-459d-a3c2-bc01343bb0c3",
+      "changes": {
+        "call": "find",
+        "outcome": "not_found"
+      },
+      "requestId": "3f2cc4e8-6037-482d-b1db-2392ec5e404b",
+      "actorEmail": null
+    },
+    {
+      "id": 585,
+      "at": "2026-11-21T09:08:14.956Z",
+      "actor": "player/c68379e9-f409-4bef-885c-2dcba9d9b661",
+      "action": "platform_call",
+      "entityType": "redemption",
+      "entityId": "9c020117-1b19-459d-a3c2-bc01343bb0c3",
+      "changes": {
+        "call": "issue",
+        "outcome": "pending"
+      },
+      "requestId": "3f2cc4e8-6037-482d-b1db-2392ec5e404b",
+      "actorEmail": null
+    },
+    {
+      "id": 586,
+      "at": "2026-11-21T09:08:14.958Z",
+      "actor": "player/c68379e9-f409-4bef-885c-2dcba9d9b661",
+      "action": "update",
+      "entityType": "redemptions",
+      "entityId": "9c020117-1b19-459d-a3c2-bc01343bb0c3",
+      "changes": [
+        {
+          "to": "r_4",
+          "from": null,
+          "field": "platform_ref"
+        },
+        {
+          "to": "2026-11-21T09:08:14.958Z",
+          "from": "2026-11-21T09:08:14.943Z",
+          "field": "updated_at"
+        }
+      ],
+      "requestId": "3f2cc4e8-6037-482d-b1db-2392ec5e404b",
+      "actorEmail": null
+    },
+    {
+      "id": 587,
+      "at": "2026-11-21T09:08:14.972Z",
+      "actor": "platform/beta-casino",
+      "action": "update",
+      "entityType": "redemptions",
+      "entityId": "9c020117-1b19-459d-a3c2-bc01343bb0c3",
+      "changes": [
+        {
+          "to": "refused",
+          "from": "submitting",
+          "field": "status"
+        },
+        {
+          "to": "player_blocked",
+          "from": null,
+          "field": "reason"
+        },
+        {
+          "to": "2026-11-21T09:08:14.972Z",
+          "from": "2026-11-21T09:08:14.958Z",
+          "field": "updated_at"
+        }
+      ],
+      "requestId": "42482157-6a23-4c02-a3ff-bb8127d1567a",
+      "actorEmail": null
+    },
+    {
+      "id": 588,
+      "at": "2026-11-21T09:08:14.983Z",
+      "actor": "platform/beta-casino",
+      "action": "update",
+      "entityType": "redemptions",
+      "entityId": "9c020117-1b19-459d-a3c2-bc01343bb0c3",
+      "changes": [
+        {
+          "to": "2026-11-21T09:08:14.983Z",
+          "from": null,
+          "field": "settled_at"
+        },
+        {
+          "to": "2026-11-21T09:08:14.983Z",
+          "from": "2026-11-21T09:08:14.972Z",
+          "field": "updated_at"
+        }
+      ],
+      "requestId": "42482157-6a23-4c02-a3ff-bb8127d1567a",
+      "actorEmail": null
+    }
+  ],
+  "job": {
+    "runAt": "2026-11-21T09:08:14.972Z",
+    "attempts": 0,
+    "lastError": null,
+    "doneAt": "2026-11-21T09:08:14.992Z",
+    "deadAt": null
+  }
+}

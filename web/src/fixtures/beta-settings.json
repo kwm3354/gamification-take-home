@@ -1,0 +1,97 @@
+{
+  "wheel": [
+    {
+      "id": "082ef068-9b13-4015-9121-488ac6b92f12",
+      "version": 1,
+      "createdAt": "2026-11-21T09:07:34.900Z",
+      "segments": [
+        {
+          "coins": 10,
+          "label": "10 coins",
+          "weight": 50
+        },
+        {
+          "coins": 50,
+          "label": "50 coins",
+          "weight": 30
+        },
+        {
+          "coins": 100,
+          "label": "100 coins",
+          "weight": 15
+        },
+        {
+          "coins": 500,
+          "label": "500 coins",
+          "weight": 5
+        }
+      ],
+      "expectedPrizeCoins": 60
+    }
+  ],
+  "grantPolicies": [
+    {
+      "id": "9d7b868f-2585-4473-82d4-a5bba17f501a",
+      "version": 1,
+      "createdAt": "2026-11-21T09:07:34.900Z",
+      "params": {
+        "currencies": null,
+        "minAmountMinor": 1,
+        "spinsPerDeposit": 1
+      }
+    }
+  ],
+  "opsPolicies": [
+    {
+      "id": "45c8ad03-5790-4415-8760-3d248812ab21",
+      "version": 2,
+      "createdAt": "2026-11-21T09:08:19.694Z",
+      "params": {
+        "pendingAgeLimitSec": 10,
+        "minRedeemedForShare": 1000,
+        "maxPlayerRedeemShare": 0.5,
+        "maxExpectedPrizeCoins": 100,
+        "maxSpinsPerPlayerPerDay": 20
+      }
+    },
+    {
+      "id": "f26f71c0-f23e-4705-9143-c315ae80aeb5",
+      "version": 1,
+      "createdAt": "2026-11-21T09:07:34.900Z",
+      "params": {
+        "pendingAgeLimitSec": 300,
+        "minRedeemedForShare": 1000,
+        "maxPlayerRedeemShare": 0.5,
+        "maxExpectedPrizeCoins": 100,
+        "maxSpinsPerPlayerPerDay": 20
+      }
+    }
+  ],
+  "storeItems": [
+    {
+      "id": "905fd1cb-6add-4502-9181-79d6430886f4",
+      "code": "bonus-1-eur",
+      "name": "Bonus 1 EUR",
+      "costCoins": "100",
+      "reward": {
+        "type": "bonus",
+        "currency": "EUR",
+        "amountMinor": 100
+      },
+      "active": true
+    },
+    {
+      "id": "9d837b4d-3ca5-4031-944f-ee4e9f1be137",
+      "code": "bonus-5-eur",
+      "name": "Bonus 5 EUR",
+      "costCoins": "500",
+      "reward": {
+        "type": "bonus",
+        "currency": "EUR",
+        "amountMinor": 500
+      },
+      "active": true
+    }
+  ],
+  "changes": []
+}

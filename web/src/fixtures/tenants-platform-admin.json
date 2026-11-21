@@ -1,0 +1,12 @@
+[
+  {
+    "id": "alpha-casino",
+    "name": "Alpha Casino",
+    "platform": "A"
+  },
+  {
+    "id": "beta-casino",
+    "name": "Beta Casino",
+    "platform": "B"
+  }
+]

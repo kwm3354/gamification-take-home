@@ -6,12 +6,13 @@ import { coins } from "../format.ts";
 import {
   EVENT_COLUMNS,
   type EventRow,
+  PlayerLink,
   REDEMPTION_COLUMNS,
   type RedemptionRow,
   type SpinRow,
 } from "./Lists.tsx";
 
-interface PlayerDetailData {
+export interface PlayerDetailData {
   player: { id: string; externalId: string; createdAt: string };
   balance: { available: string; reserved: string } | null;
   spins: (Omit<SpinRow, "cursor" | "playerId" | "playerExternalId" | "segmentIndex"> & { grantPolicyVersion: number })[];
@@ -100,7 +101,7 @@ export function PlayerDetail() {
   );
 }
 
-interface EventDetailData extends EventRow {
+export interface EventDetailData extends EventRow {
   raw: unknown;
   spins: { id: string; status: string }[];
 }
@@ -123,7 +124,7 @@ export function EventDetail() {
               ["Id", <span className="mono" key="i">{e.id}</span>],
               ["Platform event id", <span className="mono" key="p">{e.externalEventId}</span>],
               ["Kind", e.kind],
-              ["Player", <a key="pl" href={buildAdminHash({ section: "players", id: e.playerId })}>{e.playerExternalId}</a>],
+              ["Player", <PlayerLink key="pl" id={e.playerId} external={e.playerExternalId} />],
               ["Received", <Time iso={e.receivedAt} key="r" />],
             ]}
           />

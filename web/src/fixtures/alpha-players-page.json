@@ -1,0 +1,23 @@
+{
+  "items": [
+    {
+      "id": "f5636a74-d740-433e-95cf-c359185d20d0",
+      "externalId": "p-4e4c7b",
+      "createdAt": "2026-11-21T09:12:53.139Z",
+      "spinsAvailable": 0,
+      "spinsUsed": 1,
+      "redemptions": 0,
+      "cursor": "WyIyMDI2LTExLTIxVDA5OjEyOjUzLjEzOTAwMFoiLCJmNTYzNmE3NC1kNzQwLTQzM2UtOTVjZi1jMzU5MTg1ZDIwZDAiXQ"
+    },
+    {
+      "id": "9f2b4f00-952e-438b-8db6-84238debebf6",
+      "externalId": "a-zero",
+      "createdAt": "2026-11-21T09:08:11.590Z",
+      "spinsAvailable": 0,
+      "spinsUsed": 0,
+      "redemptions": 1,
+      "cursor": "WyIyMDI2LTExLTIxVDA5OjA4OjExLjU5MDAwMFoiLCI5ZjJiNGYwMC05NTJlLTQzOGItOGRiNi04NDIzOGRlYmViZjYiXQ"
+    }
+  ],
+  "nextCursor": "WyIyMDI2LTExLTIxVDA5OjA4OjExLjU5MDAwMFoiLCI5ZjJiNGYwMC05NTJlLTQzOGItOGRiNi04NDIzOGRlYmViZjYiXQ"
+}

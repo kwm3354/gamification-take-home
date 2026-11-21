@@ -1,0 +1,310 @@
+[
+  {
+    "id": 843,
+    "at": "2026-11-21T09:17:40.984Z",
+    "actor": "player/7e952995-438f-404e-ba7b-d2242550b45c",
+    "action": "create",
+    "entityType": "redemptions",
+    "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "changes": [
+      {
+        "to": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+        "from": null,
+        "field": "id"
+      },
+      {
+        "to": "beta-casino",
+        "from": null,
+        "field": "tenant_id"
+      },
+      {
+        "to": "7e952995-438f-404e-ba7b-d2242550b45c",
+        "from": null,
+        "field": "player_id"
+      },
+      {
+        "to": "5b915d80-1e45-407b-9881-faa9e41f3b46",
+        "from": null,
+        "field": "idempotency_key"
+      },
+      {
+        "to": "905fd1cb-6add-4502-9181-79d6430886f4",
+        "from": null,
+        "field": "item_id"
+      },
+      {
+        "to": "100",
+        "from": null,
+        "field": "cost_coins"
+      },
+      {
+        "to": {
+          "type": "bonus",
+          "currency": "EUR",
+          "amountMinor": 100
+        },
+        "from": null,
+        "field": "reward"
+      },
+      {
+        "to": "created",
+        "from": null,
+        "field": "status"
+      },
+      {
+        "to": null,
+        "from": null,
+        "field": "platform_ref"
+      },
+      {
+        "to": null,
+        "from": null,
+        "field": "reason"
+      },
+      {
+        "to": null,
+        "from": null,
+        "field": "settled_at"
+      },
+      {
+        "to": "2026-11-21T09:17:40.983Z",
+        "from": null,
+        "field": "created_at"
+      },
+      {
+        "to": "2026-11-21T09:17:40.983Z",
+        "from": null,
+        "field": "updated_at"
+      }
+    ],
+    "requestId": "14adf037-aaee-438b-94bc-b3c404386548",
+    "actorEmail": null
+  },
+  {
+    "id": 844,
+    "at": "2026-11-21T09:17:41.002Z",
+    "actor": "player/7e952995-438f-404e-ba7b-d2242550b45c",
+    "action": "update",
+    "entityType": "redemptions",
+    "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "changes": [
+      {
+        "to": "reserved",
+        "from": "created",
+        "field": "status"
+      },
+      {
+        "to": "2026-11-21T09:17:41.002Z",
+        "from": "2026-11-21T09:17:40.983Z",
+        "field": "updated_at"
+      }
+    ],
+    "requestId": "14adf037-aaee-438b-94bc-b3c404386548",
+    "actorEmail": null
+  },
+  {
+    "id": 845,
+    "at": "2026-11-21T09:17:41.027Z",
+    "actor": "player/7e952995-438f-404e-ba7b-d2242550b45c",
+    "action": "update",
+    "entityType": "redemptions",
+    "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "changes": [
+      {
+        "to": "submitting",
+        "from": "reserved",
+        "field": "status"
+      },
+      {
+        "to": "2026-11-21T09:17:41.027Z",
+        "from": "2026-11-21T09:17:41.002Z",
+        "field": "updated_at"
+      }
+    ],
+    "requestId": "14adf037-aaee-438b-94bc-b3c404386548",
+    "actorEmail": null
+  },
+  {
+    "id": 846,
+    "at": "2026-11-21T09:17:41.076Z",
+    "actor": "player/7e952995-438f-404e-ba7b-d2242550b45c",
+    "action": "platform_call",
+    "entityType": "redemption",
+    "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "changes": {
+      "call": "find",
+      "outcome": "not_found"
+    },
+    "requestId": "14adf037-aaee-438b-94bc-b3c404386548",
+    "actorEmail": null
+  },
+  {
+    "id": 847,
+    "at": "2026-11-21T09:17:41.099Z",
+    "actor": "player/7e952995-438f-404e-ba7b-d2242550b45c",
+    "action": "platform_call",
+    "entityType": "redemption",
+    "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "changes": {
+      "call": "issue",
+      "outcome": "pending"
+    },
+    "requestId": "14adf037-aaee-438b-94bc-b3c404386548",
+    "actorEmail": null
+  },
+  {
+    "id": 848,
+    "at": "2026-11-21T09:17:41.105Z",
+    "actor": "player/7e952995-438f-404e-ba7b-d2242550b45c",
+    "action": "update",
+    "entityType": "redemptions",
+    "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "changes": [
+      {
+        "to": "r_1",
+        "from": null,
+        "field": "platform_ref"
+      },
+      {
+        "to": "2026-11-21T09:17:41.105Z",
+        "from": "2026-11-21T09:17:41.027Z",
+        "field": "updated_at"
+      }
+    ],
+    "requestId": "14adf037-aaee-438b-94bc-b3c404386548",
+    "actorEmail": null
+  },
+  {
+    "id": 849,
+    "at": "2026-11-21T09:17:43.365Z",
+    "actor": "system/outbox",
+    "action": "platform_call",
+    "entityType": "redemption",
+    "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "changes": {
+      "call": "find",
+      "error": "find: unexpected answer, status 500"
+    },
+    "requestId": "job:redemption_advance:fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "actorEmail": null
+  },
+  {
+    "id": 850,
+    "at": "2026-11-21T09:17:45.864Z",
+    "actor": "system/outbox",
+    "action": "platform_call",
+    "entityType": "redemption",
+    "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "changes": {
+      "call": "find",
+      "error": "find: unexpected answer, status 500"
+    },
+    "requestId": "job:redemption_advance:fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "actorEmail": null
+  },
+  {
+    "id": 851,
+    "at": "2026-11-21T09:17:50.365Z",
+    "actor": "system/outbox",
+    "action": "platform_call",
+    "entityType": "redemption",
+    "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "changes": {
+      "call": "find",
+      "error": "find: unexpected answer, status 500"
+    },
+    "requestId": "job:redemption_advance:fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "actorEmail": null
+  },
+  {
+    "id": 854,
+    "at": "2026-11-21T09:17:58.871Z",
+    "actor": "system/outbox",
+    "action": "platform_call",
+    "entityType": "redemption",
+    "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "changes": {
+      "call": "find",
+      "error": "find: unexpected answer, status 500"
+    },
+    "requestId": "job:redemption_advance:fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "actorEmail": null
+  },
+  {
+    "id": 857,
+    "at": "2026-11-21T09:18:14.910Z",
+    "actor": "system/outbox",
+    "action": "platform_call",
+    "entityType": "redemption",
+    "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "changes": {
+      "call": "find",
+      "error": "find: unexpected answer, status 500"
+    },
+    "requestId": "job:redemption_advance:fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "actorEmail": null
+  },
+  {
+    "id": 858,
+    "at": "2026-11-21T09:18:19.023Z",
+    "actor": "admin/e7c9f685-224f-415a-9362-94e1cec6c7c0",
+    "action": "update",
+    "entityType": "redemptions",
+    "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "changes": [
+      {
+        "to": "issued",
+        "from": "submitting",
+        "field": "status"
+      },
+      {
+        "to": "manual",
+        "from": "r_1",
+        "field": "platform_ref"
+      },
+      {
+        "to": "2026-11-21T09:18:19.023Z",
+        "from": "2026-11-21T09:17:41.105Z",
+        "field": "updated_at"
+      }
+    ],
+    "requestId": "44e15601-dcd8-4e9b-8a82-ebf742a8aeb2",
+    "actorEmail": "manager@beta.demo"
+  },
+  {
+    "id": 859,
+    "at": "2026-11-21T09:18:19.022Z",
+    "actor": "admin/e7c9f685-224f-415a-9362-94e1cec6c7c0",
+    "action": "manual_resolution",
+    "entityType": "redemption",
+    "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "changes": {
+      "note": "Confirmed with the casino by phone",
+      "outcome": "issued"
+    },
+    "requestId": "44e15601-dcd8-4e9b-8a82-ebf742a8aeb2",
+    "actorEmail": "manager@beta.demo"
+  },
+  {
+    "id": 860,
+    "at": "2026-11-21T09:18:19.042Z",
+    "actor": "admin/e7c9f685-224f-415a-9362-94e1cec6c7c0",
+    "action": "update",
+    "entityType": "redemptions",
+    "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+    "changes": [
+      {
+        "to": "2026-11-21T09:18:19.042Z",
+        "from": null,
+        "field": "settled_at"
+      },
+      {
+        "to": "2026-11-21T09:18:19.042Z",
+        "from": "2026-11-21T09:18:19.023Z",
+        "field": "updated_at"
+      }
+    ],
+    "requestId": "44e15601-dcd8-4e9b-8a82-ebf742a8aeb2",
+    "actorEmail": "manager@beta.demo"
+  }
+]

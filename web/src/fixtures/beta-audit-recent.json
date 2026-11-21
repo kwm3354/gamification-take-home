@@ -1,0 +1,114 @@
+{
+  "items": [
+    {
+      "id": 864,
+      "at": "2026-11-21T09:20:29.070Z",
+      "actor": "admin/e7c9f685-224f-415a-9362-94e1cec6c7c0",
+      "action": "admin_login",
+      "entityType": "admin_user",
+      "entityId": "e7c9f685-224f-415a-9362-94e1cec6c7c0",
+      "changes": {
+        "email": "manager@beta.demo"
+      },
+      "requestId": "d9319dab-269f-401b-9971-b3735570ba9b",
+      "cursor": "ODY0",
+      "actorEmail": "manager@beta.demo"
+    },
+    {
+      "id": 860,
+      "at": "2026-11-21T09:18:19.042Z",
+      "actor": "admin/e7c9f685-224f-415a-9362-94e1cec6c7c0",
+      "action": "update",
+      "entityType": "redemptions",
+      "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+      "changes": [
+        {
+          "to": "2026-11-21T09:18:19.042Z",
+          "from": null,
+          "field": "settled_at"
+        },
+        {
+          "to": "2026-11-21T09:18:19.042Z",
+          "from": "2026-11-21T09:18:19.023Z",
+          "field": "updated_at"
+        }
+      ],
+      "requestId": "44e15601-dcd8-4e9b-8a82-ebf742a8aeb2",
+      "cursor": "ODYw",
+      "actorEmail": "manager@beta.demo"
+    },
+    {
+      "id": 859,
+      "at": "2026-11-21T09:18:19.022Z",
+      "actor": "admin/e7c9f685-224f-415a-9362-94e1cec6c7c0",
+      "action": "manual_resolution",
+      "entityType": "redemption",
+      "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+      "changes": {
+        "note": "Confirmed with the casino by phone",
+        "outcome": "issued"
+      },
+      "requestId": "44e15601-dcd8-4e9b-8a82-ebf742a8aeb2",
+      "cursor": "ODU5",
+      "actorEmail": "manager@beta.demo"
+    },
+    {
+      "id": 858,
+      "at": "2026-11-21T09:18:19.023Z",
+      "actor": "admin/e7c9f685-224f-415a-9362-94e1cec6c7c0",
+      "action": "update",
+      "entityType": "redemptions",
+      "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+      "changes": [
+        {
+          "to": "issued",
+          "from": "submitting",
+          "field": "status"
+        },
+        {
+          "to": "manual",
+          "from": "r_1",
+          "field": "platform_ref"
+        },
+        {
+          "to": "2026-11-21T09:18:19.023Z",
+          "from": "2026-11-21T09:17:41.105Z",
+          "field": "updated_at"
+        }
+      ],
+      "requestId": "44e15601-dcd8-4e9b-8a82-ebf742a8aeb2",
+      "cursor": "ODU4",
+      "actorEmail": "manager@beta.demo"
+    },
+    {
+      "id": 857,
+      "at": "2026-11-21T09:18:14.910Z",
+      "actor": "system/outbox",
+      "action": "platform_call",
+      "entityType": "redemption",
+      "entityId": "fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+      "changes": {
+        "call": "find",
+        "error": "find: unexpected answer, status 500"
+      },
+      "requestId": "job:redemption_advance:fa45b80b-ae6b-44ff-8eb8-bb16be6dd853",
+      "cursor": "ODU3",
+      "actorEmail": null
+    },
+    {
+      "id": 856,
+      "at": "2026-11-21T09:18:01.976Z",
+      "actor": "admin/e7c9f685-224f-415a-9362-94e1cec6c7c0",
+      "action": "admin_login",
+      "entityType": "admin_user",
+      "entityId": "e7c9f685-224f-415a-9362-94e1cec6c7c0",
+      "changes": {
+        "email": "manager@beta.demo"
+      },
+      "requestId": "7f432a36-9ff3-479d-8887-cfc818193301",
+      "cursor": "ODU2",
+      "actorEmail": "manager@beta.demo"
+    }
+  ],
+  "nextCursor": "ODU2"
+}

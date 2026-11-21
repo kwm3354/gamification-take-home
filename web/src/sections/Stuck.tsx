@@ -16,7 +16,7 @@ interface StuckRow {
   lastPlatformCall: unknown;
 }
 
-interface StuckData {
+export interface StuckData {
   limitSec: number;
   items: StuckRow[];
 }

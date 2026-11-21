@@ -4,7 +4,7 @@ import { type Section, buildAdminHash } from "../admin/routes.ts";
 import { PageTitle, Notice } from "../admin/ui.tsx";
 import { coins } from "../format.ts";
 
-interface OverviewData {
+export interface OverviewData {
   at: string;
   players: number;
   events24h: { accepted: number; ignored: number };

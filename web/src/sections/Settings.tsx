@@ -11,7 +11,7 @@ import {
 } from "../admin/expected-prize.ts";
 import { useAdmin, useGet } from "../admin/hooks.ts";
 import { can } from "../admin/roles.ts";
-import { DataTable, Id, Mark, Notice, PageTitle, Time } from "../admin/ui.tsx";
+import { Actor, DataTable, Id, Mark, Notice, PageTitle, Time } from "../admin/ui.tsx";
 import { coins } from "../format.ts";
 
 export interface Seg {
@@ -34,13 +34,15 @@ export interface SettingsChange {
   expectedPrizeCoins: number | string | null;
   limitCoins: number | string | null;
   proposedBy: string;
+  proposedByEmail: string | null;
   decidedBy: string | null;
+  decidedByEmail: string | null;
   decisionNote: string | null;
   createdAt: string;
   decidedAt: string | null;
 }
 
-interface SettingsData {
+export interface SettingsData {
   wheel: { id: string; version: number; createdAt: string; segments: Seg[]; expectedPrizeCoins: number }[];
   grantPolicies: { id: string; version: number; createdAt: string; params: unknown }[];
   opsPolicies: { id: string; version: number; createdAt: string; params: { maxExpectedPrizeCoins?: number } & Record<string, unknown> }[];
@@ -86,8 +88,8 @@ export function ChangeTable({ changes }: { changes: SettingsChange[] }) {
         { header: "Status", render: (c) => <Mark status={c.status} /> },
         { header: "Expected prize", numeric: true, render: (c) => (c.expectedPrizeCoins === null ? "-" : plain(Number(c.expectedPrizeCoins))) },
         { header: "Limit", numeric: true, render: (c) => (c.limitCoins === null ? "-" : plain(Number(c.limitCoins))) },
-        { header: "Proposed by", render: (c) => <span className="mono">{c.proposedBy}</span> },
-        { header: "Decided by", render: (c) => <span className="mono">{c.decidedBy ?? "-"}</span> },
+        { header: "Proposed by", render: (c) => <Actor actor={c.proposedBy} email={c.proposedByEmail} /> },
+        { header: "Decided by", render: (c) => <Actor actor={c.decidedBy} email={c.decidedByEmail} /> },
         { header: "Note", render: (c) => c.decisionNote ?? "-" },
         {
           header: "Segments",

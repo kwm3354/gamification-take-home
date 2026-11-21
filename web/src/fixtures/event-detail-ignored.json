@@ -1,0 +1,21 @@
+{
+  "id": "d560938e-152b-4583-bea9-195183ef604e",
+  "externalEventId": "evt_ign_1",
+  "kind": "ignored",
+  "playerId": null,
+  "playerExternalId": null,
+  "receivedAt": "2026-11-21T09:14:14.185Z",
+  "normalized": {
+    "why": "type login.succeeded",
+    "kind": "ignored",
+    "externalEventId": "evt_ign_1"
+  },
+  "cursor": "WyIyMDI2LTExLTIxVDA5OjE0OjE0LjE4NTAwMFoiLCJkNTYwOTM4ZS0xNTJiLTQ1ODMtYmVhOS0xOTUxODNlZjYwNGUiXQ",
+  "raw": {
+    "type": "login.succeeded",
+    "event_id": "evt_ign_1",
+    "player_id": "a-big",
+    "occurred_at": "2026-11-21T09:14:14.083Z"
+  },
+  "spins": []
+}

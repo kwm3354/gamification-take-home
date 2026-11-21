@@ -1,0 +1,30 @@
+{
+  "change": {
+    "id": "928d3707-62f7-4097-a85c-c01046d47d40",
+    "tenantId": "alpha-casino",
+    "kind": "wheel_config",
+    "proposed": {
+      "segments": [
+        {
+          "coins": 1000,
+          "label": "1000 coins",
+          "weight": 1
+        },
+        {
+          "coins": 1,
+          "label": "1 coin",
+          "weight": 1
+        }
+      ]
+    },
+    "status": "proposed",
+    "expectedPrizeCoins": 500.5,
+    "limitCoins": 100,
+    "proposedBy": "admin/6a8b5022-521a-4426-8939-3bf87987bfc3",
+    "decidedBy": null,
+    "decisionNote": null,
+    "resultId": null,
+    "createdAt": "2026-11-21T09:20:29.564Z",
+    "decidedAt": null
+  }
+}

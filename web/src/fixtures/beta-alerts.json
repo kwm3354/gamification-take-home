@@ -1,0 +1,26 @@
+{
+  "at": "2026-11-21T09:20:29.279Z",
+  "policyVersion": 2,
+  "alerts": [
+    {
+      "code": "many_spins_one_player",
+      "severity": "warning",
+      "subject": "player/b-big",
+      "value": 60,
+      "limit": 20,
+      "detail": {
+        "windowHours": 24
+      }
+    },
+    {
+      "code": "many_spins_one_player",
+      "severity": "warning",
+      "subject": "player/b-stuck",
+      "value": 30,
+      "limit": 20,
+      "detail": {
+        "windowHours": 24
+      }
+    }
+  ]
+}
