@@ -48,19 +48,34 @@ CREATE TABLE IF NOT EXISTS wheel_configs (
   UNIQUE (tenant_id, version)
 );
 
--- One spin per accepted deposit. The outcome is fixed by (wheel_secret, id, wheel_config) from the start.
+-- Grant conditions are parameters, versioned like the wheel: a change is a new row. A spin keeps the
+-- policy it was granted under. params: { "minAmountMinor": 1, "currencies": null, "spinsPerDeposit": 1 }
+CREATE TABLE IF NOT EXISTS grant_policies (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   text NOT NULL REFERENCES tenants(id),
+  version     integer NOT NULL,
+  params      jsonb NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, version)
+);
+
+-- A deposit gives `spinsPerDeposit` spins, numbered by ordinal. The outcome is fixed by
+-- (wheel_secret, id, wheel_config) from the start.
 CREATE TABLE IF NOT EXISTS spins (
   id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id        text NOT NULL REFERENCES tenants(id),
   player_id        uuid NOT NULL REFERENCES players(id),
-  source_event_id  uuid NOT NULL UNIQUE REFERENCES inbound_events(id),
+  source_event_id  uuid NOT NULL REFERENCES inbound_events(id),
+  ordinal          integer NOT NULL DEFAULT 1,         -- 1..n among the spins of one deposit
   wheel_config_id  uuid NOT NULL REFERENCES wheel_configs(id),
+  grant_policy_id  uuid REFERENCES grant_policies(id), -- the policy version that granted it
   status           text NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'used')),
   segment_index    integer,
   coins            bigint,
   used_at          timestamptz,
   credited_at      timestamptz,                        -- set after the ledger confirmed the prize transfer
-  created_at       timestamptz NOT NULL DEFAULT now()
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (source_event_id, ordinal)
 );
 CREATE INDEX IF NOT EXISTS spins_by_player ON spins (tenant_id, player_id, created_at);
 
@@ -131,4 +146,6 @@ END $$ LANGUAGE plpgsql;
 CREATE OR REPLACE TRIGGER audit_log_append_only BEFORE UPDATE OR DELETE ON audit_log
   FOR EACH ROW EXECUTE FUNCTION forbid_change();
 CREATE OR REPLACE TRIGGER wheel_configs_append_only BEFORE UPDATE OR DELETE ON wheel_configs
+  FOR EACH ROW EXECUTE FUNCTION forbid_change();
+CREATE OR REPLACE TRIGGER grant_policies_append_only BEFORE UPDATE OR DELETE ON grant_policies
   FOR EACH ROW EXECUTE FUNCTION forbid_change();

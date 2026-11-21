@@ -8,7 +8,7 @@ page must change first. The shared files are `src/schema.sql`, `src/domain/coin-
 
 This list is the judge (`test/judge.ts`). The judge reads the fake casino and the ledger, not our tables.
 
-1. One deposit gives more than one spin.
+1. One deposit gives more spins than the grant policy of its time allows (one, by default).
 2. One spin gives more than one prize, or a prize the client chose.
 3. A coin balance goes below zero.
 4. One redemption reserves or debits coins twice, or the casino issues its reward twice.
@@ -47,7 +47,7 @@ env `FAKE_CASINO_URL` (default `http://fake-casino:4000`).
 ## Actors and audit
 
 Every create, update and delete of a row in `players`, `inbound_events`, `spins`, `redemptions`,
-`store_items`, `wheel_configs`, `tenants` goes through `src/audit/audited.ts`, inside the caller's
+`store_items`, `wheel_configs`, `grant_policies`, `tenants` goes through `src/audit/audited.ts`, inside the caller's
 transaction. There is no other write path to these tables.
 
 ```ts
@@ -118,7 +118,7 @@ signed token.
 
 | Call | Answers |
 |---|---|
-| `GET /me` | `{ "playerId", "tenantId", "balance": { "available": "150", "reserved": "0" }, "spins": [{ "id", "status", "coins" }] }` (coins as strings) |
+| `GET /me` | `{ "playerId", "tenantId", "balance": { "available": "150", "reserved": "0" } or null when the ledger does not answer, "spins": [{ "id", "status", "coins" }] }` (coins as strings) |
 | `GET /wheel` | `{ "version": 1, "segments": [{ "label", "coins" }] }` |
 | `POST /wheel/spins/:spinId/spin` | 200 `{ "spinId", "segmentIndex", "label", "coins" }`; the same answer for every repeat; 404 if the spin is not this player's |
 | `GET /store/items` | `[{ "id", "code", "name", "costCoins", "reward" }]` |
@@ -132,12 +132,33 @@ audit rows of that tenant for one entity.
 
 `segmentIndex` is a pure function `pickSegment(wheelSecret, spinId, segments)`:
 `n = first 8 bytes of HMAC-SHA256(wheelSecret, spinId) as an unsigned integer, mod (sum of weights)`,
-then walk the segments in order. The spin uses the wheel config it was granted with.
+then walk the segments in order. The spin uses the wheel config it was granted with. Several spins from one deposit (`ordinal` 1..n) have different ids and so independent outcomes.
 
 Spin: in one transaction `update` the spin from `available` to `used` with `segment_index`, `coins`,
 `used_at`, and enqueue `spin_credit`. After commit run the job at once (the timer is the safety
 net). The job calls `creditPrize` and then sets `credited_at`. A spin that is already `used` returns
 the stored result and makes sure the job exists.
+
+## Grant policy
+
+How many spins a deposit gives is decided by parameters, not by code. `grant_policies` is versioned
+like `wheel_configs`: a change is a new row (append-only), the newest version applies to new
+deposits, and each spin stores the `grant_policy_id` it was granted under. Both demo tenants get
+version 1: `{ "minAmountMinor": 1, "currencies": null, "spinsPerDeposit": 1 }`.
+
+- `params`: `minAmountMinor` integer >= 0; `currencies` null (any) or a non-empty list of 3-letter
+  upper-case codes; `spinsPerDeposit` integer 0..10. `validateGrantParams` enforces these limits.
+- Decision point: the pure function `spinsForDeposit(deposit, params)` in
+  `src/policies/grant-policy.ts`. It returns `{ spins }` or `{ spins: 0, reason }` with the reason
+  `below_minimum`, `currency_not_allowed` or `zero_spins`. A new condition is one more field, one more
+  check and one more test row.
+- Intake: the event is stored first. Then `deposit.ts` reads the newest policy and creates the spins
+  with `ordinal` 1..n, all in the event's transaction. `UNIQUE (source_event_id, ordinal)` and the
+  event dedup keep a repeated deposit from adding spins. With 0 spins the event still counts as
+  accepted and one audit `record` is written: action `spin_not_granted`, entity type `inbound_event`,
+  entity id the event row id, changes `{ reason, grantPolicyId }`.
+- Not built: conditions that need history (spins per player per day), an API or admin screen to
+  create a version (tests and the seed insert rows through `create`).
 
 ## Redemption: one intent, two steps
 

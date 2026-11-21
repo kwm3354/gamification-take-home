@@ -73,7 +73,9 @@ describe("audited writes", () => {
         "tenant_id",
         "player_id",
         "source_event_id",
+        "ordinal",
         "wheel_config_id",
+        "grant_policy_id",
         "status",
         "segment_index",
         "coins",
@@ -233,6 +235,7 @@ describe("audited writes", () => {
     await seedDemo(db, clock, "http://127.0.0.1:1");
     expect(await count("SELECT count(*)::int AS n FROM tenants")).toBe(2);
     expect(await count("SELECT count(*)::int AS n FROM wheel_configs")).toBe(2);
+    expect(await count("SELECT count(*)::int AS n FROM grant_policies")).toBe(2);
     expect(
       await count("SELECT count(*)::int AS n FROM store_items WHERE code IN ('bonus-5-eur', 'bonus-1-eur')"),
     ).toBe(4);
