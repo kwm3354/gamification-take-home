@@ -41,7 +41,9 @@ export class PlatformA implements CasinoPlatform {
     if (!isNonEmptyString(body.event_id)) throw new InvalidPayload("event_id");
     if (typeof body.type !== "string") throw new InvalidPayload("type");
     if (body.type !== "deposit.succeeded") {
-      return [{ kind: "ignored", externalEventId: body.event_id, why: `type ${body.type}` }];
+      return [
+        { kind: "ignored", externalEventId: `${body.event_id}:${body.type}`, why: `type ${body.type}` },
+      ];
     }
     if (!isNonEmptyString(body.player_id)) throw new InvalidPayload("player_id");
     if (!Number.isSafeInteger(body.amount_minor) || (body.amount_minor as number) <= 0) {

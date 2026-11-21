@@ -101,6 +101,53 @@ describe.skipIf(!running)("deposit intake", () => {
     expect(await count("spins", "tenant_id = 'beta-casino'")).toBe(1);
   });
 
+  test("4b. one id reported as pending and then as completed gives one spin, on both platforms, in any order", async () => {
+    const alphaEvent = (type: string) =>
+      JSON.stringify({ ...JSON.parse(alphaDeposit("evt-pend", "p-pend")), type });
+    expect((await postAlpha(alphaEvent("deposit.pending"))).json).toEqual({
+      accepted: 0,
+      duplicates: 0,
+      ignored: 1,
+    });
+    expect((await postAlpha(alphaEvent("deposit.pending"))).json).toEqual({
+      accepted: 0,
+      duplicates: 1,
+      ignored: 0,
+    });
+    expect((await postAlpha(alphaEvent("deposit.succeeded"))).json).toEqual({
+      accepted: 1,
+      duplicates: 0,
+      ignored: 0,
+    });
+    expect((await postAlpha(alphaEvent("deposit.succeeded"))).json).toEqual({
+      accepted: 0,
+      duplicates: 1,
+      ignored: 0,
+    });
+    expect((await me(alphaToken("p-pend"))).json.spins).toHaveLength(1);
+    // Out of order: completed first, then pending. No change.
+    const ok = await postAlpha(
+      alphaEvent("deposit.succeeded").replace("evt-pend", "evt-late").replace("p-pend", "p-late"),
+    );
+    expect(ok.json.accepted).toBe(1);
+    const late = alphaEvent("deposit.pending").replace("evt-pend", "evt-late").replace("p-pend", "p-late");
+    expect((await postAlpha(late)).json.accepted).toBe(0);
+    expect((await me(alphaToken("p-late"))).json.spins).toHaveLength(1);
+
+    const pendingB = { transactions: [betaTxn("T-pend", "b-pend", { state: "PENDING" })] };
+    const doneB = { transactions: [betaTxn("T-pend", "b-pend")] };
+    expect((await postBeta(pendingB)).json).toEqual({ accepted: 0, duplicates: 0, ignored: 1 });
+    expect((await postBeta(pendingB)).json).toEqual({ accepted: 0, duplicates: 1, ignored: 0 });
+    expect((await postBeta(doneB)).json).toEqual({ accepted: 1, duplicates: 0, ignored: 0 });
+    expect((await postBeta(doneB)).json).toEqual({ accepted: 0, duplicates: 1, ignored: 0 });
+    expect(await count("spins s JOIN players p ON p.id = s.player_id", "p.external_id = 'b-pend'")).toBe(1);
+    const lateB = {
+      transactions: [betaTxn("T-late", "b-late"), betaTxn("T-late", "b-late", { state: "PENDING" })],
+    };
+    expect((await postBeta(lateB)).json.accepted).toBe(1);
+    expect(await count("spins s JOIN players p ON p.id = s.player_id", "p.external_id = 'b-late'")).toBe(1);
+  });
+
   test("5. bad signature on A and B: 401, nothing stored, one webhook_rejected audit row each", async () => {
     const before = {
       players: await count("players"),

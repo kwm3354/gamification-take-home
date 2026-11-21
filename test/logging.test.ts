@@ -442,7 +442,7 @@ describe.skipIf(!running)("logs of the running service", () => {
     expect(named("event.ignored")).toHaveLength(1);
     expect(named("event.ignored")[0]).toMatchObject({
       tenantId: ALPHA,
-      externalEventId: "e-login",
+      externalEventId: "e-login:player.login",
       why: "type player.login",
     });
     // Beta wrote its info lines, and none at debug.

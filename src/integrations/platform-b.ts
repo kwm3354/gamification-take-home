@@ -66,7 +66,8 @@ export class PlatformB implements CasinoPlatform {
       if (entry.kind !== "DEPOSIT" || entry.state !== "COMPLETED") {
         return {
           kind: "ignored",
-          externalEventId: entry.txnId,
+          // The state is part of the key, so a pending entry does not take the key of the completed one.
+          externalEventId: `${entry.txnId}:${String(entry.kind)}:${String(entry.state)}`,
           why: `${String(entry.kind)} ${String(entry.state)}`,
         };
       }
