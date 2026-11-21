@@ -48,6 +48,8 @@ services:
       PORT: "3000"
       SEED_DEMO: "1"
       FAKE_CASINO_URL: http://fake-casino:4000
+      # The fake casino's address as the browser sees it. The web app at /app/ uses it.
+      PUBLIC_FAKE_CASINO_URL: http://localhost:${FAKE_PORT:-30081}
     depends_on:
       postgres: { condition: service_healthy }
       tigerbeetle: { condition: service_healthy }

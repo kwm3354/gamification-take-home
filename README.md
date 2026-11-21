@@ -17,8 +17,17 @@ curl http://127.0.0.1:30080/health
 
 The answer is `{"ok":true,"postgres":"ok","ledger":"ok"}`.
 
-Then open http://localhost:30081/ in a browser. It is a playground page that plays the casino
-and the player, can inject faults and shows a verdict. Sample requests are in `docs/samples.md`.
+Then open three pages in a browser:
+
+- http://localhost:30080/app/ is the player page: a Wheel of Fortune you can spin, your coins and the
+  reward store, as it would sit on a casino's site. "See what happened behind the scenes" at the
+  bottom tells the story of each step in plain sentences and shows the real requests.
+- http://localhost:30080/app/#/admin is the back office: alerts, stuck redemptions, the audit trail,
+  and the players of this session. It shares its session with the player page.
+- http://localhost:30081/ is the casino control panel. It plays the casino, can inject faults, runs
+  many players and shows a verdict.
+
+Sample requests are in `docs/samples.md`.
 
 Stop and delete the data:
 
@@ -34,6 +43,9 @@ npm ci
 docker compose up -d --wait tigerbeetle
 TB_ADDRESS=127.0.0.1:30009 npm run verify
 ```
+
+The web app (`web/`) is built in the app image. To check it on its own: `npm run verify:web`
+(installs, type-checks, runs its unit tests and builds).
 
 These commands are the ones CI runs on every push (`.github/workflows/ci.yml`), on a GitHub
 runner with the official images.
