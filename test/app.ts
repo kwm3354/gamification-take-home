@@ -9,6 +9,7 @@ import { CONFIG, type Config } from "../src/config.ts";
 import { DB } from "../src/db.module.ts";
 import type { Db } from "../src/db.ts";
 import { LEDGER, type Ledger } from "../src/ledger/ledger.module.ts";
+import { LOG_LEVELS, LOG_SINK, type TenantLevels } from "../src/logging/log.module.ts";
 import { freshDb } from "./harness.ts";
 import { startTigerBeetle } from "./tigerbeetle.ts";
 
@@ -22,6 +23,12 @@ export interface TestApp {
   clock: FakeClock;
   /** The config the app runs with. */
   config: Config;
+  /** Every log line the app wrote, parsed. `logs.length = 0` clears it (clear `rawLogs` too). */
+  logs: Record<string, unknown>[];
+  /** The same lines as the sink got them, before parsing. */
+  rawLogs: string[];
+  /** The per-tenant log level cache; `await levels.settled()` after moving the clock past 30 s. */
+  levels: TenantLevels;
   close: () => Promise<void>;
 }
 
@@ -51,6 +58,14 @@ export async function startApp(
     fakeCasinoUrl: "http://127.0.0.1:1",
     ...options.config,
   };
+  const logs: Record<string, unknown>[] = [];
+  const rawLogs: string[] = [];
+  const sink = {
+    write: (line: string) => {
+      rawLogs.push(line);
+      logs.push(JSON.parse(line));
+    },
+  };
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(CONFIG)
     .useValue(config)
@@ -58,6 +73,8 @@ export async function startApp(
     .useValue(db)
     .overrideProvider(CLOCK)
     .useValue(clock)
+    .overrideProvider(LOG_SINK)
+    .useValue(sink)
     .compile();
   const app = moduleRef.createNestApplication({ rawBody: true });
   app.enableShutdownHooks();
@@ -70,6 +87,9 @@ export async function startApp(
     ledger: app.get<Ledger>(LEDGER),
     clock,
     config,
+    logs,
+    rawLogs,
+    levels: app.get<TenantLevels>(LOG_LEVELS),
     close: async () => {
       await app.close(); // closes the database pool and the ledger client
       tb.stop();
