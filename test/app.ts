@@ -54,6 +54,7 @@ export async function startApp(
     role: "all",
     outboxBatch: 16,
     outboxPollMs: 500,
+    outboxLeaseMs: 60_000,
     dbPoolMax: 5,
     tbAddress: tb.address,
     port: 0,

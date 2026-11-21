@@ -147,7 +147,8 @@ taking different jobs. The process role is the env `ROLE`:
 | `worker` | listens, but is not published: only `GET /health` is meant to be called | yes |
 
 `OUTBOX_TIMER=off` still turns the timer off in any role (tests use it). `OUTBOX_BATCH` (default 16)
-is how many jobs one claim takes; `OUTBOX_POLL_MS` (default 500) is how often the timer looks.
+is how many jobs one claim takes; `OUTBOX_POLL_MS` (default 500) is how often the timer looks;
+`OUTBOX_LEASE_MS` (default 60000) is how long a claim lasts.
 There is no route filtering in a worker: it runs the same app, and nothing routes traffic to it.
 
 The schema (and the demo seed, when `SEED_DEMO=1`) is applied at start. Applying the schema runs under

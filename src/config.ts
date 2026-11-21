@@ -13,6 +13,8 @@ export interface Config {
   outboxBatch: number;
   /** How often the outbox timer looks for due jobs, in ms. */
   outboxPollMs: number;
+  /** How long a worker's claim on a job lasts, in ms. A worker that dies leaves its claim for this long. */
+  outboxLeaseMs: number;
   databaseUrl: string;
   /** Largest number of PostgreSQL connections in this process's pool. */
   dbPoolMax: number;
@@ -63,6 +65,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     role,
     outboxBatch: Number(env.OUTBOX_BATCH ?? 16),
     outboxPollMs: Number(env.OUTBOX_POLL_MS ?? 500),
+    outboxLeaseMs: Number(env.OUTBOX_LEASE_MS ?? 60_000),
     databaseUrl: need("DATABASE_URL"),
     tbAddress: need("TB_ADDRESS"),
     dbPoolMax: Number(env.DB_POOL_MAX ?? 20),
