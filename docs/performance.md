@@ -330,3 +330,37 @@ under a limit of two at a time. Changed:
 
 New tests show the mechanism (no session idle in a transaction while the casino delays its answer;
 forty redemptions with 200 ms answers finish in under 2 s). They are not a throughput measurement.
+
+## Second measurement, after the change (short)
+
+Run at 15:03–15:08 on the same development machine, with compose as shipped after the change:
+one API process and two worker processes, pool of 20, tracing on for every request. One run per
+cell, 1000 requests for deposits and spins, 500 for redemptions. The machine was busier than
+during the first measurement (load average 6 at the start, 12 at the end; other work was running
+on it), so the comparison is rough, and deposits and spins came out lower than before for that
+reason or for another one that was not looked into.
+
+| Scenario | Concurrency | Requests/s | p50 ms | p99 ms |
+|---|---|---|---|---|
+| deposit | 8 | 190 | 39 | 84 |
+| deposit | 64 | 231 | 272 | 328 |
+| spin | 8 | 108 | 69 | 186 |
+| spin | 64 | 180 | 347 | 507 |
+| redeem, platform A | 8 | 53 | 143 | 271 |
+| redeem, platform A | 64 | 112 | 320 | 1295 |
+| redeem, platform B | 8 | 59 | 131 | 274 |
+| redeem, platform B | 64 | 118 | 332 | 1251 |
+
+What it shows:
+
+- Redemption requests: about 30 per second at any concurrency before the change; 53 at
+  concurrency 8 and 112–118 at concurrency 64 after it. The cap is gone and the rate now grows
+  with concurrency.
+- All 2000 redemptions ended issued and settled in the ledger; no errors in any run.
+- Platform B: the last redemption became final 34–36 s after the requests ended, the same as
+  before. The fake casino sends its result messages one at a time from a timer, so this number
+  measures the fake, not our workers.
+
+Not measured: one worker against two or four, the same runs on a quiet machine, tracing off,
+and where the time goes inside a deposit or a spin at concurrency 64 (the traces were not read
+for this run).
