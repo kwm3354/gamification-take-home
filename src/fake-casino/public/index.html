@@ -322,7 +322,7 @@ function renderGrants(state) {
   const rows = [...state.grants].reverse().map((g) => {
     const t = tenantById(g.tenantId);
     return h('tr', {},
-      h('td', { text: g.at.slice(11, 19) }),
+      h('td', { text: new Date(g.at).toTimeString().slice(0, 8) }),
       h('td', { text: t ? t.name : g.tenantId }),
       h('td', { class: 'break', text: g.playerId }),
       h('td', { text: money(g) + ' (' + g.platformRef + ')' }),
