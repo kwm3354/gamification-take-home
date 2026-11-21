@@ -211,12 +211,13 @@ Demo users of the back office (the demo seed creates them; the sign-in page also
 Five wrong passwords lock a user for 15 minutes. Sign in from the command line and use the token:
 
 ```
-curl -s -X POST http://localhost:30080/admin/auth/login -H 'content-type: application/json' \
-  -d '{"email":"ops@demo.local","password":"demo-ops-password-1"}'
+TOKEN=$(curl -s -X POST http://localhost:30080/admin/auth/login -H 'content-type: application/json' \
+  -d '{"email":"ops@demo.local","password":"demo-ops-password-1"}' \
+  | python3 -c 'import sys, json; print(json.load(sys.stdin)["token"])')
 curl -s http://localhost:30080/admin/alpha-casino/overview -H "authorization: Bearer $TOKEN"
 ```
 
-The first call answers `{ token, expiresAt, user }`; the token lasts 30 minutes.
+The sign-in answers `{ token, expiresAt, user }`; the token lasts 30 minutes.
 
 Sample requests are in `docs/samples.md`.
 
@@ -230,6 +231,10 @@ the "Tracing" section of `docs/contracts.md`.
 
 To look at the screens without the stack: `npm run web:build`, then `node web/dev/mock-server.mjs` and open
 http://localhost:4800/app/. The mock is a development aid built from `docs/contracts.md`, not the service.
+
+If a port is taken on your machine, set another one: `APP_PORT` (30080), `FAKE_PORT` (30081),
+`JAEGER_PORT` (30086), `TB_PORT` (30009), `PG_PORT` (54329), for example
+`APP_PORT=8080 docker compose up -d --build --wait`.
 
 More workers: `docker compose up -d --scale worker=4`. Workers are the same image started with
 `ROLE=worker`; they take jobs from the outbox and can be added or removed at any time.
@@ -245,9 +250,15 @@ in Docker and use the TigerBeetle from Compose:
 
 ```
 npm ci
+docker compose down
 docker compose up -d --wait tigerbeetle
 TB_ADDRESS=127.0.0.1:30009 npm run verify
 ```
+
+Stop the rest of the stack first, as above: the tests start their own API and worker processes
+against the same TigerBeetle, and several of them have time limits that a busy machine can miss.
+In a clean-clone check, a run beside the full stack on a loaded machine failed with timeouts, and
+the same command passed once the stack was stopped.
 
 The web app (`web/`) is built in the app image. To check it on its own: `npm run verify:web`
 (installs, type-checks, runs its unit tests and builds).
