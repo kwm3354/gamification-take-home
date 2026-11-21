@@ -45,12 +45,29 @@ services:
       DATABASE_URL: postgres://app:app@postgres:5432/app
       TB_ADDRESS: tigerbeetle:3000
       PORT: "3000"
+      SEED_DEMO: "1"
+      FAKE_CASINO_URL: http://fake-casino:4000
     depends_on:
       postgres: { condition: service_healthy }
       tigerbeetle: { condition: service_healthy }
     ports: ["30080:3000"]
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  # The fake casino: plays both platforms, can be told to fail, and shows what the casino saw.
+  # Host port 30081. The app does not depend on it; it is only called when a grant is made.
+  fake-casino:
+    build: .
+    command: ["node", "dist/fake-casino/main.js"]
+    environment:
+      PORT: "4000"
+      APP_URL: http://app:3000
+    ports: ["30081:4000"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/control/state').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
       interval: 2s
       timeout: 5s
       retries: 30
