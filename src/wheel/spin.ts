@@ -2,6 +2,7 @@ import { type Row, update } from "../audit/audited.ts";
 import type { Clock } from "../clock.ts";
 import { type Db, transaction } from "../db.ts";
 import type { CoinLedger } from "../domain/coin-ledger.ts";
+import type { Log } from "../logging/log.ts";
 import type { Outbox } from "../outbox/outbox.ts";
 import { findTenant } from "../tenants/tenants.ts";
 import { type Segment, pickSegment } from "./pick-segment.ts";
@@ -27,6 +28,7 @@ export class SpinService {
     private readonly clock: Clock,
     private readonly coins: CoinLedger,
     private readonly outbox: Outbox,
+    private readonly log?: Log,
   ) {}
 
   /** The spin of this player, or null. Never says whether a spin of someone else exists. */
@@ -90,7 +92,16 @@ export class SpinService {
         await this.outbox.enqueue(tx, { tenantId: tenant.id, kind: "spin_credit", refId: spinId });
         return changed.after;
       });
-      if (won) return { result: this.resultOf(won, segments), fresh: true };
+      if (won) {
+        const result = this.resultOf(won, segments);
+        this.log?.event("info", "spin.used", {
+          tenantId: tenant.id,
+          spinId,
+          playerId,
+          coins: result.coins,
+        });
+        return { result, fresh: true };
+      }
     }
 
     // Someone else used it first, or it was used before: return the stored result.
@@ -123,5 +134,6 @@ export class SpinService {
         cur.credited_at ? null : { credited_at: now },
       ),
     );
+    this.log?.event("debug", "spin.credited", { tenantId: tenant.id, spinId });
   }
 }

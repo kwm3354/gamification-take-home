@@ -22,6 +22,7 @@ import {
   type RewardRequest,
 } from "../domain/casino-platform.ts";
 import { type CoinLedger, LedgerUnavailable } from "../domain/coin-ledger.ts";
+import type { Log } from "../logging/log.ts";
 import type { Outbox } from "../outbox/outbox.ts";
 import { type Tenant, findTenant } from "../tenants/tenants.ts";
 
@@ -99,6 +100,8 @@ export interface StoreDeps {
   platforms: Platforms;
   platformTimeoutMs: number;
   slots: Slots;
+  /** Optional so that code which builds the deps by hand keeps working. */
+  log?: Log;
 }
 
 export const backoffMs = (attempts: number): number =>
@@ -202,7 +205,15 @@ export async function createRedemption(
     if (made) await deps.outbox.enqueue(tx, { tenantId: input.tenantId, kind: JOB_KIND, refId: made.id });
     return made;
   });
-  if (row) return { row, created: true };
+  if (row) {
+    deps.log?.event("info", "redemption.created", {
+      tenantId: input.tenantId,
+      redemptionId: row.id,
+      playerId: input.playerId,
+      costCoins: String(row.cost_coins),
+    });
+    return { row, created: true };
+  }
   // Another request with the same key won the race. Its row is committed by now.
   const winner = await existing();
   if (!winner) throw new Error("redemption vanished after a key conflict");
@@ -216,7 +227,7 @@ export async function createRedemption(
  * The job row is touched first, then the redemption row: the same order the job runner uses.
  */
 export async function confirm(
-  deps: Pick<StoreDeps, "db" | "clock" | "outbox">,
+  deps: Pick<StoreDeps, "db" | "clock" | "outbox" | "log">,
   tenantId: string,
   redemptionId: string,
   outcome: Extract<RewardOutcome, { kind: "issued" | "refused" }>,
@@ -229,7 +240,9 @@ export async function confirm(
   },
 ): Promise<boolean> {
   const ctx = ctxFor(deps, tenantId, actor);
-  return transaction(deps.db, async (tx) => {
+  // What happened, written to the log only after the transaction has committed.
+  let contradicted: { final: string; late: string } | undefined;
+  const applied = await transaction(deps.db, async (tx) => {
     if (options.rearm) await deps.outbox.enqueue(tx, { tenantId, kind: JOB_KIND, refId: redemptionId });
     const seen: { status?: string } = {};
     const changed = await update(tx, ctx, "redemptions", redemptionId, (cur) => {
@@ -260,9 +273,22 @@ export async function confirm(
           ...(outcome.kind === "issued" ? { platformRef: outcome.platformRef } : { reason: outcome.reason }),
         },
       });
+      contradicted = { final: seen.status, late: outcome.kind };
     }
     return false;
   });
+  if (applied) {
+    deps.log?.event("info", "redemption.status", {
+      tenantId,
+      redemptionId,
+      from: "submitting",
+      to: outcome.kind,
+      ...(outcome.kind === "refused" ? { reason: outcome.reason } : {}),
+    });
+  } else if (contradicted) {
+    deps.log?.event("warn", "redemption.contradicted", { tenantId, redemptionId, ...contradicted });
+  }
+  return applied;
 }
 
 /** A message from the platform (platform B's webhook). Returns the redemption as it is afterwards. */
@@ -300,10 +326,13 @@ export async function applyNotice(
 async function observed<T extends RewardOutcome | "not_found">(
   deps: StoreDeps,
   w: Work,
-  actor: string,
+  opts: StepOptions,
   call: "issue" | "find",
   run: () => Promise<T>,
 ): Promise<T> {
+  const actor = opts.actor;
+  const started = deps.clock.now().getTime();
+  const ms = () => deps.clock.now().getTime() - started;
   const fact = (changes: unknown) =>
     transaction(deps.db, (tx) =>
       record(tx, ctxFor(deps, w.tenant.id, actor), {
@@ -317,9 +346,26 @@ async function observed<T extends RewardOutcome | "not_found">(
   try {
     result = await run();
   } catch (e) {
-    if (e instanceof PlatformUnreachable) await fact({ call, error: e.message });
+    if (e instanceof PlatformUnreachable) {
+      await fact({ call, error: e.message });
+      deps.log?.event("warn", "platform.unreachable", {
+        tenantId: w.tenant.id,
+        redemptionId: w.row.id,
+        call,
+        error: e.message,
+        retryInMs: retryAfter(e, opts.attempts),
+        ms: ms(),
+      });
+    }
     throw e;
   }
+  deps.log?.event("info", "platform.call", {
+    tenantId: w.tenant.id,
+    redemptionId: w.row.id,
+    call,
+    outcome: result === "not_found" ? "not_found" : result.kind,
+    ms: ms(),
+  });
   await fact({
     call,
     outcome: result === "not_found" ? "not_found" : result.kind,
@@ -327,6 +373,10 @@ async function observed<T extends RewardOutcome | "not_found">(
   });
   return result;
 }
+
+/** How long to wait after an unreachable platform: what it asked for, or the backoff. */
+const retryAfter = (e: PlatformUnreachable, attempts: number): number =>
+  e.retryAfterMs ?? backoffMs(attempts);
 
 async function submittingStep(deps: StoreDeps, w: Work, opts: StepOptions): Promise<Step> {
   const platform = deps.platforms.for(w.tenant.platform);
@@ -344,10 +394,10 @@ async function submittingStep(deps: StoreDeps, w: Work, opts: StepOptions): Prom
   };
   try {
     // Look first, always. Only "the platform has never heard of it" allows a call that issues.
-    const found = await observed(deps, w, opts.actor, "find", () => platform.findReward(conn, w.row.id));
+    const found = await observed(deps, w, opts, "find", () => platform.findReward(conn, w.row.id));
     const outcome =
       found === "not_found"
-        ? await observed(deps, w, opts.actor, "issue", () => platform.issueReward(conn, request))
+        ? await observed(deps, w, opts, "issue", () => platform.issueReward(conn, request))
         : found;
     if (outcome.kind === "pending") {
       const ref = outcome.platformRef;
@@ -366,7 +416,7 @@ async function submittingStep(deps: StoreDeps, w: Work, opts: StepOptions): Prom
     await confirm(deps, w.tenant.id, w.row.id, outcome, opts.actor, { rearm: false });
     return "again";
   } catch (e) {
-    if (e instanceof PlatformUnreachable) return { retryInMs: e.retryAfterMs ?? backoffMs(opts.attempts) };
+    if (e instanceof PlatformUnreachable) return { retryInMs: retryAfter(e, opts.attempts) };
     throw e;
   }
 }
@@ -386,18 +436,30 @@ export async function advance(deps: StoreDeps, redemptionId: string, opts: StepO
   if (!w) return "done";
   const { row, tenant } = w;
   const ctx = ctxFor(deps, tenant.id, opts.actor);
-  const move = (from: RedemptionStatus, to: RedemptionStatus) =>
-    transaction(deps.db, (tx) =>
+  const move = async (from: RedemptionStatus, to: RedemptionStatus) => {
+    const changed = await transaction(deps.db, (tx) =>
       update(tx, ctx, "redemptions", row.id, (cur) =>
         cur.status === from ? { status: to, updated_at: ctx.now } : null,
       ),
     );
-  const settle = () =>
-    transaction(deps.db, (tx) =>
+    if (changed)
+      deps.log?.event("info", "redemption.status", { tenantId: tenant.id, redemptionId: row.id, from, to });
+  };
+  const settle = async (from: RedemptionStatus) => {
+    const changed = await transaction(deps.db, (tx) =>
       update(tx, ctx, "redemptions", row.id, (cur) =>
         cur.settled_at === null ? { settled_at: ctx.now, updated_at: ctx.now } : null,
       ),
     );
+    if (changed) {
+      deps.log?.event("info", "redemption.status", {
+        tenantId: tenant.id,
+        redemptionId: row.id,
+        from,
+        to: "settled",
+      });
+    }
+  };
 
   switch (row.status) {
     case "created": {
@@ -419,12 +481,12 @@ export async function advance(deps: StoreDeps, redemptionId: string, opts: StepO
     case "issued":
       if (row.settled_at) return "done";
       await deps.coins.capture({ ledgerNo: tenant.ledgerNo, redemptionId: row.id });
-      await settle();
+      await settle("issued");
       return "done";
     case "refused":
       if (row.settled_at) return "done";
       await deps.coins.release({ ledgerNo: tenant.ledgerNo, redemptionId: row.id });
-      await settle();
+      await settle("refused");
       return "done";
     default:
       return "done"; // insufficient: final, nothing was reserved
@@ -456,7 +518,7 @@ export async function runInline(
   await deps.slots.run(() =>
     transaction(deps.db, async (tx: pg.PoolClient) => {
       const { rows } = await tx.query(
-        "SELECT id, attempts FROM outbox WHERE kind = $1 AND ref_id = $2 FOR UPDATE SKIP LOCKED",
+        "SELECT id, tenant_id, attempts FROM outbox WHERE kind = $1 AND ref_id = $2 FOR UPDATE SKIP LOCKED",
         [JOB_KIND, redemptionId],
       );
       const job = rows[0];
@@ -478,11 +540,26 @@ export async function runInline(
           job.id,
           later(result.retryInMs),
         ]);
+        deps.log?.event("debug", "outbox.retry", {
+          tenantId: job.tenant_id,
+          kind: JOB_KIND,
+          refId: redemptionId,
+          attempts: job.attempts + 1,
+          retryInMs: result.retryInMs,
+        });
       } else if (typeof result === "object") {
         await tx.query(
           "UPDATE outbox SET run_at = $2, attempts = attempts + 1, last_error = $3 WHERE id = $1",
           [job.id, later(backoffMs(job.attempts)), result.error],
         );
+        deps.log?.event("debug", "outbox.retry", {
+          tenantId: job.tenant_id,
+          kind: JOB_KIND,
+          refId: redemptionId,
+          attempts: job.attempts + 1,
+          retryInMs: backoffMs(job.attempts),
+          error: result.error,
+        });
       }
       // "again" after the last step: the job stays due and the timer continues.
     }),

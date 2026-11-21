@@ -10,6 +10,7 @@ import {
   amount_max,
 } from "tigerbeetle-node";
 import { type CoinLedger, LedgerUnavailable } from "../domain/coin-ledger.ts";
+import type { Log } from "../logging/log.ts";
 
 /** A capture came after a release, or a release after a capture. The two must never both happen. */
 export class LedgerConflict extends Error {}
@@ -76,6 +77,7 @@ export class TigerBeetleCoinLedger implements CoinLedger {
   constructor(
     private readonly client: Client,
     private readonly timeoutMs: number,
+    private readonly log?: Log,
   ) {}
 
   /**
@@ -83,13 +85,13 @@ export class TigerBeetleCoinLedger implements CoinLedger {
    * still finish after we gave up. That is safe: every transfer id is derived from the spin or
    * redemption id, so the caller's retry repeats the same transfer and the ledger answers "exists".
    */
-  private async limited<T>(work: () => Promise<T>): Promise<T> {
+  private async limited<T>(op: string, work: () => Promise<T>): Promise<T> {
     let timer: NodeJS.Timeout | undefined;
     const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(
-        () => reject(new LedgerUnavailable(`ledger did not answer in ${this.timeoutMs} ms`)),
-        this.timeoutMs,
-      );
+      timer = setTimeout(() => {
+        this.log?.event("warn", "ledger.unavailable", { op });
+        reject(new LedgerUnavailable(`ledger did not answer in ${this.timeoutMs} ms`));
+      }, this.timeoutMs);
     });
     const running = work();
     running.catch(() => {}); // if the time limit wins, a late failure must not become an unhandled rejection
@@ -133,7 +135,7 @@ export class TigerBeetleCoinLedger implements CoinLedger {
     coins: bigint;
   }): Promise<void> {
     positive(input.coins);
-    return this.limited(async () => {
+    return this.limited("creditPrize", async () => {
       await this.ensureAccounts([
         account(issuerId(input.ledgerNo), input.ledgerNo, CODE_ISSUER, AccountFlags.none),
         this.playerAccount(input.ledgerNo, input.playerId),
@@ -162,7 +164,7 @@ export class TigerBeetleCoinLedger implements CoinLedger {
     coins: bigint;
   }): Promise<"reserved" | "insufficient"> {
     positive(input.coins);
-    return this.limited(async () => {
+    return this.limited("reserve", async () => {
       await this.ensureAccounts([
         this.playerAccount(input.ledgerNo, input.playerId),
         account(redeemedId(input.ledgerNo), input.ledgerNo, CODE_REDEEMED, AccountFlags.none),
@@ -191,7 +193,7 @@ export class TigerBeetleCoinLedger implements CoinLedger {
   }
 
   capture(input: { ledgerNo: number; redemptionId: string }): Promise<void> {
-    return this.limited(async () => {
+    return this.limited("capture", async () => {
       const status = await this.one(
         transfer({
           id: ledgerId(`xfer:capture:${input.redemptionId}`),
@@ -211,7 +213,7 @@ export class TigerBeetleCoinLedger implements CoinLedger {
   }
 
   release(input: { ledgerNo: number; redemptionId: string }): Promise<void> {
-    return this.limited(async () => {
+    return this.limited("release", async () => {
       const status = await this.one(
         transfer({
           id: ledgerId(`xfer:release:${input.redemptionId}`),
@@ -230,7 +232,7 @@ export class TigerBeetleCoinLedger implements CoinLedger {
   }
 
   balance(input: { ledgerNo: number; playerId: string }): Promise<{ available: bigint; reserved: bigint }> {
-    return this.limited(async () => {
+    return this.limited("balance", async () => {
       const [found] = await this.client.lookupAccounts([playerAccountId(input.ledgerNo, input.playerId)]);
       if (!found) return { available: 0n, reserved: 0n };
       return {
@@ -241,7 +243,7 @@ export class TigerBeetleCoinLedger implements CoinLedger {
   }
 
   outstanding(input: { ledgerNo: number }): Promise<bigint> {
-    return this.limited(async () => {
+    return this.limited("outstanding", async () => {
       const found = await this.client.lookupAccounts([issuerId(input.ledgerNo), redeemedId(input.ledgerNo)]);
       const issuer = found.find((a) => a.id === issuerId(input.ledgerNo));
       const redeemed = found.find((a) => a.id === redeemedId(input.ledgerNo));

@@ -4,6 +4,8 @@ import type { Clock } from "../clock.ts";
 import { DB } from "../db.module.ts";
 import type { Db } from "../db.ts";
 import { COIN_LEDGER, type CoinLedger } from "../domain/coin-ledger.ts";
+import { LOG } from "../logging/log.module.ts";
+import type { Log } from "../logging/log.ts";
 import { OUTBOX, type Outbox } from "../outbox/outbox.ts";
 import { TenantsModule } from "../tenants/tenants.module.ts";
 import { SpinService } from "./spin.ts";
@@ -16,9 +18,9 @@ import { WheelController } from "./wheel.controller.ts";
   providers: [
     {
       provide: SpinService,
-      inject: [DB, CLOCK, COIN_LEDGER, OUTBOX],
-      useFactory: (db: Db, clock: Clock, coins: CoinLedger, outbox: Outbox) =>
-        new SpinService(db, clock, coins, outbox),
+      inject: [DB, CLOCK, COIN_LEDGER, OUTBOX, LOG],
+      useFactory: (db: Db, clock: Clock, coins: CoinLedger, outbox: Outbox, log: Log) =>
+        new SpinService(db, clock, coins, outbox, log),
     },
   ],
 })

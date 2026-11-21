@@ -1,6 +1,7 @@
 import type pg from "pg";
 import type { Clock } from "../clock.ts";
 import { type Db, transaction } from "../db.ts";
+import { type Log, withRequestId } from "../logging/log.ts";
 
 /** Injection token: `@Inject(OUTBOX) private readonly outbox: Outbox`. */
 export const OUTBOX = Symbol("OUTBOX");
@@ -40,6 +41,7 @@ export class Outbox {
   constructor(
     private readonly db: Db,
     private readonly clock: Clock,
+    private readonly log?: Log,
   ) {}
 
   handle(kind: string, fn: JobHandler): void {
@@ -87,11 +89,12 @@ export class Outbox {
         attempts: row.attempts,
       };
 
+      const requestId = `job:${job.kind}:${job.refId}`;
       let outcome: "done" | { retryInMs: number } | { error: string };
       try {
         const handler = this.handlers.get(job.kind);
         if (!handler) throw new Error(`no handler for ${job.kind}`);
-        outcome = await handler(job);
+        outcome = await withRequestId(requestId, () => handler(job));
       } catch (e) {
         outcome = { error: e instanceof Error ? e.message : String(e) };
       }
@@ -106,17 +109,42 @@ export class Outbox {
           row.id,
           later(outcome.retryInMs),
         ]);
+        this.log?.event("debug", "outbox.retry", {
+          tenantId: job.tenantId,
+          requestId,
+          kind: job.kind,
+          refId: job.refId,
+          attempts: job.attempts + 1,
+          retryInMs: outcome.retryInMs,
+        });
       } else if (job.attempts + 1 >= MAX_ATTEMPTS) {
         await tx.query(
           "UPDATE outbox SET dead_at = $2, attempts = attempts + 1, last_error = $3 WHERE id = $1",
           [row.id, after, outcome.error],
         );
+        this.log?.event("error", "outbox.dead", {
+          tenantId: job.tenantId,
+          requestId,
+          kind: job.kind,
+          refId: job.refId,
+          attempts: job.attempts + 1,
+          lastError: outcome.error,
+        });
       } else {
         const delay = Math.min(FIRST_DELAY_MS * 2 ** job.attempts, MAX_DELAY_MS);
         await tx.query(
           "UPDATE outbox SET run_at = $2, attempts = attempts + 1, last_error = $3 WHERE id = $1",
           [row.id, later(delay), outcome.error],
         );
+        this.log?.event("debug", "outbox.retry", {
+          tenantId: job.tenantId,
+          requestId,
+          kind: job.kind,
+          refId: job.refId,
+          attempts: job.attempts + 1,
+          retryInMs: delay,
+          error: outcome.error,
+        });
       }
       return true;
     });

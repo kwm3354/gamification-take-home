@@ -11,6 +11,7 @@ import { CLOCK } from "../clock.module.ts";
 import type { Clock } from "../clock.ts";
 import { DB } from "../db.module.ts";
 import { type Db, transaction } from "../db.ts";
+import { currentRequestId } from "../logging/log.ts";
 import { verifyPlayerToken } from "./player-token.ts";
 import { type Player, findOrCreatePlayer } from "./players.ts";
 import { type Tenant, findTenant } from "./tenants.ts";
@@ -40,11 +41,10 @@ export class PlayerAuthGuard implements CanActivate {
     if (!match?.[1]) throw new UnauthorizedException();
     const verified = await verifyPlayerToken(match[1], this.clock.now(), (id) => findTenant(this.db, id));
     if (!verified) throw new UnauthorizedException();
-    const requestHeader = req.headers["x-request-id"];
     const ctx = {
       tenantId: verified.tenant.id,
       actor: `player/${verified.externalId}`,
-      requestId: typeof requestHeader === "string" ? requestHeader : randomUUID(),
+      requestId: currentRequestId() ?? randomUUID(),
       now: this.clock.now(),
     };
     const player = await transaction(this.db, (tx) =>

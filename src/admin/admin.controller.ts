@@ -6,7 +6,6 @@ import {
   Get,
   HttpCode,
   Inject,
-  Logger,
   NotFoundException,
   Param,
   Post,
@@ -21,6 +20,8 @@ import type { Clock } from "../clock.ts";
 import { CONFIG, type Config } from "../config.ts";
 import { DB } from "../db.module.ts";
 import type { Db } from "../db.ts";
+import { LOG } from "../logging/log.module.ts";
+import type { Log } from "../logging/log.ts";
 import { OUTBOX, type Outbox } from "../outbox/outbox.ts";
 import { toView } from "../store/redemption.ts";
 import { StoreService } from "../store/store.service.ts";
@@ -33,14 +34,13 @@ import { stuckRedemptions } from "./stuck.ts";
 @Controller("admin/:tenantId")
 @UseGuards(AdminGuard)
 export class AdminController {
-  private readonly log = new Logger("Admin");
-
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(CONFIG) private readonly config: Config,
     @Inject(OUTBOX) private readonly outbox: Outbox,
     private readonly store: StoreService,
+    @Inject(LOG) private readonly log: Log,
   ) {}
 
   @Get("audit")
@@ -69,7 +69,7 @@ export class AdminController {
     const actor = req.admin?.actor ?? "admin";
     const settle = this.config.inlineJobs ? (rid: string, who: string) => this.settle(rid, who) : undefined;
     const result = await resolveRedemption(
-      { db: this.db, clock: this.clock, outbox: this.outbox },
+      { db: this.db, clock: this.clock, outbox: this.outbox, log: this.log },
       tenantId,
       id,
       input,
@@ -83,6 +83,12 @@ export class AdminController {
         view: toView(result.row),
       });
     }
+    this.log.event("warn", "admin.manual_resolution", {
+      tenantId,
+      redemptionId: id,
+      outcome: input.outcome,
+      admin: actor,
+    });
     return toView(result.row);
   }
 
@@ -96,9 +102,12 @@ export class AdminController {
     try {
       await this.store.advance(id, 0, actor);
     } catch (e) {
-      this.log.warn(
-        `settling ${id} failed, the outbox job will retry: ${e instanceof Error ? e.message : String(e)}`,
-      );
+      // The queued job settles it later.
+      this.log.event("error", "unhandled", {
+        where: "admin_settle",
+        redemptionId: id,
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 }

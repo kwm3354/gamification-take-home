@@ -4,6 +4,12 @@ import type { PlatformEvent } from "../domain/casino-platform.ts";
 import { spinsForDeposit, validateGrantParams } from "../policies/grant-policy.ts";
 import { findOrCreatePlayer } from "../tenants/players.ts";
 
+/** What happened to one event. The caller logs it after the transaction has committed. */
+export type IngestOutcome =
+  | { outcome: "accepted"; spinsGranted: number }
+  | { outcome: "ignored"; why: string }
+  | { outcome: "duplicate" };
+
 /**
  * Stores one event and, for a succeeded deposit, gives the player as many spins as the tenant's
  * newest grant policy says (possibly none; then an audit record says why). Runs inside the
@@ -16,7 +22,7 @@ export async function ingestEvent(
   tenantId: string,
   event: PlatformEvent,
   raw: unknown,
-): Promise<"accepted" | "ignored" | "duplicate"> {
+): Promise<IngestOutcome> {
   let playerId: string | null = null;
   if (event.kind === "deposit_succeeded") {
     playerId = (await findOrCreatePlayer(tx, ctx, tenantId, event.externalPlayerId)).id;
@@ -36,8 +42,9 @@ export async function ingestEvent(
     },
     { onConflict: "nothing" },
   );
-  if (!stored) return "duplicate";
-  if (event.kind === "ignored" || playerId === null) return "ignored";
+  if (!stored) return { outcome: "duplicate" };
+  if (event.kind === "ignored") return { outcome: "ignored", why: event.why };
+  if (playerId === null) return { outcome: "ignored", why: "no_player" };
 
   const wheel = await tx.query(
     "SELECT id FROM wheel_configs WHERE tenant_id = $1 ORDER BY version DESC LIMIT 1",
@@ -59,7 +66,7 @@ export async function ingestEvent(
       entityId: String(stored.id),
       changes: { reason: "reason" in decision ? decision.reason : "zero_spins", grantPolicyId },
     });
-    return "accepted";
+    return { outcome: "accepted", spinsGranted: 0 };
   }
   for (let ordinal = 1; ordinal <= decision.spins; ordinal++) {
     await create(tx, ctx, "spins", {
@@ -71,5 +78,5 @@ export async function ingestEvent(
       grant_policy_id: grantPolicyId,
     });
   }
-  return "accepted";
+  return { outcome: "accepted", spinsGranted: decision.spins };
 }

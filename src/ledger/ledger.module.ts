@@ -4,6 +4,8 @@ import { Global, Inject, Module, type OnApplicationShutdown } from "@nestjs/comm
 import { type Client, createClient } from "tigerbeetle-node";
 import { CONFIG, type Config } from "../config.ts";
 import { COIN_LEDGER } from "../domain/coin-ledger.ts";
+import { LOG } from "../logging/log.module.ts";
+import type { Log } from "../logging/log.ts";
 import { TigerBeetleCoinLedger } from "./coin-ledger.tigerbeetle.ts";
 
 /** Injection token for the TigerBeetle client: `@Inject(LEDGER) private readonly ledger: Ledger`. */
@@ -31,9 +33,9 @@ async function resolveAddress(address: string): Promise<string> {
     },
     {
       provide: COIN_LEDGER,
-      inject: [LEDGER, CONFIG],
-      useFactory: (client: Ledger, config: Config) =>
-        new TigerBeetleCoinLedger(client, config.ledgerTimeoutMs),
+      inject: [LEDGER, CONFIG, LOG],
+      useFactory: (client: Ledger, config: Config, log: Log) =>
+        new TigerBeetleCoinLedger(client, config.ledgerTimeoutMs, log),
     },
   ],
   exports: [LEDGER, COIN_LEDGER],
