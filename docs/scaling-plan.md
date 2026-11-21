@@ -56,6 +56,17 @@ What is missing:
 - Kafka (or another broker) in front of the intake. Today's measured numbers do not justify it for
   throughput (`docs/performance.md`, section 6). It stays in the production plan as an availability
   measure: accept casino events while the core is down.
+- The job queue behind a broker, when it is needed. Today the queue is a table in PostgreSQL
+  (`src/outbox/outbox.ts`). What is already independent of it: a job handler is a plain function
+  that gets (tenant, kind, reference, attempt number) and answers "done" or "again in N ms"; it does
+  not know who called it (`JobHandler`, registered with `outbox.handle(kind, fn)`). What stays in
+  the database on purpose: a job is written in the same transaction as the decision that needs it
+  (`enqueue(tx, job)`), so the two cannot come apart. Moving to Kafka therefore means putting it
+  AFTER the table, not in place of it: a relay reads committed rows and publishes them, and the
+  handlers become consumers. One path would change: today a redemption request claims its own job
+  to answer at once (`claimOne`, `finish`); with a broker that shortcut either stays on the table
+  or goes away. Not built, and I decided not to add an interface for it today: the queue is the
+  most tested part and nothing measured asks for a broker yet.
 
 ## 2. "How would you support 10 casino operators without maintaining 10 separate codebases?"
 

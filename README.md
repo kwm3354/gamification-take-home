@@ -78,6 +78,9 @@ of the intake and the wheel.
 - **Workers scale by count.** A job is claimed with a lease in one short statement, the casino and
   ledger calls run with no database transaction open, and only the holder of the lease writes the
   outcome.
+  The queue is a table in PostgreSQL on purpose: a job is written in the same transaction as the
+  decision that needs it. Handlers do not know who calls them, so a broker can be put after the
+  table later (`docs/scaling-plan.md`, answer 1).
 - **The server picks the prize.** The outcome is computed from a secret of the tenant and our spin
   id; the wheel's configuration is versioned and pinned when the spin is granted. The page only
   shows the result.
