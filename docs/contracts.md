@@ -47,7 +47,7 @@ env `FAKE_CASINO_URL` (default `http://fake-casino:4000`).
 ## Actors and audit
 
 Every create, update and delete of a row in `players`, `inbound_events`, `spins`, `redemptions`,
-`store_items`, `wheel_configs`, `grant_policies`, `tenants` goes through `src/audit/audited.ts`, inside the caller's
+`store_items`, `wheel_configs`, `grant_policies`, `ops_policies`, `tenants` goes through `src/audit/audited.ts`, inside the caller's
 transaction. There is no other write path to these tables.
 
 ```ts
@@ -292,3 +292,46 @@ rest of `src/` except `src/tenants/demo-tenants.ts`. It plays both platforms for
 
 Secrets and keys of the demo tenants are fixed strings in one small file,
 `src/tenants/demo-tenants.ts` (plain data, no imports). The seed and the fake casino both read it.
+
+## Admin and operations
+
+Code: `src/admin/` (guard, controller, plain logic in `stuck.ts`, `resolve.ts`, `audit-trail.ts`) and
+`src/alerts/` (`alerts.ts`, `ops-policy.ts`). The playbook for the daily digest agent is
+`docs/monitoring-playbook.md`.
+
+Auth for every admin call: header `X-Admin-Key` equals the `admin_key` of the tenant in the path
+(timing-safe compare). An unknown tenant and a wrong key both give 401 with the same body. Header
+`X-Admin-Name` (optional, `[a-z0-9._-]{1,40}`, default `admin`) makes the actor `admin/<name>`.
+Every query filters by the tenant in the path.
+
+| Call | Answers |
+|---|---|
+| `GET /admin/:tenantId/audit?entityId=<id>` | `[{ id, at, actor, action, entityType, entityId, changes, requestId }]`, oldest first, this tenant's rows only; 400 without `entityId` |
+| `GET /admin/:tenantId/redemptions/stuck` | `{ limitSec, items: [{ id, status, settled, playerExternalId, costCoins, ageSec, platformRef, lastPlatformCall }] }`: redemptions that are `created`, `reserved`, `submitting`, or final and not settled, created more than `pendingAgeLimitSec` ago (age from `created_at`), oldest first |
+| `POST /admin/:tenantId/redemptions/:id/resolve` body `{ outcome: "issued" \| "refused", note }` | 200 with the redemption view; 404 if not this tenant's; 409 `{ message, view }` unless the status is `submitting`; 400 for a note outside 5..500 characters or another outcome |
+| `GET /admin/:tenantId/alerts` | `{ at, policyVersion, alerts: [{ code, severity, subject, value, limit, detail }] }`; empty `alerts` when all is well; one critical `no_ops_policy` when the tenant has no ops policy |
+
+Manual resolution goes through `confirm`, the same function as the platform's answers (lock order:
+job row, then redemption row). Outcome `issued` sets platform ref `manual`; `refused` sets the
+reason `manual: <note>`. The audit `record` `manual_resolution` (`{ outcome, note }`) is written in
+the same transaction as the status change and only by the call that made the redemption final. The
+ledger is settled by the normal path (inline when inline jobs are on, otherwise by the outbox job).
+
+A platform answer that arrives after the redemption is final changes nothing. If its kind
+(issued or refused) differs from the final status, an audit `record` `outcome_contradicted`
+(`{ final, late, platformRef | reason }`) is written under the actor of the notice. An equal answer
+writes nothing. A lost race of an admin's resolution is not a contradiction and writes no record.
+
+`ops_policies` (versioned like `grant_policies`, append-only, one row per change, the newest version
+applies): `{ pendingAgeLimitSec` 10..86400, `maxExpectedPrizeCoins` > 0, `maxSpinsPerPlayerPerDay`
+1..1000, `maxPlayerRedeemShare` in (0, 1], `minRedeemedForShare` >= 0 `}`. Demo version 1 for both
+tenants: 300, 100, 20, 0.5, 1000.
+
+Alerts (all windows use the injected clock; all queries filter by tenant): `redemption_pending_too_long`
+(critical), `outbox_dead_jobs` (critical), `wheel_expected_prize_high` (warning),
+`wheel_paying_above_expectation` (warning; at least 200 used spins in 24 hours and a mean more than
+25 percent above expectation), `many_spins_one_player` (warning), `player_redeem_share_high`
+(warning), `outcome_contradicted` (critical).
+Not built: the alert for a deposit reversed after its spin was used (the adapters have no reversal
+event), and delivery of alerts to us and to the operator. The endpoint is what a scheduler or a
+monitoring system would poll.

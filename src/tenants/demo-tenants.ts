@@ -63,3 +63,12 @@ export const demoStoreItems = [
 
 /** Grant policy version 1: every deposit gives one spin. */
 export const demoGrantPolicy = { minAmountMinor: 1, currencies: null, spinsPerDeposit: 1 };
+
+/** Ops policy version 1: the alert thresholds (see src/alerts/ops-policy.ts). */
+export const demoOpsPolicy = {
+  pendingAgeLimitSec: 300,
+  maxExpectedPrizeCoins: 100,
+  maxSpinsPerPlayerPerDay: 20,
+  maxPlayerRedeemShare: 0.5,
+  minRedeemedForShare: 1000,
+};

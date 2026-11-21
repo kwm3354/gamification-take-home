@@ -104,7 +104,7 @@ export interface StoreDeps {
 export const backoffMs = (attempts: number): number =>
   Math.min(BACKOFF_FIRST_MS * 2 ** Math.min(attempts, 20), BACKOFF_MAX_MS);
 
-const ctxFor = (deps: StoreDeps, tenantId: string, actor: string): AuditContext => ({
+const ctxFor = (deps: Pick<StoreDeps, "clock">, tenantId: string, actor: string): AuditContext => ({
   tenantId,
   actor,
   now: deps.clock.now(),
@@ -216,22 +216,52 @@ export async function createRedemption(
  * The job row is touched first, then the redemption row: the same order the job runner uses.
  */
 export async function confirm(
-  deps: StoreDeps,
+  deps: Pick<StoreDeps, "db" | "clock" | "outbox">,
   tenantId: string,
   redemptionId: string,
   outcome: Extract<RewardOutcome, { kind: "issued" | "refused" }>,
   actor: string,
-  options: { rearm: boolean },
-): Promise<void> {
+  options: {
+    rearm: boolean;
+    onApplied?: (tx: pg.PoolClient) => Promise<void>;
+    /** False for an admin's decision: losing a race to the platform is not a contradiction by the platform. */
+    recordContradiction?: boolean;
+  },
+): Promise<boolean> {
   const ctx = ctxFor(deps, tenantId, actor);
-  await transaction(deps.db, async (tx) => {
+  return transaction(deps.db, async (tx) => {
     if (options.rearm) await deps.outbox.enqueue(tx, { tenantId, kind: JOB_KIND, refId: redemptionId });
-    await update(tx, ctx, "redemptions", redemptionId, (cur) => {
+    const seen: { status?: string } = {};
+    const changed = await update(tx, ctx, "redemptions", redemptionId, (cur) => {
+      seen.status = String(cur.status);
       if (cur.status !== "submitting") return null;
       return outcome.kind === "issued"
         ? { status: "issued", platform_ref: outcome.platformRef, updated_at: ctx.now }
         : { status: "refused", reason: outcome.reason, updated_at: ctx.now };
     });
+    if (changed) {
+      await options.onApplied?.(tx); // same transaction: it commits with the status change or not at all
+      return true;
+    }
+    // A late answer that disagrees with the final status changes nothing but is written down.
+    // The row is still locked here, so the status we saw is the status the record names.
+    if (
+      options.recordContradiction !== false &&
+      (seen.status === "issued" || seen.status === "refused") &&
+      seen.status !== outcome.kind
+    ) {
+      await record(tx, ctx, {
+        action: "outcome_contradicted",
+        entityType: "redemption",
+        entityId: redemptionId,
+        changes: {
+          final: seen.status,
+          late: outcome.kind,
+          ...(outcome.kind === "issued" ? { platformRef: outcome.platformRef } : { reason: outcome.reason }),
+        },
+      });
+    }
+    return false;
   });
 }
 

@@ -59,6 +59,18 @@ CREATE TABLE IF NOT EXISTS grant_policies (
   UNIQUE (tenant_id, version)
 );
 
+-- Alert thresholds of the operator, versioned like the grant policy: a change is a new row.
+-- params: { "pendingAgeLimitSec": 300, "maxExpectedPrizeCoins": 100, "maxSpinsPerPlayerPerDay": 20,
+--           "maxPlayerRedeemShare": 0.5, "minRedeemedForShare": 1000 }
+CREATE TABLE IF NOT EXISTS ops_policies (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   text NOT NULL REFERENCES tenants(id),
+  version     integer NOT NULL,
+  params      jsonb NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, version)
+);
+
 -- A deposit gives `spinsPerDeposit` spins, numbered by ordinal. The outcome is fixed by
 -- (wheel_secret, id, wheel_config) from the start.
 CREATE TABLE IF NOT EXISTS spins (
@@ -148,4 +160,6 @@ CREATE OR REPLACE TRIGGER audit_log_append_only BEFORE UPDATE OR DELETE ON audit
 CREATE OR REPLACE TRIGGER wheel_configs_append_only BEFORE UPDATE OR DELETE ON wheel_configs
   FOR EACH ROW EXECUTE FUNCTION forbid_change();
 CREATE OR REPLACE TRIGGER grant_policies_append_only BEFORE UPDATE OR DELETE ON grant_policies
+  FOR EACH ROW EXECUTE FUNCTION forbid_change();
+CREATE OR REPLACE TRIGGER ops_policies_append_only BEFORE UPDATE OR DELETE ON ops_policies
   FOR EACH ROW EXECUTE FUNCTION forbid_change();

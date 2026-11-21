@@ -33,3 +33,27 @@ What goes wrong, what the system does, and which test proves it. Test names are 
 | A and B outcomes disagree (lookup says GRANTED, a late callback says DECLINED) | The first final answer wins; the later notice is ignored. | Partly: `13. B, callback twice: ...` (late contradicting notice after GRANTED) |
 | An operator wants to revoke a reward after it was issued | Not built. The redemption is final once issued. | Not tested (not built) |
 | The same pending reserve is captured and also released | The ledger refuses the second one (LedgerConflict) and the job retries and goes dead, visible in the outbox. | Not tested in this file (ledger tests cover the conflict) |
+
+## Operations: admin API, manual resolution, alerts
+
+Test names are in `test/admin.test.ts` and `test/alerts.test.ts`.
+
+| What goes wrong | What the system does | Proved by |
+|---|---|---|
+| Someone calls the admin API without the key, with a wrong key, with another tenant's key, or for an unknown tenant | 401 with the same body each time; nothing is read. | `admin API > 1. auth: ...` |
+| A casino accepts a reward and then goes silent (no error anywhere) | The redemption is listed as stuck once it is older than the tenant's limit, with its age and its last platform call; the alert `redemption_pending_too_long` fires on age, not on errors. | `admin API > 3. stuck: ...`, `alerts > redemption_pending_too_long: ...` |
+| The outcome cannot be learned at all | An admin resolves it by hand through the same `confirm` as every answer; the admin is the actor in the audit trail with the note; the ledger settles normally. | `admin API > 4. resolve as issued: ...`, `5. resolve as refused: ...` |
+| An admin decides "issued" and the casino never granted | Our books say issued, the casino has nothing. The judge reports it. This is the cost of a manual decision, written down in the test. | `admin API > 4. resolve as issued: ...` |
+| An admin resolves a redemption that is final, `created`, insufficient, another tenant's, or sends a bad note | 409 with the view, 404, or 400; nothing changes; a second resolve is 409 and writes one record only. | `admin API > 6. not resolvable: ...` |
+| The casino's real answer arrives after a manual resolution and disagrees | Status and ledger stay as the admin left them; one `outcome_contradicted` audit row; a critical alert. An answer that agrees writes nothing. | `admin API > 7. a late real answer ...` |
+| The casino's answer and an admin's resolution arrive at the same moment | Exactly one makes the redemption final, in either order; the ledger is captured or released, never both; no false contradiction when the admin loses. | `admin API > 8. the real answer and a manual resolution at the same moment ...` (24 runs; both orders occurred in the runs I looked at, not guaranteed) |
+| A dead outbox job | Critical alert with the count. | `alerts > outbox_dead_jobs: ...` |
+| The wheel is changed so that it pays too much | Warning when the expected prize of the newest wheel is above the tenant's limit (exact integer arithmetic). | `alerts > wheel_expected_prize_high: ...` |
+| The wheel pays more than its weights say | Warning when at least 200 spins in 24 hours have a mean more than 25 percent above expectation. | `alerts > wheel_paying_above_expectation: ...` |
+| A player gets many deposits and spins (the deposit, spin, withdraw loop) | Warning per player above the daily limit. | `alerts > many_spins_one_player: ...` |
+| One player takes most of the issued coins | Warning for a player above the share limit, only when the tenant total is large enough. | `alerts > player_redeem_share_high: ...` |
+| A tenant has no ops policy | One critical alert `no_ops_policy`; no error. | `alerts > no ops policy: ...` |
+| Thresholds differ between operators | They are a versioned policy of the tenant; a new version changes the result, another tenant is not affected. | `alerts` tests with policy version 2 and 3; tenant isolation inside each alert test |
+| A deposit is reversed after its spin was used | Not built: the adapters have no reversal event. | Not tested (not built) |
+| The alert reaches nobody | Not built: no delivery to us or to the operator; the endpoint is for a scheduler to poll. | Not tested (not built) |
+| The daily digest agent misreads or is misled by outside text | It is read-only and told that event text is data. Nothing runs it yet. | Not tested (not built); the playbook SQL runs against the schema: `the monitoring playbook > every sql block ...` |
