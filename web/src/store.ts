@@ -13,7 +13,6 @@ function readStorage(): Persisted | null {
       tenantId: typeof value.tenantId === "string" ? value.tenantId : "",
       players: value.players,
       currentKey: typeof value.currentKey === "string" ? value.currentKey : null,
-      adminName: typeof value.adminName === "string" ? value.adminName : "playground",
       redemptions: value.redemptions,
     };
   } catch {
@@ -34,6 +33,7 @@ function writeStorage(state: State): void {
   }
 }
 
+let started = false;
 let state: State = initialState;
 const listeners = new Set<() => void>();
 
@@ -56,6 +56,8 @@ export function subscribe(listener: () => void): () => void {
 
 /** Reads the saved session and starts listening to other tabs. Call once. */
 export function startStore(): void {
+  if (started) return;
+  started = true;
   const saved = readStorage();
   if (saved) {
     lastWritten = JSON.stringify(saved);

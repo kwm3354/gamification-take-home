@@ -31,5 +31,5 @@ export function nextAction(
     .sort((a, b) => Number(b.costCoins) - Number(a.costCoins));
   const best = affordable[0];
   if (best) return { kind: "reward", itemId: best.id, why: `You have enough coins for ${title(best)}.` };
-  return { kind: "deposit", why: "No spins left. Deposit to get a spin." };
+  return { kind: "deposit", why: "You have no spin and not enough coins for a reward." };
 }

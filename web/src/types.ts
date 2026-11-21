@@ -4,7 +4,6 @@ export interface CasinoTenant {
   id: string;
   name: string;
   platform: Platform;
-  adminKey: string;
 }
 
 export interface Player {
@@ -67,7 +66,7 @@ export interface Tracked {
   data: RedemptionData | null;
 }
 
-export type Actor = "player -> us" | "admin -> us" | "casino -> us" | "page -> casino";
+export type Actor = "player -> us" | "admin -> us" | "casino -> us" | "page -> casino" | "us -> casino";
 
 export interface LogEntry {
   id: number;

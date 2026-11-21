@@ -1,5 +1,6 @@
 import { type Ref, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { Segment } from "../types.ts";
+import { LABEL_OUTER, sliceGeometry } from "../wheel-geometry.ts";
 import { finalRotation } from "../wheel-rotation.ts";
 
 export interface WheelHandle {
@@ -141,25 +142,23 @@ export function Wheel({ segments, dimmedText, ref }: Props) {
           }}
         >
           {segments.map((seg, i) => {
-            const from = i * slice;
-            const to = (i + 1) * slice;
-            const mid = from + slice / 2;
-            const left = mid > 180;
+            const g = sliceGeometry(n, i, seg.label);
             return (
               <g key={`${seg.label}-${i}`}>
                 <path
-                  d={slicePath(from, to, 160)}
+                  d={slicePath(g.from, g.to, 160)}
                   className="slice"
                   style={{ fill: `var(--seg-${i % COLORS})` }}
                 />
-                <g transform={`rotate(${left ? mid + 90 : mid - 90} ${CX} ${CX})`}>
+                <g transform={`rotate(${g.flip ? g.mid + 90 : g.mid - 90} ${CX} ${CX})`}>
                   <text
-                    x={left ? CX - 136 : CX + 136}
-                    y={CX + 7}
-                    textAnchor={left ? "start" : "end"}
+                    x={g.flip ? CX - LABEL_OUTER : CX + LABEL_OUTER}
+                    y={CX + g.fontSize * 0.35}
+                    textAnchor={g.flip ? "start" : "end"}
                     className="slice-label"
+                    style={{ fontSize: g.fontSize }}
                   >
-                    {seg.label}
+                    {g.text}
                   </text>
                 </g>
               </g>

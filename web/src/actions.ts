@@ -235,27 +235,3 @@ async function readRedemption(id: string, playerKey: string): Promise<void> {
   const res = await asPlayer(player, "GET", `/store/redemptions/${id}`);
   if (res.ok) dispatch({ type: "redemption", data: res.body as RedemptionData });
 }
-
-/** Reads the balance and the redemptions of every player of this session (for the admin page). */
-export async function refreshSession(): Promise<void> {
-  const s = getState();
-  await Promise.all(s.players.map((p) => refreshMe(undefined, p)));
-  await Promise.all(s.tracked.map((t) => readRedemption(t.id, t.playerKey)));
-}
-
-/** A call to our admin API for one casino. */
-export function adminRequest(
-  tenantId: string,
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<Result> {
-  const s = getState();
-  return request(deps, {
-    actor: "admin -> us",
-    method,
-    url: `${appBase()}/admin/${encodeURIComponent(tenantId)}${path}`,
-    headers: { "X-Admin-Key": s.adminKeys[tenantId] ?? "", "X-Admin-Name": s.adminName },
-    ...(body === undefined ? {} : { body }),
-  });
-}

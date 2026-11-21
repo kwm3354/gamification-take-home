@@ -22,12 +22,18 @@ Then open three pages in a browser:
 - http://localhost:30080/app/ is the player page: a Wheel of Fortune you can spin, your coins and the
   reward store, as it would sit on a casino's site. "See what happened behind the scenes" at the
   bottom tells the story of each step in plain sentences and shows the real requests.
-- http://localhost:30080/app/#/admin is the back office: alerts, stuck redemptions, the audit trail,
-  and the players of this session. It shares its session with the player page.
+- http://localhost:30080/app/#/admin is the back office. It needs a sign-in. The sign-in page lists the
+  demo users as buttons that fill the form. It reads everything from the server: overview, alerts,
+  redemptions (with the manual resolution of a stuck one), players, events, spins, settings (with a
+  proposal for a new wheel), waiting changes for the platform admin, outbox and audit. The player page
+  and the back office are one app with two routes and share no state.
 - http://localhost:30081/ is the casino control panel. It plays the casino, can inject faults, runs
   many players and shows a verdict.
 
 Sample requests are in `docs/samples.md`.
+
+To look at the screens without the stack: `npm run web:build`, then `node web/dev/mock-server.mjs` and open
+http://localhost:4800/app/. The mock is a development aid built from `docs/contracts.md`, not the service.
 
 Stop and delete the data:
 

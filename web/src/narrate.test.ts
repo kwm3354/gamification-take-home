@@ -142,6 +142,36 @@ describe("buildTimeline", () => {
     );
     expect(line?.text).toContain("nothing was taken");
   });
+
+  it("names who talks to whom: the call to the casino reads 'us -> casino', not 'player -> us'", () => {
+    const base = { id: "r9", costCoins: "100", platformRef: "r_9" };
+    const lines = buildTimeline(
+      [
+        call("POST", "http://a/store/redemptions", 201, { itemId: "i1" }, { ...base, status: "submitting" }),
+        call("GET", "http://a/store/redemptions/r9", 200, undefined, { ...base, status: "issued", settled: true }),
+      ],
+      titles,
+    );
+    expect(lines.map((l) => [l.text, l.actor])).toEqual([
+      ["You asked for Bonus €1; we set 100 coins aside", "player -> us"],
+      ["We asked the casino to issue it", "us -> casino"],
+      ["The casino accepted and will confirm in a moment", "casino -> us"],
+      ["The casino confirmed; the coins were spent", "casino -> us"],
+    ]);
+  });
+
+  it("the casino's refusal is 'casino -> us' and a spin stays 'player -> us'", () => {
+    const lines = buildTimeline(
+      [
+        call("POST", "http://a/wheel/spins/s1/spin", 200, undefined, { label: "10 coins" }),
+        call("POST", "http://a/store/redemptions", 201, { itemId: "i1" }, { id: "r8", costCoins: "100", status: "refused" }),
+      ],
+      titles,
+    );
+    expect(lines[0]?.actor).toBe("player -> us");
+    expect(lines.at(-1)?.actor).toBe("casino -> us");
+    expect(lines.find((l) => l.text === "We asked the casino to issue it")?.actor).toBe("us -> casino");
+  });
 });
 
 describe("nextAction", () => {

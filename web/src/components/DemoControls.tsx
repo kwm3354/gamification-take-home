@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createPlayerAndLoad, selectPlayer, switchTenant } from "../actions.ts";
 import type { State } from "../state.ts";
 
-/** Everything that is demo scaffolding: which casino, which player, links. Closed by default. */
+/** Everything that is demo scaffolding, not part of the casino or of our widget: which casino, which player, links. */
 export function DemoControls({ state }: { state: State }) {
   const [open, setOpen] = useState(false);
   const mine = state.players.filter((p) => p.tenantId === state.tenantId);
@@ -53,7 +53,7 @@ export function DemoControls({ state }: { state: State }) {
             </div>
           </fieldset>
           <p className="demo-links">
-            <a href="#/admin">Admin page</a>
+            <a href="#/admin/overview">Back office</a>
             <a href={`${state.fakeCasinoUrl}/`} target="_blank" rel="noreferrer">
               Casino control panel
             </a>

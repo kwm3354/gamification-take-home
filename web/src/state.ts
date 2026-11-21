@@ -20,8 +20,6 @@ export interface State {
   tenantId: string;
   players: Player[];
   currentKey: string | null;
-  adminName: string;
-  adminKeys: Record<string, string>;
   /** Newest first. */
   tracked: Tracked[];
   meByPlayer: Record<string, Me>;
@@ -36,7 +34,6 @@ export interface Persisted {
   tenantId: string;
   players: Player[];
   currentKey: string | null;
-  adminName: string;
   redemptions: { id: string; playerKey: string; tenantId: string; itemName: string; createdAt: number }[];
 }
 
@@ -53,8 +50,6 @@ export type Action =
   | { type: "items"; tenantId: string; items: StoreItem[] }
   | { type: "track"; tracked: Omit<Tracked, "data">; data: RedemptionData | null }
   | { type: "redemption"; data: RedemptionData }
-  | { type: "adminKey"; tenantId: string; key: string }
-  | { type: "adminName"; name: string }
   | { type: "log"; entry: LogEntry };
 
 export const initialState: State = {
@@ -64,8 +59,6 @@ export const initialState: State = {
   tenantId: "",
   players: [],
   currentKey: null,
-  adminName: "playground",
-  adminKeys: {},
   tracked: [],
   meByPlayer: {},
   wheelByTenant: {},
@@ -81,8 +74,6 @@ function lastPlayerOf(players: Player[], tenantId: string): string | null {
 export function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "config": {
-      const adminKeys = { ...state.adminKeys };
-      for (const t of action.tenants) adminKeys[t.id] ??= t.adminKey;
       const known = action.tenants.some((t) => t.id === state.tenantId);
       const tenantId = known ? state.tenantId : (action.tenants[0]?.id ?? "");
       const currentKey = known && state.currentKey ? state.currentKey : lastPlayerOf(state.players, tenantId);
@@ -91,7 +82,6 @@ export function reducer(state: State, action: Action): State {
         boot: "ready",
         fakeCasinoUrl: action.fakeCasinoUrl,
         tenants: action.tenants,
-        adminKeys,
         tenantId,
         currentKey,
       };
@@ -106,7 +96,6 @@ export function reducer(state: State, action: Action): State {
         tenantId: p.tenantId || state.tenantId,
         players: p.players,
         currentKey: p.currentKey,
-        adminName: p.adminName,
         tracked: p.redemptions.map((r) => ({ ...r, data: data.get(r.id) ?? null })),
       };
     }
@@ -146,10 +135,6 @@ export function reducer(state: State, action: Action): State {
         ...state,
         tracked: state.tracked.map((t) => (t.id === action.data.id ? { ...t, data: action.data } : t)),
       };
-    case "adminKey":
-      return { ...state, adminKeys: { ...state.adminKeys, [action.tenantId]: action.key } };
-    case "adminName":
-      return { ...state, adminName: action.name };
     case "log":
       return { ...state, log: [action.entry, ...state.log].slice(0, LOG_LIMIT) };
   }
@@ -160,7 +145,6 @@ export function persistedOf(state: State): Persisted {
     tenantId: state.tenantId,
     players: state.players,
     currentKey: state.currentKey,
-    adminName: state.adminName,
     redemptions: state.tracked.map(({ id, playerKey, tenantId, itemName, createdAt }) => ({
       id,
       playerKey,

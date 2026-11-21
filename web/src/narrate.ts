@@ -1,4 +1,4 @@
-import type { LogEntry } from "./types.ts";
+import type { Actor, LogEntry } from "./types.ts";
 
 /** One sentence of the "behind the scenes" timeline. It is built from a real call and its answer. */
 export interface Line {
@@ -6,6 +6,8 @@ export interface Line {
   text: string;
   /** False when the call failed or the answer was a refusal. */
   ok: boolean;
+  /** Who talks to whom in this line. It follows the call the line narrates, not the call that was logged. */
+  actor: Actor;
   entry: LogEntry;
 }
 
@@ -43,8 +45,9 @@ function failure(e: LogEntry): string {
 export function buildTimeline(entries: LogEntry[], titles: Record<string, string>): Line[] {
   const lines: Line[] = [];
   const seen = new Map<string, string>();
-  const add = (e: LogEntry, n: number, text: string, ok = true) =>
-    lines.push({ id: `${e.id}-${n}`, text, ok, entry: e });
+  const add = (e: LogEntry, n: number, text: string, ok = true, actor: Actor = e.actor) =>
+    lines.push({ id: `${e.id}-${n}`, text, ok, actor, entry: e });
+  const askedCasino = (e: LogEntry, n: number) => add(e, n, "We asked the casino to issue it", true, "us -> casino");
 
   /** The lines for what the casino did with a redemption, from its current status. */
   const outcome = (e: LogEntry, n: number, data: Json) => {
@@ -56,6 +59,8 @@ export function buildTimeline(entries: LogEntry[], titles: Record<string, string
         data.platformRef
           ? "The casino accepted and will confirm in a moment"
           : "The casino has not answered yet; we keep asking",
+        true,
+        "casino -> us",
       );
     } else if (status === "issued") {
       add(
@@ -64,9 +69,11 @@ export function buildTimeline(entries: LogEntry[], titles: Record<string, string
         data.settled
           ? "The casino confirmed; the coins were spent"
           : "The casino confirmed; the coins are being settled",
+        true,
+        "casino -> us",
       );
     } else if (status === "refused") {
-      add(e, n, "The casino refused; your coins came back", false);
+      add(e, n, "The casino refused; your coins came back", false, "casino -> us");
     }
   };
 
@@ -141,7 +148,7 @@ export function buildTimeline(entries: LogEntry[], titles: Record<string, string
         add(e, 0, `You asked for ${title}; we set ${res.costCoins} coins aside`);
         const status = String(res.status);
         if (status === "submitting" || status === "issued" || status === "refused") {
-          add(e, 1, "We asked the casino to issue it");
+          askedCasino(e, 1);
         } else {
           add(e, 1, "We are still working on it");
         }
@@ -153,7 +160,7 @@ export function buildTimeline(entries: LogEntry[], titles: Record<string, string
         const status = String(res.status);
         if (seen.get(String(res.id)) !== status) {
           seen.set(String(res.id), status);
-          if (status === "submitting") add(e, 0, "We asked the casino to issue it");
+          if (status === "submitting") askedCasino(e, 0);
           outcome(e, 1, res);
         }
       }
