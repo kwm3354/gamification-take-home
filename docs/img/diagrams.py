@@ -106,13 +106,13 @@ class Svg:
 
 
 def service():
-    d = Svg(1060, 760, "The service and what is outside it")
+    d = Svg(1060, 880, "The service and what is outside it")
     d.text(24, 34, "The service and what is outside it", 18, 700)
-    d.text(24, 56, "Blue: our code. Amber: outside parties (simulated in the prototype). Green: the two stores.", 12, 400, MUTED)
+    d.text(24, 56, "Blue: our code. Amber: outside parties (simulated in the prototype). Green: the two stores. Dashed: optional or not built.", 12, 400, MUTED)
 
     # Outside, left column.
-    d.card(24, 86, 220, 82, "Player", ["the casino's page with our widget", "token signed by the operator"], AMBER, AMBER_BG)
-    d.card(24, 196, 220, 82, "Operator staff, our ops", ["back office after sign-in", "token we sign, three roles"], AMBER, AMBER_BG)
+    d.card(24, 86, 220, 82, "Player", ["player page or widget", "token signed by the operator"], AMBER, AMBER_BG)
+    d.card(24, 196, 220, 82, "Operator staff, our ops", ["back office: email + password", "then a token we sign, 3 roles"], AMBER, AMBER_BG)
 
     d.box(24, 316, 220, 300, AMBER_BG, AMBER, dash="6 4")
     d.text(36, 338, "Fake casino process", 13, 700, AMBER)
@@ -122,44 +122,53 @@ def service():
     d.text(36, 598, "faults on demand, control page", 12, 400, MUTED)
 
     # Our application.
-    ax, ay, aw, ah = 340, 86, 404, 600
+    ax, ay, aw, ah = 340, 86, 404, 714
     d.box(ax, ay, aw, ah, BLUE_BG, BLUE, sw=1.6)
-    d.text(ax + 14, ay + 22, "Our application: one NestJS process, a module per folder", 13, 700, BLUE)
+    d.text(ax + 14, ay + 22, "Our application: one NestJS codebase, a module per folder", 13, 700, BLUE)
 
     lx, rx, cw, ch = ax + 12, ax + 204, 188, 92
     rows_y = [ay + 40, ay + 150, ay + 260, ay + 370, ay + 480]
     left = [
         ("Tenants and identity", ["tenants, players (id mapping)", "player token guard", "src/tenants"]),
-        ("Admin and alerts", ["audit trail, stuck list", "manual resolve, 7 alerts", "src/admin, src/alerts"]),
+        ("Admin and alerts", ["sign-in, roles, audit trail", "stuck list, resolve, alerts", "src/admin, src/alerts"]),
         ("Wheel", ["spins, pickSegment", "outcome: secret + spin id", "src/wheel"]),
         ("Integrations", ["port CasinoPlatform", "adapter A, adapter B", "src/integrations"]),
         ("Store", ["redemption intent", "advance, confirm", "src/store"]),
     ]
     right = [
         ("Event intake", ["signature, dedup by key", "grant policy (versioned)", "src/events, src/policies"]),
-        ("Outbox", ["jobs in PostgreSQL", "timer every 500 ms", "src/outbox"]),
+        ("Outbox", ["jobs in PostgreSQL", "claimed by lease + token", "no transaction during calls"]),
         ("Audit", ["one write path", "same transaction", "src/audit"]),
         ("Ledger adapter", ["port CoinLedger", "fixed transfer ids", "src/ledger"]),
-        ("Logging", ["one JSON line per event", "request id, level by policy", "src/logging"]),
+        ("Logs and traces", ["JSON lines, request id", "spans (OpenTelemetry)", "src/logging, src/tracing"]),
     ]
     for (title, rows), y in zip(left, rows_y):
         d.card(lx, y, cw, ch, title, rows, BLUE, PAPER)
     for (title, rows), y in zip(right, rows_y):
         d.card(rx, y, cw, ch, title, rows, BLUE, PAPER)
 
-    # Stores, right column.
+    # The same code runs as two kinds of process (env ROLE).
+    py = ay + 600
+    d.text(lx, py - 8, "Processes: the same image, env ROLE", 12, 700, BLUE)
+    d.card(lx, py, cw, 92, "app (ROLE=api)", ["HTTP API, web app at /app/", "runs a request's own job", "inline, under the lease"], BLUE, PAPER)
+    d.card(rx, py, cw, 92, "worker x 2 (ROLE=worker)", ["outbox timer, claims jobs", "more: --scale worker=N", "no published port"], BLUE, PAPER)
+
+    # Stores and side services, right column.
     sx = 862
-    d.card(sx, 160, 174, 150, "PostgreSQL", ["tenants, players, events", "spins, redemptions", "policies (versioned)", "outbox jobs", "audit log (append-only)"], GREEN, GREEN_BG)
+    d.card(sx, 160, 174, 150, "PostgreSQL", ["tenants, players, events", "spins, redemptions", "policies (versioned)", "outbox jobs, admin users", "audit log (append-only)"], GREEN, GREEN_BG)
     d.card(sx, 420, 174, 128, "TigerBeetle", ["coins only", "one ledger per tenant", "pending, post, void", "no negative balance"], GREEN, GREEN_BG)
-    d.box(sx, 600, 174, 86, PAPER, LINE, dash="5 4")
-    d.text(sx + 10, 620, "Daily digest agent", 13, 700, MUTED)
-    d.lines(sx + 10, 638, ["reads logs and database", "designed, not built"], 12, MUTED)
+    d.box(sx, 580, 174, 86, PAPER, LINE, dash="5 4")
+    d.text(sx + 10, 600, "Jaeger", 13, 700, MUTED)
+    d.lines(sx + 10, 618, ["trace viewer, in memory", "the app works without it"], 12, MUTED)
+    d.box(sx, 700, 174, 86, PAPER, LINE, dash="5 4")
+    d.text(sx + 10, 720, "Daily digest agent", 13, 700, MUTED)
+    d.lines(sx + 10, 738, ["reads logs and database", "designed, not built"], 12, MUTED)
 
     # Player -> tenants row; operator -> admin row. Straight lines.
     d.arrow([(244, 150), (lx, 150)])
     d.label(292, 141, "HTTPS + JWT")
     d.arrow([(244, 262), (lx, 262)])
-    d.label(284, 253, "sign-in token")
+    d.label(292, 253, "admin token")
     # Fake casino <-> integrations row.
     yi = rows_y[3]
     d.arrow([(244, yi + 22), (lx, yi + 22)])
@@ -179,13 +188,17 @@ def service():
     d.arrow([(ax + aw, yt), (sx, yt)])
     d.label(mid, yt - 10, "transfers with")
     d.label(mid, yt + 20, "ids from our ids")
+    # Traces -> Jaeger.
+    yj = 623
+    d.arrow([(ax + aw, yj), (sx, yj)], dash="5 3")
+    d.label(mid, yj - 10, "spans (OTLP)")
     # Logs -> digest.
-    yl = rows_y[4] + 56
+    yl = 743
     d.arrow([(ax + aw, yl), (sx, yl)], dash="5 3")
     d.label(mid, yl - 10, "JSON lines")
 
-    d.text(24, 724, "No transaction spans the two stores. Order: PostgreSQL commit (with the job), then TigerBeetle with a fixed id, then mark done.", 12, 400, MUTED)
-    d.text(24, 744, "A crash in between is repaired by the outbox job running the same step again.", 12, 400, MUTED)
+    d.text(24, 836, "No transaction spans the two stores, and none is open during a call to the casino or the ledger. Order: PostgreSQL", 12, 400, MUTED)
+    d.text(24, 856, "commit (with the job), then TigerBeetle with a fixed id, then mark done. A crash in between: the job runs the same step again.", 12, 400, MUTED)
     return d.render()
 
 
@@ -253,7 +266,6 @@ def redemption():
     d.arrow([(830, 294), (900, 294)])
     d.label(865, 284, "release")
     d.badge(865, 152, 4)
-    d.badge(588, 350, 5)
 
     # Who calls confirm.
     d.box(234, 330, 380, 118, BLUE_BG, BLUE)
@@ -264,6 +276,7 @@ def redemption():
         "Acts only on submitting, under the row lock; any later",
         "call changes nothing.",
     ], 12)
+    d.badge(596, 348, 5)
     d.box(644, 400, 342, 48, PAPER, LINE, dash="5 4")
     d.lines(656, 420, ["Rule for the casino: look first, then issue.", "Rule for the ledger: repeat freely, the id is fixed."], 12, MUTED)
 
