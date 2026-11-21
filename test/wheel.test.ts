@@ -324,6 +324,52 @@ describe.skipIf(!running)("wheel over HTTP", () => {
     }
   });
 
+  test("7b. a long ledger outage never kills the spin_credit job; the prize is credited once when the ledger returns", async () => {
+    const env = main();
+    // Not a clock jump: the shared fake clock also checks player tokens, and a jump would expire them for later tests.
+    const makeDue = (env: Env, spinId: string) =>
+      env.app.db.query("UPDATE outbox SET run_at = '2000-01-01' WHERE kind = 'spin_credit' AND ref_id = $1", [
+        spinId,
+      ]);
+    const p = await playerWithSpin(env, alpha.id);
+    const ledger = env.app.app.get<CoinLedger>(COIN_LEDGER);
+    const original = ledger.creditPrize.bind(ledger);
+    let down = true;
+    let calls = 0;
+    ledger.creditPrize = async (input) => {
+      calls++;
+      if (down) throw new LedgerUnavailable("test: ledger away");
+      return original(input);
+    };
+    try {
+      const res = await postSpin(env, p.token, p.spinId);
+      expect(res.status).toBe(200);
+      const outbox = env.app.app.get<Outbox>(OUTBOX);
+      for (let run = 0; run < 13; run++) {
+        await makeDue(env, p.spinId);
+        await outbox.runDue();
+      }
+      expect(calls).toBeGreaterThan(10);
+      const job = await env.app.db.query(
+        "SELECT dead_at, done_at FROM outbox WHERE kind = 'spin_credit' AND ref_id = $1",
+        [p.spinId],
+      );
+      expect(job.rows[0].dead_at).toBeNull();
+      expect(job.rows[0].done_at).toBeNull();
+      down = false;
+      await makeDue(env, p.spinId);
+      await outbox.runDue();
+      const token = p.token;
+      expect((await me(env, token)).balance?.available).toBe(String(res.json.coins));
+      expect((await spinRow(env, p.spinId)).credited_at).not.toBeNull();
+      await makeDue(env, p.spinId);
+      await outbox.runDue();
+      expect((await me(env, token)).balance?.available).toBe(String(res.json.coins));
+    } finally {
+      ledger.creditPrize = original;
+    }
+  });
+
   test("8. someone else's spin is a 404 and stays available", async () => {
     const env = main();
     const p = await playerWithSpin(env, alpha.id);

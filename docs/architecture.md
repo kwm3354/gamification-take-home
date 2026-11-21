@@ -430,10 +430,10 @@ Found while writing this page, for the author to decide.
 8. Fixed in review: `outstanding` used to read two accounts (issuer and `redeemed`). Spent coins now
    come back to `issuer`, so it is the net balance of that one account.
 
-Two observations that are not contract differences. The `spin_credit` job goes dead after 10 failed
-attempts when the ledger is away (`MAX_ATTEMPTS` in `src/outbox/outbox.ts`), while a redemption turns
-`LedgerUnavailable` into "ask again later" and never dies (`step` in `src/store/redemption.ts`); the
-failure table covers only the redemption. For platform B, every event row of a batch stores the
+Two observations that are not contract differences. The `spin_credit` job turns `LedgerUnavailable`
+into "ask again later" with the same backoff as a redemption (`src/wheel/wheel.module.ts`), so a ledger
+outage never makes it dead; other errors still make it dead after 10 attempts (`MAX_ATTEMPTS` in
+`src/outbox/outbox.ts`). For platform B, every event row of a batch stores the
 whole batch as `raw` (`src/events/events.controller.ts`).
 
 ## What I am least sure about
