@@ -18,9 +18,16 @@ export interface OverviewData {
 
 const clock = (ms: number): string => new Date(ms).toISOString().slice(11, 19);
 
-function Count({ n, section, query }: { n: number; section: Section; query?: Record<string, string> }) {
+/** `problem`: a count that needs a person when it is above zero; it is shown in the "bad" colour. Zero is quiet. */
+function Count({
+  n,
+  section,
+  query,
+  problem = false,
+}: { n: number; section: Section; query?: Record<string, string>; problem?: boolean }) {
+  const tone = n === 0 ? " is-zero" : problem ? " is-problem" : "";
   return (
-    <a href={buildAdminHash({ section, ...(query ? { query } : {}) })} className="num-link">
+    <a href={buildAdminHash({ section, ...(query ? { query } : {}) })} className={`num-link${tone}`}>
       {coins(n)}
     </a>
   );
@@ -91,7 +98,7 @@ function Numbers({ d }: { d: OverviewData }) {
           <Row label="Refused">{status("refused")}</Row>
           <Row label="Insufficient">{status("insufficient")}</Row>
           <Row label="Not settled in the ledger">
-            <Count n={r.unsettled} section="stuck" />
+            <Count n={r.unsettled} section="stuck" problem />
           </Row>
         </dl>
       </section>
@@ -105,10 +112,10 @@ function Numbers({ d }: { d: OverviewData }) {
             <Count n={d.outbox.waiting} section="outbox" query={{ state: "waiting" }} />
           </Row>
           <Row label="Outbox dead">
-            <Count n={d.outbox.dead} section="outbox" query={{ state: "dead" }} />
+            <Count n={d.outbox.dead} section="outbox" query={{ state: "dead" }} problem />
           </Row>
           <Row label="Alerts, critical">
-            <Count n={d.alerts.critical} section="alerts" />
+            <Count n={d.alerts.critical} section="alerts" problem />
           </Row>
           <Row label="Alerts, warning">
             <Count n={d.alerts.warning} section="alerts" />
