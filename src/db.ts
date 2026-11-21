@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { context, createContextKey } from "@opentelemetry/api";
 import pg from "pg";
@@ -80,6 +81,11 @@ const MIGRATE_LOCK_KEY = 7_340_011;
  * Applies the schema. The file is safe to run twice, but two processes running it at the same
  * moment can collide on CREATE TABLE. So it runs under an advisory lock, taken and released on one
  * connection: the second process waits, then finds everything in place.
+ *
+ * The script is run only when its text has changed since the last run (its hash is kept in
+ * `schema_state`). Running it takes exclusive table locks even when nothing changes, and a process
+ * that starts while others work deadlocked with their transactions (found by test/processes.test.ts).
+ * A deployment that changes the schema still takes those locks once.
  */
 export async function migrate(db: Db): Promise<void> {
   const sql = await readFile(new URL("schema.sql", import.meta.url), "utf8");
@@ -87,7 +93,16 @@ export async function migrate(db: Db): Promise<void> {
   try {
     await client.query("SELECT pg_advisory_lock($1)", [MIGRATE_LOCK_KEY]);
     try {
-      await client.query(sql);
+      const hash = createHash("sha256").update(sql).digest("hex");
+      await client.query("CREATE TABLE IF NOT EXISTS schema_state (id int PRIMARY KEY, hash text NOT NULL)");
+      const seen = await client.query("SELECT hash FROM schema_state WHERE id = 1");
+      if (seen.rows[0]?.hash !== hash) {
+        await client.query(sql);
+        await client.query(
+          "INSERT INTO schema_state (id, hash) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET hash = EXCLUDED.hash",
+          [hash],
+        );
+      }
     } finally {
       await client.query("SELECT pg_advisory_unlock($1)", [MIGRATE_LOCK_KEY]);
     }

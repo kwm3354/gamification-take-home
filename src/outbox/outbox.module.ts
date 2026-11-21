@@ -22,7 +22,7 @@ import { OUTBOX, Outbox } from "./outbox.ts";
       provide: OUTBOX,
       inject: [DB, CLOCK, LOG, CONFIG],
       useFactory: (db: Db, clock: Clock, log: Log, config: Config) =>
-        new Outbox(db, clock, log, { batch: config.outboxBatch }),
+        new Outbox(db, clock, log, { batch: config.outboxBatch, leaseMs: config.outboxLeaseMs }),
     },
   ],
   exports: [OUTBOX],

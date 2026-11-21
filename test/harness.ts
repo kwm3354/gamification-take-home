@@ -3,7 +3,7 @@ import pg from "pg";
 import { type Db, connect, migrate } from "../src/db.ts";
 
 /** A fresh database per test file, inside the PostgreSQL that global-setup started. */
-export async function freshDb(): Promise<{ db: Db; close: () => Promise<void> }> {
+export async function freshDb(): Promise<{ db: Db; url: string; close: () => Promise<void> }> {
   const base = process.env.TEST_PG_URL;
   if (!base) throw new Error("TEST_PG_URL is not set: global-setup did not run");
   const name = `t_${randomUUID().replaceAll("-", "")}`;
@@ -15,5 +15,5 @@ export async function freshDb(): Promise<{ db: Db; close: () => Promise<void> }>
   url.pathname = `/${name}`;
   const db = connect(url.toString());
   await migrate(db);
-  return { db, close: () => db.end() };
+  return { db, url: url.toString(), close: () => db.end() };
 }

@@ -159,12 +159,16 @@ taking different jobs. The process role is the env `ROLE`:
 | `worker` | listens, but is not published: only `GET /health` is meant to be called | yes |
 
 `OUTBOX_TIMER=off` still turns the timer off in any role (tests use it). `OUTBOX_BATCH` (default 16)
-is how many jobs one claim takes; `OUTBOX_POLL_MS` (default 500) is how often the timer looks.
+is how many jobs one claim takes; `OUTBOX_POLL_MS` (default 500) is how often the timer looks;
+`OUTBOX_LEASE_MS` (default 60000) is how long a claim lasts.
 There is no route filtering in a worker: it runs the same app, and nothing routes traffic to it.
 
 The schema (and the demo seed, when `SEED_DEMO=1`) is applied at start. Applying the schema runs under
-a PostgreSQL advisory lock, so several processes starting together do not collide; the demo seed is
-on for the `app` service only.
+a PostgreSQL advisory lock, so several processes starting together do not collide. The script runs only
+when its text changed since the last run (its hash is in `schema_state`): even a script that changes
+nothing takes exclusive table locks, and a worker started while others were busy deadlocked with their
+transactions. A deploy that changes the schema still takes those locks once, so run it when traffic is low.
+The demo seed is on for the `app` service only.
 
 In `docker-compose.yml` the `app` service is `ROLE: api` and the `worker` service has `replicas: 2`
 (no published port, no container name), so `docker compose up --scale worker=4` is possible.

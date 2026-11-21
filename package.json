@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check src test",
     "test": "vitest run",
+    "test:deep": "FC_RANDOM=1 FC_RUNS=150 FC_TIMEOUT_MS=280000 vitest run test/properties.test.ts --testTimeout=290000",
     "verify": "npm run typecheck && npm run lint && npm test",
     "web:install": "npm ci --prefix web",
     "web:build": "npm run build --prefix web",

@@ -30,12 +30,30 @@ What goes wrong, what the system does, and which test proves it. Test names are 
 | Runs with faults end somewhere else than a clean run | They all end in the same state (status, settled, balance, grant count). | `20. differential: every run with faults ends where the clean run of the same input ends` |
 | The judge is blind to a violation | The judge reports a double grant, a missing grant, a negative balance, coins held after settling, a grant for a refused redemption and a grant to the wrong player. | `the judge can say no` (6 tests) |
 | TigerBeetle is down when the redemption is created | The request still returns 201 with `created`; the job retries with a growing delay and never dies on this error. | Not tested (the capture case in test 16 covers only the settle step) |
-| The process dies between the PostgreSQL commit and the ledger call with a real SIGKILL | The job is due again and repeats the step. Simulated by repeating the side effects, not by killing a process. | Not tested with a real kill |
+| The process dies between the PostgreSQL commit and the ledger call with a real SIGKILL | The job is due again and repeats the step. | Tested with a real kill: `real processes > B. the API is killed after the request committed and before any job ran ...` (the kill is after the commit and before any job; a kill between two statements of one job is only covered by test 15 and by A, where the kill lands inside a job) |
 | Platform B takes a long time to decide | The redemption stays `submitting` for as long as it takes, asked every 2 s; the coins stay reserved and visible. | Not tested for a long wait (only the short paths) |
 | Platform B's lookup does not show a request that B accepted a moment ago | We would issue a second grant. This is an assumption written in the contract. | Not tested, cannot be handled from our side |
 | A and B outcomes disagree (lookup says GRANTED, a late callback says DECLINED) | The first final answer wins; the later notice is ignored. | Partly: `13. B, callback twice: ...` (late contradicting notice after GRANTED) |
 | An operator wants to revoke a reward after it was issued | Not built. The redemption is final once issued. | Not tested (not built) |
 | The same pending reserve is captured and also released | The ledger refuses the second one (LedgerConflict) and the job retries and goes dead, visible in the outbox. | Not tested in this file (ledger tests cover the conflict) |
+
+## Processes and the schema
+
+| What goes wrong | What the system does | Proved by |
+|---|---|---|
+| A process starts (a worker is added, a container restarts) while others are busy | It applies the schema only if the schema text changed (hash in `schema_state`), so it takes no table lock and cannot deadlock with live requests. Before this fix the schema script took exclusive table locks even when nothing changed: the new process died with `deadlock detected` and a redemption request got a 500 (found by `test/processes.test.ts`, 6 runs of 11). A deploy that changes the schema still takes those locks once. | `migrate under load > a schema that is already applied does not wait for a transaction that has written to the tables` |
+| A worker is killed (SIGKILL) while it holds claimed jobs and the casino has already granted | The claim stays until the lease ends; another worker takes the job, looks first, finds the grant. Every job ends done, one grant per redemption, coins right. | `real processes > A. a worker is killed while it holds claimed jobs ...` |
+| Three workers on one database under load | Every redemption issued once (one `issue` call each), every job done, none dead, no lease lost. | `real processes > C. three workers, 30 spins and 30 redemptions ...` |
+| A handler is slower than its lease | The second worker takes the job; the first one's result is not written (`outbox.lease_lost` logged); platform A has one grant each. On platform B this would grant twice: the lease must be longer than the handler. | `real processes > D. a handler that outlives its lease ...` |
+
+## Random faults
+
+Test name is in `test/properties.test.ts`.
+
+| What goes wrong | What the system does | Proved by |
+|---|---|---|
+| Any mix of faults (error, rate limit, refuse, lost request, lost answer, slow answer on grant and look; lost, twice or delayed callback on B) meets any mix of deposits, repeats, spins and redemptions, on both platforms, with time moving between actions | After the faults stop and the jobs run: no reward twice, every issued redemption has one grant, refused ones none, no negative balance, coins equal prizes minus issued costs, nothing reserved, every redemption final and settled, no dead job. | `property: faults and player actions > the judge finds nothing and every redemption ends final` (60 runs, fixed seed; 150 runs random seed in `npm run test:deep`) |
+| A late notice from B contradicts a final redemption | Nothing changes. | Same test (sent at the end of every run) |
 
 ## Operations: admin API, manual resolution, alerts
 
