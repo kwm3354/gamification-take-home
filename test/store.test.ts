@@ -648,11 +648,14 @@ describe.skipIf(!running)("bonus store", () => {
     const started = performance.now();
     const results = await Promise.all(players.map((p) => redeem(p, item)));
     const elapsed = performance.now() - started;
-    expect(results.map((r) => r.json.status)).toEqual(Array(40).fill("issued"));
-    for (const r of results) expect(await grantsFor(r.json.id)).toHaveLength(1);
+    // A call that takes longer than the 300 ms limit on a slow machine correctly answers "submitting";
+    // the claim here is about overlap, so both immediate answers are right. (Found on CI: 2 of 40.)
+    for (const r of results) expect(["issued", "submitting"]).toContain(r.json.status);
     // One after another it would be 40 x 200 ms = 8 s.
-    expect(elapsed).toBeLessThan(2000);
+    expect(elapsed).toBeLessThan(4000);
+    await later(1000);
     await outbox().drain();
+    for (const r of results) expect(await grantsFor(r.json.id)).toHaveLength(1);
     for (const [i, r] of results.entries()) {
       expect((await getRedemption(players[i] as P, r.json.id)).json).toMatchObject({
         status: "issued",
