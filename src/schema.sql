@@ -15,6 +15,15 @@ CREATE TABLE IF NOT EXISTS tenants (
   created_at         timestamptz NOT NULL DEFAULT now()
 );
 
+-- Key replacement (see "Tenant keys" in docs/contracts.md). After a replacement the old value stays
+-- valid until *_prev_until. Plain ALTERs so that a database made before this change gets the columns.
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS webhook_secret_prev       text;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS webhook_secret_prev_until timestamptz;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS webhook_secret_rotated_at timestamptz;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS token_secret_prev         text;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS token_secret_prev_until   timestamptz;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS token_secret_rotated_at   timestamptz;
+
 -- People who sign in to the back office. The hash is scrypt (see src/admin/password.ts).
 CREATE TABLE IF NOT EXISTS admin_users (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),

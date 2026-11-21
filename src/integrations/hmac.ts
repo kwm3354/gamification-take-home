@@ -20,3 +20,19 @@ export const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 
 export const isNonEmptyString = (v: unknown): v is string => typeof v === "string" && v !== "";
+
+/** True when ANY of the secrets gives the signature. Each check is constant time; all are always run. */
+export function hmacMatchesAny(
+  secrets: string[],
+  data: string | Buffer,
+  given: string,
+  encoding: "hex" | "base64",
+): boolean {
+  let ok = false;
+  for (const secret of secrets) if (hmacMatches(secret, data, given, encoding)) ok = true;
+  return ok;
+}
+
+/** The secrets a connection may verify with. */
+export const verifyingSecrets = (conn: { webhookSecret: string; webhookSecrets?: string[] }): string[] =>
+  conn.webhookSecrets ?? [conn.webhookSecret];

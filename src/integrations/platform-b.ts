@@ -8,7 +8,7 @@ import {
   type RewardRequest,
   type TenantConnection,
 } from "../domain/casino-platform.ts";
-import { hmacMatches, isNonEmptyString, isObject, parseJson } from "./hmac.ts";
+import { hmacMatchesAny, isNonEmptyString, isObject, parseJson, verifyingSecrets } from "./hmac.ts";
 import { callPlatform, unexpectedAnswer } from "./http.ts";
 
 /** 500 -> "5.00", 5 -> "0.05". Integer arithmetic only. */
@@ -24,7 +24,8 @@ function checkSignature(
   rawBody: Buffer,
 ): void {
   const given = headers["x-beta-auth"];
-  if (!given || !hmacMatches(conn.webhookSecret, rawBody, given, "base64")) throw new InvalidSignature();
+  if (!given || !hmacMatchesAny(verifyingSecrets(conn), rawBody, given, "base64"))
+    throw new InvalidSignature();
 }
 
 function body(rawBody: Buffer): Record<string, unknown> {
