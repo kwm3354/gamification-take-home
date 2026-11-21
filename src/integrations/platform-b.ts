@@ -8,7 +8,14 @@ import {
   type RewardRequest,
   type TenantConnection,
 } from "../domain/casino-platform.ts";
-import { hmacMatchesAny, isNonEmptyString, isObject, parseJson, verifyingSecrets } from "./hmac.ts";
+import {
+  hmacMatchesAny,
+  isExternalId,
+  isNonEmptyString,
+  isObject,
+  parseJson,
+  verifyingSecrets,
+} from "./hmac.ts";
 import { callPlatform, unexpectedAnswer } from "./http.ts";
 
 /** 500 -> "5.00", 5 -> "0.05". Integer arithmetic only. */
@@ -62,7 +69,7 @@ export class PlatformB implements CasinoPlatform {
     if (!Array.isArray(list) || list.length === 0) throw new InvalidPayload("transactions");
     // Every entry is checked before any is returned: one bad entry fails the whole batch.
     return list.map((entry): PlatformEvent => {
-      if (!isObject(entry) || !isNonEmptyString(entry.txnId)) throw new InvalidPayload("txnId");
+      if (!isObject(entry) || !isExternalId(entry.txnId)) throw new InvalidPayload("txnId");
       if (entry.kind !== "DEPOSIT" || entry.state !== "COMPLETED") {
         return {
           kind: "ignored",
@@ -72,7 +79,7 @@ export class PlatformB implements CasinoPlatform {
         };
       }
       const customer = entry.customer;
-      if (!isObject(customer) || !isNonEmptyString(customer.id)) throw new InvalidPayload("customer.id");
+      if (!isObject(customer) || !isExternalId(customer.id)) throw new InvalidPayload("customer.id");
       const amountMinor = toMinor(entry.amount);
       if (typeof entry.currencyCode !== "string" || !/^[A-Za-z]{3}$/.test(entry.currencyCode)) {
         throw new InvalidPayload("currencyCode");
@@ -104,7 +111,7 @@ export class PlatformB implements CasinoPlatform {
   ): RewardNotice {
     checkSignature(conn, headers, rawBody);
     const b = body(rawBody);
-    if (!isNonEmptyString(b.requestId) || !isNonEmptyString(b.externalRef)) throw new InvalidPayload("ids");
+    if (!isExternalId(b.requestId) || !isExternalId(b.externalRef)) throw new InvalidPayload("ids");
     if (b.state === "GRANTED") {
       return { redemptionId: b.externalRef, outcome: { kind: "issued", platformRef: b.requestId } };
     }

@@ -158,6 +158,20 @@ describe.skipIf(!running)("deposit intake", () => {
     expect(await count("inbound_events", "external_event_id IN ('T-huge', 'evt-far')")).toBe(0);
   });
 
+  test("4d. ids longer than 200 characters: 400 on both platforms, nothing stored; a token with a long sub is 401", async () => {
+    const long = "x".repeat(201);
+    const players = await count("players");
+    const events = await count("inbound_events");
+    expect((await postAlpha(alphaDeposit("evt-long", long))).status).toBe(400);
+    expect((await postAlpha(alphaDeposit(long, "p-long"))).status).toBe(400);
+    expect((await postBeta({ transactions: [betaTxn("T-long", long)] })).status).toBe(400);
+    expect((await postBeta({ transactions: [betaTxn(long, "b-long")] })).status).toBe(400);
+    expect(await count("players")).toBe(players);
+    expect(await count("inbound_events")).toBe(events);
+    expect((await me(alphaToken(long))).status).toBe(401);
+    expect((await me(alphaToken("x".repeat(200)))).status).toBe(200);
+  });
+
   test("5. bad signature on A and B: 401, nothing stored, one webhook_rejected audit row each", async () => {
     const before = {
       players: await count("players"),

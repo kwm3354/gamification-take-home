@@ -42,6 +42,6 @@ export async function verifyPlayerToken(
   const nowSeconds = now.getTime() / 1000;
   if (typeof payload.exp !== "number" || payload.exp <= nowSeconds) return null;
   if (payload.exp > nowSeconds + MAX_AHEAD_SECONDS) return null;
-  if (typeof payload.sub !== "string" || payload.sub === "") return null;
+  if (typeof payload.sub !== "string" || payload.sub === "" || payload.sub.length > 200) return null;
   return { tenant, externalId: payload.sub };
 }
