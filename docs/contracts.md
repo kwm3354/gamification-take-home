@@ -199,7 +199,7 @@ Statuses: `created -> reserved -> submitting -> issued | refused`, or `created -
 `insufficient` reserved nothing, so `settled_at` is set in the same update that sets the status.
 
 `POST /store/redemptions` creates the row (`created`) and the job `redemption_advance` in one
-transaction, then runs the job at once and returns the current state. A repeated key returns the
+transaction, then runs the job at once under the job's lease (`claimOne`, no transaction open during the calls; if a worker holds the lease it returns the current state without waiting; over `INLINE_MAX` inline runs it skips and leaves the job to the outbox) and returns the current state. A repeated key returns the
 existing row and changes nothing.
 
 `advance(redemptionId)`, one step per call, safe to repeat:

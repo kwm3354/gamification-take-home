@@ -16,6 +16,11 @@ export interface Config {
    * sees the result at once. Tests turn it off to stand for "the process died right after the commit".
    */
   inlineJobs: boolean;
+  /**
+   * How many requests in this process may run their own redemption job at the same time. Over it a
+   * request skips the inline run and leaves the job to the outbox. It never queues.
+   */
+  inlineMax: number;
   /** Secret that signs back office tokens. At least 32 characters. */
   adminTokenSecret: string;
   /** When true the two demo tenants are created at start. */
@@ -45,6 +50,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     platformTimeoutMs: Number(env.PLATFORM_TIMEOUT_MS ?? 2000),
     outboxTimer: env.OUTBOX_TIMER !== "off",
     inlineJobs: env.INLINE_JOBS !== "off",
+    inlineMax: Number(env.INLINE_MAX ?? 32),
     adminTokenSecret,
     seedDemo: env.SEED_DEMO === "1",
     fakeCasinoUrl: env.FAKE_CASINO_URL ?? "http://fake-casino:4000",

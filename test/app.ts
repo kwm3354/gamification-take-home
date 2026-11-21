@@ -57,6 +57,7 @@ export async function startApp(
     platformTimeoutMs: 300,
     outboxTimer: false,
     inlineJobs: true,
+    inlineMax: 64,
     adminTokenSecret: TEST_ADMIN_TOKEN_SECRET,
     seedDemo: false,
     fakeCasinoUrl: "http://127.0.0.1:1",
