@@ -11,8 +11,13 @@ stop at the first failure. Docker must be running: the tests start their own Pos
 1. `npm run typecheck` and `npm run lint`. Seconds.
 2. `npm test`. Flow tests and property tests on a clock that only moves when the test moves it.
 
-`npm run verify` runs both. Tests that need the ledger are skipped unless `TB_ADDRESS` or `TB_BIN` is set.
-`test/app.ts` boots the whole app in the test process; `test/health.test.ts` calls it over HTTP. Update this file when a slower suite (real processes, real HTTP) is added.
+`npm run verify` runs both. Tests that need the ledger are skipped unless `TB_ADDRESS` or `TB_BIN` is
+set in the same shell command; a run with skipped files is not a green run, so read the summary line.
+`test/app.ts` boots the whole app in the test process. `test/processes.test.ts` is the slower suite:
+it starts real API and worker processes and kills them. `test/properties.test.ts` generates random
+faults (`npm run test:deep` for more runs with a random seed). `test/tenant-isolation.test.ts`
+fails when a route has no decision about tenant isolation. If `web/` changed, also run
+`npm run verify:web`. The full list of gates is "Green gate" in `CLAUDE.md`.
 
 ## Reading a failure
 
