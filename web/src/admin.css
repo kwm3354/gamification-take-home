@@ -624,6 +624,10 @@ details.inline[open] > summary {
   border-bottom: 1px solid var(--bo-line);
 }
 
+.change .panel-form {
+  margin-top: 8px;
+}
+
 .change p {
   margin: 4px 0 6px;
 }

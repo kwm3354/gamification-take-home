@@ -50,7 +50,7 @@ export function BehindScenes({ open, onClose, log, items }: Props) {
                 <span className="visually-hidden">{l.ok ? "Done: " : "Problem: "}</span>
                 {l.text}
               </span>
-              <span className="tl-who">{l.entry.actor}</span>
+              <span className="tl-who">{l.actor}</span>
             </button>
             {expanded === l.id ? <CallDetail entry={l.entry} /> : null}
           </li>

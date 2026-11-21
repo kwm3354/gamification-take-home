@@ -12,6 +12,10 @@ import { currentPlayer } from "../state.ts";
 import { useAppState } from "../store.ts";
 import type { StoreItem } from "../types.ts";
 
+const DEPOSIT_MINOR = 2000;
+
+const euro = (minor: number): string => `\u20ac${(minor / 100).toFixed(2)}`;
+
 export function PlayPage() {
   const state = useAppState();
   const wheel = useRef<WheelHandle>(null);
@@ -20,6 +24,8 @@ export function PlayPage() {
   const [win, setWin] = useState<{ coins: number; key: number } | null>(null);
   const [message, setMessage] = useState("");
   const [scenes, setScenes] = useState(false);
+  // The casino's own wallet, in cents. A demo figure kept in this page: each deposit adds 20.00.
+  const [wallets, setWallets] = useState<Record<string, number>>({});
 
   const tenant = state.tenants.find((t) => t.id === state.tenantId);
   const brand = tenant?.platform === "B" ? "beta" : "alpha";
@@ -30,11 +36,12 @@ export function PlayPage() {
   const available = Number(me?.balance?.available ?? 0);
   const reserved = Number(me?.balance?.reserved ?? 0);
   const action = nextAction(me, items, rewardTitle);
+  const wallet = player ? (wallets[player.key] ?? 0) : 0;
   const mine = state.tracked.filter((t) => player && t.playerKey === player.key);
 
   if (state.boot === "error") {
     return (
-      <main className="game" data-brand="alpha">
+      <div className="game" data-brand="alpha">
         <div className="notice" role="alert">
           <h1>The game is not reachable</h1>
           <p>
@@ -45,7 +52,7 @@ export function PlayPage() {
             Try again
           </button>
         </div>
-      </main>
+      </div>
     );
   }
 
@@ -57,6 +64,7 @@ export function PlayPage() {
       if (kind === "deposit") {
         const res = await deposit();
         if (!res.ok) setMessage(res.message);
+        else if (player) setWallets((w) => ({ ...w, [player.key]: (w[player.key] ?? 0) + DEPOSIT_MINOR }));
       } else {
         const res = await spin();
         if (!res.ok) {
@@ -85,7 +93,7 @@ export function PlayPage() {
     win || busy === "spin"
       ? null
       : action.kind === "deposit"
-        ? "Deposit to get a spin"
+        ? "No spin yet"
         : action.kind === "wait"
           ? "Getting your game ready"
           : action.kind === "reward"
@@ -118,100 +126,116 @@ export function PlayPage() {
         {redeemingId ? "Getting it" : `Get ${rewardTitle(bestItem)}`}
       </button>
     ) : (
-      <button
-        type="button"
-        className="btn btn-cashier btn-primary btn-big"
-        disabled={busy !== null}
-        onClick={() => run("deposit")}
-      >
-        {busy === "deposit" ? "Depositing" : "Deposit €20"}
-      </button>
+      <p className="deposit-cta">
+        Make a deposit to get a spin
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+          <path d="M5 13 L13 5 M7 5 H13 V11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+        </svg>
+      </p>
     );
 
   return (
-    <main className="game" data-brand={brand}>
-      <div className="game-bar">
+    <div className="game" data-brand={brand}>
+      <div className="site-demo">
+        <span>Demo: the page below is a mock of a casino's website.</span>
         <DemoControls state={state} />
       </div>
-      <header className="game-head">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true" />
-          <div>
-            <p className="brand-name">{tenant?.name ?? "Casino"}</p>
-            <h1>Wheel of Fortune</h1>
-          </div>
-        </div>
-        <div className="chip" aria-live="polite">
-          <span className="coin-dot" aria-hidden="true" />
-          <div>
-            <p className="chip-label">Your coins</p>
-            <p className="chip-value">{me?.balance ? <CountUp value={available} /> : "-"}</p>
-          </div>
-          {reserved > 0 ? <p className="chip-hold">{coins(reserved)} on hold</p> : null}
+      <header className="site-bar">
+        <p className="site-name">
+          <span className="site-mark" aria-hidden="true" />
+          {tenant?.name ?? "Casino"}
+        </p>
+        <nav className="site-nav" aria-label="Casino sections (not active in this demo)">
+          <span>Slots</span>
+          <span>Live</span>
+          <span>Promotions</span>
+        </nav>
+        <div className="site-account">
+          <p className="site-wallet">
+            <span>Wallet</span>
+            <strong>{euro(wallet)}</strong>
+          </p>
+          <button
+            type="button"
+            className={`site-deposit${action.kind === "deposit" && busy === null ? " is-pointed" : ""}`}
+            disabled={busy !== null}
+            onClick={() => run("deposit")}
+          >
+            {busy === "deposit" ? "Depositing" : "Deposit \u20ac20"}
+          </button>
         </div>
       </header>
 
-      <div className="game-grid">
-        <section className="stage" aria-label="Wheel">
-          <div className="wheel-wrap">
-            {segments.length > 0 ? (
-              <Wheel ref={wheel} segments={segments} dimmedText={dimmed} />
-            ) : (
-              <div className="wheel-skeleton" />
-            )}
-            {win ? <CoinBurst key={win.key} /> : null}
-          </div>
-          <div className="win-slot" aria-live="polite">
-            {win ? (
-              <p className="win">
-                You won <strong>{coins(win.coins)} coins</strong>
-              </p>
-            ) : null}
-          </div>
-          {action.kind === "deposit" ? <p className="cashier-label">Casino cashier</p> : null}
-          {primary}
-          <p className="why">
-            {message ? "" : busy === "spin" ? "The server has picked your prize." : action.why}
+      <main className="site-body">
+        <h1 className="site-page-title">Promotions</h1>
+        <section className="widget" aria-labelledby="widget-label">
+          <p className="widget-label" id="widget-label">
+            Wheel of Fortune - a gamification widget
           </p>
-          {action.kind === "reward" ? (
-            <button
-              type="button"
-              className="btn btn-quiet"
-              disabled={busy !== null}
-              onClick={() => run("deposit")}
-            >
-              {busy === "deposit" ? "Depositing" : "Or deposit €20 at the cashier for another spin"}
-            </button>
-          ) : null}
-          {message ? (
-            <p className="problem" role="alert">
-              {message}
-            </p>
-          ) : null}
-          <p className="caption">The server picks the prize. The wheel only shows it.</p>
+          <div className="widget-inner">
+            <div className="widget-top">
+              <div className="chip" aria-live="polite">
+                <span className="coin-dot" aria-hidden="true" />
+                <span className="chip-label">Your coins</span>
+                <span className="chip-value">{me?.balance ? <CountUp value={available} /> : "-"}</span>
+                {reserved > 0 ? <span className="chip-hold">{coins(reserved)} on hold</span> : null}
+              </div>
+            </div>
+            <div className="game-grid">
+              <section className="stage" aria-label="Wheel">
+                <div className="wheel-wrap">
+                  {segments.length > 0 ? (
+                    <Wheel ref={wheel} segments={segments} dimmedText={dimmed} />
+                  ) : (
+                    <div className="wheel-skeleton" />
+                  )}
+                  {win ? <CoinBurst key={win.key} /> : null}
+                </div>
+                <div className="win-slot" aria-live="polite">
+                  {win ? (
+                    <p className="win">
+                      You won <strong>{coins(win.coins)} coins</strong>
+                    </p>
+                  ) : null}
+                </div>
+                {primary}
+                <p className="why">
+                  {message ? "" : busy === "spin" ? "The server has picked your prize." : action.why}
+                </p>
+                {action.kind === "reward" ? (
+                  <p className="muted">For another spin, make a deposit with the casino's button at the top.</p>
+                ) : null}
+                {message ? (
+                  <p className="problem" role="alert">
+                    {message}
+                  </p>
+                ) : null}
+                <p className="caption">The server picks the prize. The wheel only shows it.</p>
+              </section>
+
+              <Rewards
+                items={items}
+                available={available}
+                bestId={action.kind === "reward" ? action.itemId : null}
+                tracked={mine}
+                busyId={redeemingId}
+                onGet={get}
+              />
+            </div>
+          </div>
         </section>
-
-        <Rewards
-          items={items}
-          available={available}
-          bestId={action.kind === "reward" ? action.itemId : null}
-          tracked={mine}
-          busyId={redeemingId}
-          onGet={get}
-        />
-      </div>
-
-      <footer className="game-foot">
-        <button
-          type="button"
-          className="btn btn-quiet"
-          aria-expanded={scenes}
-          onClick={() => setScenes(!scenes)}
-        >
-          See what happened behind the scenes
-        </button>
-      </footer>
+        <footer className="game-foot">
+          <button
+            type="button"
+            className="btn btn-quiet"
+            aria-expanded={scenes}
+            onClick={() => setScenes(!scenes)}
+          >
+            See what happened behind the scenes
+          </button>
+        </footer>
+      </main>
       <BehindScenes open={scenes} onClose={() => setScenes(false)} log={state.log} items={items} />
-    </main>
+    </div>
   );
 }
