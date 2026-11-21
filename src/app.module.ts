@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AdminModule } from "./admin/admin.module.ts";
 import { ClockModule } from "./clock.module.ts";
 import { ConfigModule } from "./config.ts";
 import { DbModule } from "./db.module.ts";
@@ -24,6 +25,7 @@ import { WheelModule } from "./wheel/wheel.module.ts";
     EventsModule,
     WheelModule,
     StoreModule,
+    AdminModule,
     OutboxModule,
   ],
 })

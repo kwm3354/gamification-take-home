@@ -33,3 +33,17 @@ What goes wrong, what the system does, and which test proves it. Test names are 
 | A and B outcomes disagree (lookup says GRANTED, a late callback says DECLINED) | The first final answer wins; the later notice is ignored. | Partly: `13. B, callback twice: ...` (late contradicting notice after GRANTED) |
 | An operator wants to revoke a reward after it was issued | Not built. The redemption is final once issued. | Not tested (not built) |
 | The same pending reserve is captured and also released | The ledger refuses the second one (LedgerConflict) and the job retries and goes dead, visible in the outbox. | Not tested in this file (ledger tests cover the conflict) |
+
+## Operations: admin API, manual resolution, alerts
+
+Test names are in `test/admin.test.ts` and `test/alerts.test.ts`.
+
+| What goes wrong | What the system does | Proved by |
+|---|---|---|
+| Someone calls the admin API without the key, with a wrong key, with another tenant's key, or for an unknown tenant | 401 with the same body each time; nothing is read. | `admin API > 1. auth: ...` |
+| A casino accepts a reward and then goes silent (no error anywhere) | The redemption is listed as stuck once it is older than the tenant's limit, with its age and its last platform call; the alert `redemption_pending_too_long` fires on age, not on errors. | `admin API > 3. stuck: ...`, `alerts > redemption_pending_too_long: ...` |
+| The outcome cannot be learned at all | An admin resolves it by hand through the same `confirm` as every answer; the admin is the actor in the audit trail with the note; the ledger settles normally. | `admin API > 4. resolve as issued: ...`, `5. resolve as refused: ...` |
+| An admin decides "issued" and the casino never granted | Our books say issued, the casino has nothing. The judge reports it. This is the cost of a manual decision, written down in the test. | `admin API > 4. resolve as issued: ...` |
+| An admin resolves a redemption that is final, `created`, insufficient, another tenant's, or sends a bad note | 409 with the view, 404, or 400; nothing changes; a second resolve is 409 and writes one record only. | `admin API > 6. not resolvable: ...` |
+| The casino's real answer arrives after a manual resolution and disagrees | Status and ledger stay as the admin left them; one `outcome_contradicted` audit row; a critical alert. An answer that agrees writes nothing. | `admin API > 7. a late real answer ...` |
+| The casino's answer and an admin's resolution arrive at the same moment | Exactly one makes the redemption final, in either order; the ledger is captured or released, never both; no false contradiction when the admin loses. | `admin API > 8. the real answer and a manual resolution at the same moment ...` (24 runs; both orders occurred in the runs I looked at, not guaranteed) |
