@@ -364,3 +364,25 @@ What it shows:
 Not measured: one worker against two or four, the same runs on a quiet machine, tracing off,
 and where the time goes inside a deposit or a spin at concurrency 64 (the traces were not read
 for this run).
+
+## Workers: one against two and four
+
+Run at 15:17–15:20, same machine, still busy (load average 8–11). To make the workers do the
+work, the API ran with `INLINE_JOBS=off` for this measurement only: a redemption request then
+only writes the redemption and its job and returns, and every step (reserve, casino call,
+settle) is done by a worker. 500 redemptions on platform A, 64 at once, one run per row.
+Workers as shipped: batch of 16, poll every 500 ms.
+
+| Workers | Requests/s (accept only) | From first request to last final, s | From end of requests to last final, s |
+|---|---|---|---|
+| 1 | 241 | 9.1 | 7.1 |
+| 2 | 239 | 5.5 | 3.4 |
+| 4 | 209 | 4.2 | 1.8 |
+
+What it shows: the time the workers need after the requests stop halves with two workers and
+halves again with four (7.1 → 3.4 → 1.8 s). All 1500 redemptions ended issued, no errors, none
+issued twice (the load script's check). With four workers the total is close to the time it takes
+just to accept the requests (about 2.4 s), so more workers would not help this run.
+
+Not measured: more than four workers, more than one API process, where a single worker spends
+its time, and the same on a quiet machine.
