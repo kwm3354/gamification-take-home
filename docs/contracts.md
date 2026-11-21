@@ -103,7 +103,9 @@ drain(maxRounds = 20): Promise<void>  // runDue until nothing is due now; for te
 ```
 
 A handler that throws is retried with a delay of 1 s, 2 s, 4 s, ... up to 60 s; after 10 attempts
-the job gets `dead_at` and stays visible. In the running app a timer calls `runDue` every 500 ms
+the job gets `dead_at` and stays visible. Enqueueing a dead job again (a player repeats a request)
+revives it with `attempts` 0; this is allowed on purpose and never silent: the warning `outbox.revived`
+{ kind, refId, previousError } is logged. In the running app a timer calls `runDue` every 500 ms
 (off when `OUTBOX_TIMER=off`, which tests use; they call `runDue` and move the clock).
 
 ## Our HTTP API
@@ -314,7 +316,7 @@ use `info`.
 Events (the only ones): `event.accepted`, `event.duplicate`, `event.ignored` (debug), `webhook.rejected`,
 `webhook.invalid`, `spin.used`, `spin.credited` (debug), `spin.credit_deferred`, `redemption.created`,
 `redemption.status`, `redemption.contradicted`, `platform.call`, `platform.unreachable`,
-`outbox.retry` (debug), `outbox.dead`, `admin.manual_resolution`, `ledger.unavailable`, `unhandled`.
+`outbox.retry` (debug), `outbox.dead`, `outbox.revived` (warn), `admin.manual_resolution`, `ledger.unavailable`, `unhandled`.
 Each is explained in `docs/monitoring-playbook.md`. A duplicate event is a log line and not an audit
 entry: it changes nothing.
 

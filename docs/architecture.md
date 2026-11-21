@@ -201,7 +201,7 @@ the guard against two callers racing. Tenant secrets are written as `***`. A tri
 the model from my earlier payments project; the agent added the tenant column and the trigger (log,
 11:27 and 11:29).
 
-Logs: `src/logging/`, one JSON line per event, 18 named events, a request id that also goes into
+Logs: `src/logging/`, one JSON line per event, 19 named events, a request id that also goes into
 some of the audit rows of the request (not all: see difference 4 at the end), and fields whose key
 looks secret written as `***`. How much a tenant logs is `logLevel` in its ops policy. "Log little
 and correctly" and verbosity by policy are mine (12:52); the agent chose the list of events.
@@ -363,9 +363,8 @@ Found while writing this page, for the author to decide.
 5. The contract says the spin request runs the job at once. The controller calls `creditSpin`
    directly (`src/wheel/wheel.controller.ts:49`); the job row stays due and runs once more later as a
    no-op.
-6. The contract says enqueueing again makes a job due and not done. The code also sets `attempts` to
-   0 and clears `dead_at` (`src/outbox/outbox.ts:56`), so a dead job comes back, for example when the
-   player repeats a spin request (`src/wheel/spin.ts:112`).
+6. Fixed in review: enqueueing again revives a dead job (attempts 0, `dead_at` cleared). The behaviour
+   stays, since a new request is a reason to try again, but it now writes the warning `outbox.revived`.
 7. Not in the contract: `GET /admin/:tenantId/redemptions/stuck` answers `{ limitSec: null, items: []
    }` for a tenant without an ops policy (`src/admin/admin.controller.ts:55`), and an `Idempotency-Key`
    longer than 200 characters is 400 (`src/store/store.controller.ts:37`).

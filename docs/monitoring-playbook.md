@@ -281,6 +281,8 @@ policy (`info` or `debug`); warnings and errors are always written. Events:
 - `platform.call` (info): a call to the casino platform that was answered; `outcome`, `ms`.
   `platform.unreachable` (warn): one that was not; `retryInMs` says when we look again.
 - `outbox.retry` (debug): a job will run again. `outbox.dead` (error): a job failed ten times and stopped.
+  `outbox.revived` (warn): a dead job was enqueued again by a new request; `previousError` is what it died of.
+  Several of these for one job mean the same fault keeps killing it.
 - `admin.manual_resolution` (warn): an admin decided a redemption; `admin` is the actor.
 - `ledger.unavailable` (warn): a ledger call timed out; `op` is which one.
 - `unhandled` (error): an exception nobody handled.

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, test } from "vitest";
 import { FakeClock } from "../src/clock.ts";
 import { transaction } from "../src/db.ts";
+import { Log, MemorySink } from "../src/logging/log.ts";
 import { Outbox } from "../src/outbox/outbox.ts";
 import { freshDb } from "./harness.ts";
 
@@ -100,6 +101,41 @@ describe("outbox", () => {
     expect(after.last_error).toBe("always");
     expect(await outbox.runDue()).toBe(0);
     expect(runs).toBe(10);
+  });
+
+  test("enqueueing a dead job again revives it and logs outbox.revived with the last error; a done job logs nothing", async () => {
+    const { db, clock, refId, enqueue, row } = await setup();
+    const sink = new MemorySink();
+    const outbox = new Outbox(db, clock, new Log(sink, clock, () => "info"));
+    const events = () => sink.lines.map((l) => JSON.parse(l) as Record<string, unknown>);
+    let fails = true;
+    let runs = 0;
+    outbox.handle("k", async () => {
+      runs++;
+      if (fails) throw new Error("always");
+      return "done";
+    });
+    await enqueue();
+    for (let i = 0; i < 10; i++) {
+      await outbox.runDue();
+      clock.advance(60_000);
+    }
+    expect((await row()).dead_at).not.toBeNull();
+    expect(events().map((e) => e.event)).toEqual(["outbox.dead"]);
+
+    // A new request for the same job is a legitimate reason to try again, but the log says it was dead.
+    await transaction(db, (tx) => outbox.enqueue(tx, { tenantId: "t1", kind: "k", refId }));
+    expect(events().filter((e) => e.event === "outbox.revived")).toEqual([
+      expect.objectContaining({ level: "warn", tenantId: "t1", kind: "k", refId, previousError: "always" }),
+    ]);
+    fails = false;
+    expect(await outbox.runDue()).toBe(1);
+    expect(runs).toBe(11);
+    expect((await row()).done_at).not.toBeNull();
+
+    // Enqueueing a job that is done (not dead) writes no revived line.
+    await transaction(db, (tx) => outbox.enqueue(tx, { tenantId: "t1", kind: "k", refId }));
+    expect(events().filter((e) => e.event === "outbox.revived")).toHaveLength(1);
   });
 
   test("retryInMs reschedules and never makes the job dead", async () => {
