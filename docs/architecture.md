@@ -60,8 +60,8 @@ The two platforms differ in behaviour, not only in field names. Platform A answe
 at once and honours an idempotency key. Platform B accepts, reports the result later by webhook, and
 has no idempotency key.
 
-Decisions: ports and adapters, with the domain in the middle, is my choice; I used the same shape in
-an earlier payments project (log, 11:39). The agent asked to keep one file per entity so a live change
+Decisions: ports and adapters, with the domain in the middle, is my choice (log,
+11:39). The agent asked to keep one file per entity so a live change
 stays easy. The domain speaks of three outcomes of a reward request: `issued`, `refused`, and
 `pending` (not final, or we do not know yet) (`RewardOutcome`, my decision, 11:39). The status the
 player sees is built from the same words. Whether a platform can be asked for the status of a reward
@@ -198,7 +198,7 @@ that is not a row change (`platform_call`, `webhook_rejected`, `manual_resolutio
 `outcome_contradicted`). `update` locks the row and runs the state check under the lock, so it is also
 the guard against two callers racing. Tenant secrets are written as `***`. A trigger makes
 `audit_log` append-only. I required the full trail (create, update, delete) from the start and chose
-the model from my earlier payments project; the agent added the tenant column and the trigger (log,
+the design; the agent added the tenant column and the trigger (log,
 11:27 and 11:29).
 
 Logs: `src/logging/`, one JSON line per event, 19 named events, a request id that also goes into
@@ -235,7 +235,7 @@ Separate, each for a reason:
   domain stays one application; only the intake is split.
 - A connection gateway for real time (designed, not built): long-lived player connections, for
   example live leaderboards, are held by a separate service fed over publish and subscribe, not by
-  the application that moves coins. I have run this split in an earlier project.
+  the application that moves coins.
 
 Modules, in one process: tenants and identity, integrations, events, wheel, store, outbox, audit,
 admin and alerts, logging. The log gives no separate reason per module beyond the rule above. What
