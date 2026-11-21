@@ -20,6 +20,8 @@ export interface Config {
   seedDemo: boolean;
   /** Base address of the fake casino; the demo tenants' platform_url. */
   fakeCasinoUrl: string;
+  /** The fake casino's address as the browser sees it. The web app links to it and calls it. */
+  publicFakeCasinoUrl: string;
 }
 
 /** Injection token for the config. Tests replace it with `overrideProvider(CONFIG)`. */
@@ -41,6 +43,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     inlineJobs: env.INLINE_JOBS !== "off",
     seedDemo: env.SEED_DEMO === "1",
     fakeCasinoUrl: env.FAKE_CASINO_URL ?? "http://fake-casino:4000",
+    publicFakeCasinoUrl: env.PUBLIC_FAKE_CASINO_URL ?? "http://localhost:30081",
   };
 }
 
