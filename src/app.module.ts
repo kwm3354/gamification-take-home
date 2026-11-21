@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { ClockModule } from "./clock.module.ts";
 import { ConfigModule } from "./config.ts";
 import { DbModule } from "./db.module.ts";
 import { EventsModule } from "./events/events.module.ts";
@@ -10,10 +11,11 @@ import { StoreModule } from "./store/store.module.ts";
 import { TenantsModule } from "./tenants/tenants.module.ts";
 import { WheelModule } from "./wheel/wheel.module.ts";
 
-// ConfigModule, DbModule and LedgerModule are global: any module can inject CONFIG, DB and LEDGER.
+// ConfigModule, ClockModule, DbModule and LedgerModule are global: any module can inject CONFIG, CLOCK, DB and LEDGER.
 @Module({
   imports: [
     ConfigModule,
+    ClockModule,
     DbModule,
     LedgerModule,
     HealthModule,
