@@ -21,7 +21,8 @@ Database rules, or a separate database per casino, come only when a client's con
 
 What supports it today:
 
-- Every table carries `tenant_id`, and every query filters by it (`src/schema.sql`). Isolation is
+- Every table carries `tenant_id`, and every query that starts from a request filters by it
+  (`src/schema.sql`). Isolation is
   tested on the player API, on every back office list and detail, on tenant keys and inside every
   alert test (`docs/failure-table.md`). The route-walking test is
   `test/tenant-isolation.test.ts`.

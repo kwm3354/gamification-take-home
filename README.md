@@ -43,8 +43,10 @@ fails. Concretely:
 
 ## What must never happen
 
-These seven rules are the judge the tests use (`test/judge.ts`). The judge reads the casino's own
-record and the ledger, not our tables.
+These seven rules are what the tests check. For rules 3 to 6 there is a judge (`test/judge.ts`): it
+trusts only the casino's own record and the ledger. It reads our redemption rows only to learn what
+we claim, and checks each claim against those two. Rules 1, 2 and 7 are checked by ordinary tests
+of the intake and the wheel.
 
 1. One deposit gives more spins than the grant policy of its time allows.
 2. One spin gives more than one prize, or a prize the client chose.
@@ -206,7 +208,9 @@ rate limiting; a secrets store (secrets are plain text in the database); schema 
 schema is applied as one idempotent file); password reset and token refresh for admins; replacing the
 wheel secret and the platform API key; a second lock for tenant isolation inside the database.
 
-**Where it runs:** proven on a GitHub-hosted Linux runner with the official images, on every push.
+**Where it runs:** CI runs the tests and starts the whole compose stack on a GitHub-hosted Linux
+runner with the official images on every push. (Several runs today were red because of one test
+with a wall-clock limit; the log has the story.)
 Not proven: Docker Desktop on macOS or Windows, and hosts where io_uring is disabled. TigerBeetle
 needs io_uring, which Docker's default security profile blocks, hence `seccomp=unconfined` in
 `docker-compose.yml`.
@@ -253,7 +257,8 @@ The approach is in `docs/verification.md`; the short version:
 - **A fake outside world with faults.** The fake casino can answer with an error, rate-limit, refuse,
   lose the request, lose its answer, answer slowly, and for platform B lose, repeat or delay the
   result message.
-- **A judge** that reads only the casino's record and the ledger and checks the seven rules above.
+- **A judge** that trusts only the casino's record and the ledger, for the rules about coins and
+  rewards (3 to 6).
 - **Flow tests** from the first request to the judge's verdict, one per failure that matters. Each
   row of `docs/failure-table.md` names its test, or says "not tested".
 - **A clock the tests move.** Tests do not sleep, except the few that check that calls overlap in
@@ -272,7 +277,7 @@ an automated browser suite.
 
 | Change | Where |
 |---|---|
-| A third casino platform | a new adapter in `src/integrations/` implementing `CasinoPlatform` (`src/domain/casino-platform.ts`), registered in `src/integrations/platforms.ts`; a twin in `src/fake-casino/` |
+| A third casino platform | a new adapter in `src/integrations/` implementing `CasinoPlatform` (`src/domain/casino-platform.ts`), registered in `src/integrations/platforms.ts`; the platform name is also listed in `src/tenants/tenants.ts` and in a `CHECK` on `tenants.platform` in `src/schema.sql` (an existing database keeps the old `CHECK`: there are no migrations); a twin in `src/fake-casino/` |
 | A different rule for granting spins | `src/policies/grant-policy.ts` (`spinsForDeposit`) and the fields of a grant policy version |
 | Wheel segments, weights, store items of the demo | `src/tenants/demo-tenants.ts` |
 | How the prize is picked | `src/wheel/pick-segment.ts` |

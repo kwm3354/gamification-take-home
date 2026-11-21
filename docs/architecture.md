@@ -5,8 +5,9 @@ Fortune. The prize is coins in a ledger. The player spends coins in a bonus stor
 casino platform to issue the reward. Two simulated platforms with different APIs stand in for real
 casinos.
 
-What the system promises is a list of things that must never happen (`docs/contracts.md`, checked
-by `test/judge.ts` against the fake casino and the ledger, not against our own tables). One deposit
+What the system promises is a list of things that must never happen (`docs/contracts.md`, the rules about coins and
+rewards are checked by `test/judge.ts`, which trusts only the fake casino and the ledger and reads our
+rows only to learn what we claim). One deposit
 never gives more spins than the grant policy of its time allows. One spin never gives more than one
 prize, and the client never chooses the prize. A coin balance never goes below zero. One redemption
 never reserves or takes coins twice, and the casino never issues its reward twice for it. Once
@@ -42,7 +43,7 @@ agent proposed something and I accepted it, the text says so.
 
 ### Multi-tenant SaaS with tenant isolation
 
-Today: every table carries `tenant_id` and every query filters by it (`src/schema.sql`). The tenant
+Today: every table carries `tenant_id`, and every query that starts from a request filters by it (`src/schema.sql`); a few internal look-ups go by a row id that was itself found under a tenant filter. The tenant
 of a request comes from a place the caller cannot forge: the path plus the tenant's own webhook
 signature, the player token's signature, or the signed admin token (its `tid` claim, checked
 against the path). Each tenant has its own TigerBeetle ledger (`tenants.ledger_no`), and
@@ -100,7 +101,7 @@ tokens (the operator holds a private key, we hold only the public one), revocati
 Today: `POST /webhooks/:tenantId/events` (`src/events/events.controller.ts`). The tenant's adapter
 checks the signature over the raw bytes (platform A also rejects a timestamp more than 5 minutes
 away) and translates the event into `DepositSucceeded` or `IgnoredEvent`. A bad signature is 401 and
-one audit record `webhook_rejected`; a signed but bad body is 400 and `webhook_invalid`. Each event
+one audit record `webhook_rejected`; a signed body that is JSON but has the wrong shape is 400 and `webhook_invalid`; a body that is not JSON is refused with 400 by the body parser before the adapter sees it, and leaves no audit record. Each event
 then runs in its own transaction (`src/events/deposit.ts`, `ingestEvent`). The event is stored first,
 with its normalised and raw form; the unique key `(tenant_id, external_event_id)` is the
 deduplication, so a repeat inserts nothing and grants nothing. For a deposit, the newest grant
