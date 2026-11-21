@@ -1,0 +1,45 @@
+// Back office: sign in, overview, one redemption with its audit trail, Settings -> Keys -> replace.
+// The new secret is blurred in the page itself before it is recorded.
+import { launch, sleep, clickText, APP } from "./lib.mjs";
+import { record } from "./recorder.mjs";
+const OUT = new URL("..", import.meta.url).pathname;
+const b = await launch();
+const p = await b.newPage();
+await p.goto(`${APP}/app/#/admin`, { waitUntil: "networkidle0" });
+await sleep(800);
+const rec = await record(p, "admin", OUT);
+await sleep(1200);
+await clickText(p, "manager@alpha.demo", "button");
+rec.mark("filled");
+await sleep(1500);
+await clickText(p, "Sign in", "button");
+await sleep(2500);
+rec.mark("overview");
+await clickText(p, "Redemptions", "nav a, aside a, a");
+await sleep(2000);
+rec.mark("list");
+await p.evaluate(() => document.querySelector('a[href*="redemptions/"]').click());
+await sleep(2000);
+rec.mark("detail");
+await p.screenshot({ path: `${OUT}/capture/raw/admin-detail.png`, fullPage: true });
+await p.evaluate(() => [...document.querySelectorAll("h2,h3")].find((h) => /audit/i.test(h.innerText))?.scrollIntoView({ behavior: "smooth", block: "start" }));
+await sleep(3000);
+rec.mark("audit");
+await clickText(p, "Settings", "nav a, aside a, a");
+await sleep(2000);
+await p.evaluate(() => [...document.querySelectorAll("h2")].find((h) => h.innerText.trim() === "Keys")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+await sleep(2000);
+rec.mark("keys");
+await clickText(p, "Replace", "button");
+await sleep(1200);
+await clickText(p, "Replace the key", "button");
+await sleep(1500);
+// Blur first, so no recorded frame ever holds the secret.
+await p.addStyleTag({ content: '[data-testid="new-secret"]{filter:blur(9px)}' });
+await clickText(p, "Confirm: replace the key", "button");
+rec.mark("replaced");
+await p.evaluate(() => document.querySelector('[data-testid="new-secret"]')?.scrollIntoView({ behavior: "smooth", block: "center" }));
+await sleep(3500);
+await rec.stop();
+await p.screenshot({ path: `${OUT}/capture/raw/admin-keys.png` });
+await b.close();

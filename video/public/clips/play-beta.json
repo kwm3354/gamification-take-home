@@ -1,0 +1,49 @@
+{
+  "seconds": 34.234,
+  "marks": [
+    {
+      "label": "deposit",
+      "s": 1.515
+    },
+    {
+      "label": "spin",
+      "s": 2.584
+    },
+    {
+      "label": "coins 10",
+      "s": 8.939
+    },
+    {
+      "label": "deposit",
+      "s": 8.982
+    },
+    {
+      "label": "spin",
+      "s": 10.052
+    },
+    {
+      "label": "coins 20",
+      "s": 16.373
+    },
+    {
+      "label": "deposit",
+      "s": 16.385
+    },
+    {
+      "label": "spin",
+      "s": 17.456
+    },
+    {
+      "label": "coins 120",
+      "s": 23.918
+    },
+    {
+      "label": "get bonus",
+      "s": 24.731
+    },
+    {
+      "label": "end",
+      "s": 33.731
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "presentation-video",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio",
+    "capture": "node capture/capture.mjs",
+    "render": "remotion render Presentation out/presentation.mp4 --codec=h264 --crf=26"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.529",
+    "@remotion/media": "4.0.529",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "remotion": "4.0.529",
+    "puppeteer-core": "24.10.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.0",
+    "typescript": "5.8.3"
+  }
+}

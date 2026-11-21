@@ -1,0 +1,33 @@
+{
+  "seconds": 23.309,
+  "marks": [
+    {
+      "label": "filled",
+      "s": 1.211
+    },
+    {
+      "label": "overview",
+      "s": 5.225
+    },
+    {
+      "label": "list",
+      "s": 7.241
+    },
+    {
+      "label": "detail",
+      "s": 9.253
+    },
+    {
+      "label": "audit",
+      "s": 12.57
+    },
+    {
+      "label": "keys",
+      "s": 16.581
+    },
+    {
+      "label": "replaced",
+      "s": 19.304
+    }
+  ]
+}
