@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { loadOpsPolicy, validateOpsParams } from "../src/alerts/ops-policy.ts";
 import { create, record } from "../src/audit/audited.ts";
@@ -465,5 +466,20 @@ describe.skipIf(!running)("ops policy in the database", () => {
     await expect(app().db.query("DELETE FROM ops_policies WHERE tenant_id = $1", [t.id])).rejects.toThrow(
       /append-only/,
     );
+  });
+});
+
+describe.skipIf(!running)("the monitoring playbook", () => {
+  test("every sql block in docs/monitoring-playbook.md runs against the schema", async () => {
+    const text = readFileSync(new URL("../docs/monitoring-playbook.md", import.meta.url), "utf8");
+    const blocks = [...text.matchAll(/```sql\n([\s\S]*?)```/g)].map((m) => m[1] as string);
+    expect(blocks.length).toBeGreaterThanOrEqual(10);
+    // Give the queries something to look at: a tenant with spins, an issued redemption, a dead job.
+    const t = await newTenant();
+    await addSpins(t, "p-1", 3, { coins: 50 });
+    await addIssued(t, "p-1", 100);
+    for (const sql of blocks) {
+      await expect(app().db.query(sql), sql).resolves.toBeDefined();
+    }
   });
 });

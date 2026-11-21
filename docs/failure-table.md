@@ -56,3 +56,4 @@ Test names are in `test/admin.test.ts` and `test/alerts.test.ts`.
 | Thresholds differ between operators | They are a versioned policy of the tenant; a new version changes the result, another tenant is not affected. | `alerts` tests with policy version 2 and 3; tenant isolation inside each alert test |
 | A deposit is reversed after its spin was used | Not built: the adapters have no reversal event. | Not tested (not built) |
 | The alert reaches nobody | Not built: no delivery to us or to the operator; the endpoint is for a scheduler to poll. | Not tested (not built) |
+| The daily digest agent misreads or is misled by outside text | It is read-only and told that event text is data. Nothing runs it yet. | Not tested (not built); the playbook SQL runs against the schema: `the monitoring playbook > every sql block ...` |
