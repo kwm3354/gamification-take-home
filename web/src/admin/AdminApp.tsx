@@ -1,5 +1,13 @@
 import { type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
+import { Alerts } from "../sections/Alerts.tsx";
+import { Audit } from "../sections/Audit.tsx";
+import { Changes } from "../sections/Changes.tsx";
+import { Events, Outbox, Players, Redemptions, Spins } from "../sections/Lists.tsx";
 import { Overview } from "../sections/Overview.tsx";
+import { EventDetail, PlayerDetail } from "../sections/PlayerAndEvent.tsx";
+import { RedemptionDetail } from "../sections/Redemption.tsx";
+import { Settings } from "../sections/Settings.tsx";
+import { Stuck } from "../sections/Stuck.tsx";
 import { SignIn } from "./SignIn.tsx";
 import type { AdminUser } from "./auth.ts";
 import { adminCall, auth, useAuth, useCalls } from "./client.ts";
@@ -26,8 +34,18 @@ const LABELS: Record<Section, string> = {
   audit: "Audit",
 };
 
-const VIEWS: Partial<Record<Section, () => ReactNode>> = {
-  overview: Overview,
+const VIEWS: Record<Section, { list: () => ReactNode; detail?: () => ReactNode }> = {
+  overview: { list: Overview },
+  alerts: { list: Alerts },
+  redemptions: { list: Redemptions, detail: RedemptionDetail },
+  stuck: { list: Stuck },
+  players: { list: Players, detail: PlayerDetail },
+  events: { list: Events, detail: EventDetail },
+  spins: { list: Spins },
+  settings: { list: Settings },
+  changes: { list: Changes },
+  outbox: { list: Outbox },
+  audit: { list: Audit },
 };
 
 interface TenantInfo {
@@ -108,10 +126,11 @@ function Shell({ user, route }: { user: AdminUser; route: AdminRoute | null }) {
   } else if (!tenantId) {
     content = <p className="muted">{tenants === null ? "Loading" : "No tenant is available for this account."}</p>;
   } else {
-    const View = VIEWS[route.section];
+    const views = VIEWS[route.section];
+    const View = route.id && views.detail ? views.detail : views.list;
     content = (
       <AdminCtx.Provider value={{ tenantId, user, route }}>
-        {View ? <View key={`${tenantId}/${route.section}/${route.id ?? ""}`} /> : <p className="muted">Not built yet.</p>}
+        <View key={`${tenantId}/${route.section}/${route.id ?? ""}`} />
       </AdminCtx.Provider>
     );
   }

@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { adminCall, describeAdminFailure } from "./client.ts";
 import type { AdminUser } from "./auth.ts";
 import { type Page, type Paged, appendPage, emptyPaged } from "./pagination.ts";
-import type { AdminRoute } from "./routes.ts";
+import { type AdminRoute, buildAdminHash } from "./routes.ts";
 
 export interface AdminContext {
   tenantId: string;
@@ -104,4 +104,13 @@ export function queryString(params: Record<string, string | undefined>): string 
   for (const [k, v] of Object.entries(params)) if (v) p.set(k, v);
   const text = p.toString();
   return text ? `?${text}` : "";
+}
+
+/** The filters of the current route, and a setter that writes them into the hash. */
+export function useFilters(): [Record<string, string>, (next: Record<string, string>) => void] {
+  const { route } = useAdmin();
+  const set = (next: Record<string, string>) => {
+    window.location.hash = buildAdminHash({ section: route.section, query: next });
+  };
+  return [route.query, set];
 }

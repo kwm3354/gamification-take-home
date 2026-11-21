@@ -88,6 +88,7 @@ html[data-route="admin"] body {
 }
 
 .bo .mono {
+  overflow-wrap: normal;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 12.5px;
 }
@@ -382,6 +383,7 @@ table.data tr:last-child td {
 }
 
 table.data .num {
+  white-space: nowrap;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -536,6 +538,10 @@ pre.json {
   overflow-wrap: anywhere;
 }
 
+details.inline pre.json {
+  min-width: 240px;
+}
+
 details.inline > summary {
   cursor: pointer;
   color: var(--bo-accent);
@@ -594,6 +600,41 @@ details.inline[open] > summary {
 
 .limit-line {
   margin: 8px 0;
+}
+
+.table-wrap.segments {
+  max-width: 560px;
+}
+
+.gap {
+  height: 8px;
+}
+
+.version {
+  margin-bottom: 12px;
+}
+
+.version p {
+  margin: 0 0 4px;
+}
+
+.change {
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--bo-line);
+}
+
+.change p {
+  margin: 4px 0 6px;
+}
+
+.row-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.panel-form.wide {
+  max-width: 720px;
 }
 
 /* Requests panel */

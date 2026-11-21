@@ -111,19 +111,22 @@ seedTenant(TENANTS[1], 24);
 // A stuck redemption and some trouble for alpha.
 {
   const s = db["alpha-casino"];
-  const p = s.players[0];
-  const r = {
-    id: uuid(), createdAt: ago(2400), updatedAt: ago(2300), playerId: p.id, playerExternalId: p.externalId, itemCode: "bonus-5-eur",
-    itemName: "Bonus 5 EUR", costCoins: "500", status: "submitting", settled: false, platformRef: null, reason: null,
-  };
-  s.redemptions.unshift(r);
-  s.job = { [r.id]: { runAt: ago(-30), attempts: 7, lastError: "PlatformUnreachable: timeout after 2000 ms", doneAt: null, deadAt: null } };
-  s.audit.unshift(
-    { id: uuid(), at: ago(2300), actor: "system/outbox", action: "platform_call", entityType: "redemption", entityId: r.id, changes: { call: "GET /a/bonuses", outcome: "unreachable" }, requestId: `job:redemption_advance:${r.id}` },
-    { id: uuid(), at: ago(2400), actor: `player/${p.id}`, action: "create", entityType: "redemption", entityId: r.id, changes: { status: { from: null, to: "created" } }, requestId: "req-stuck" },
-  );
+  s.job = {};
+  for (const [n, age] of [[0, 2400], [3, 900]]) {
+    const p = s.players[n];
+    const r = {
+      id: uuid(), createdAt: ago(age), updatedAt: ago(age - 100), playerId: p.id, playerExternalId: p.externalId, itemCode: "bonus-5-eur",
+      itemName: "Bonus 5 EUR", costCoins: "500", status: "submitting", settled: false, platformRef: null, reason: null,
+    };
+    s.redemptions.unshift(r);
+    s.job[r.id] = { runAt: ago(-30), attempts: 7, lastError: "PlatformUnreachable: timeout after 2000 ms", doneAt: null, deadAt: null };
+    s.audit.unshift(
+      { id: uuid(), at: ago(age - 100), actor: "system/outbox", action: "platform_call", entityType: "redemption", entityId: r.id, changes: { call: "GET /a/bonuses", outcome: "unreachable" }, requestId: `job:redemption_advance:${r.id}` },
+      { id: uuid(), at: ago(age), actor: `player/${p.id}`, action: "create", entityType: "redemption", entityId: r.id, changes: { status: { from: null, to: "created" } }, requestId: "req-stuck" },
+    );
+  }
   s.outbox.push(
-    { id: uuid(), kind: "redemption_advance", refId: r.id, runAt: ago(-30), attempts: 7, lastError: "PlatformUnreachable: timeout after 2000 ms", doneAt: null, deadAt: null },
+    { id: uuid(), kind: "redemption_advance", refId: s.redemptions[0].id, runAt: ago(-30), attempts: 7, lastError: "PlatformUnreachable: timeout after 2000 ms", doneAt: null, deadAt: null },
     { id: uuid(), kind: "spin_credit", refId: s.spins[1].id, runAt: ago(60), attempts: 10, lastError: "LedgerUnavailable", doneAt: null, deadAt: ago(30) },
   );
   for (let i = 0; i < 60; i++)
@@ -160,9 +163,6 @@ function paged(rows, url) {
   return { items: slice, nextCursor };
 }
 
-function tenantState(t) {
-  return db[t];
-}
 const live = (t, ext) => {
   const s = db[t];
   if (!s.live.has(ext)) s.live.set(ext, { ext, spins: [], balance: 0, reserved: 0, reds: [] });

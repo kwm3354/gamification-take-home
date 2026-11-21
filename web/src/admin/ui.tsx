@@ -151,7 +151,14 @@ export function DataTable<T>({ columns, rows, rowKey, status, error, empty, onRo
               <tr
                 key={rowKey(row)}
                 className={onRow ? "clickable" : undefined}
-                onClick={onRow ? () => onRow(row) : undefined}
+                onClick={
+                  onRow
+                    ? (e) => {
+                        if (e.target instanceof Element && e.target.closest("a, button")) return;
+                        onRow(row);
+                      }
+                    : undefined
+                }
               >
                 {columns.map((c) => (
                   <td key={c.header} className={c.numeric ? "num" : undefined}>
@@ -172,14 +179,6 @@ export function tableStatus<T>(load: Load<T>): { status: "loading" | "error" | "
   return load.kind === "error"
     ? { status: "error", error: load.text }
     : { status: load.kind === "loading" ? "loading" : "ok", error: null };
-}
-
-/** Opens a row's detail by a click anywhere on the row, but not when the click was on a link or button. */
-export function openOnClick(go: () => void) {
-  return (target: EventTarget | null) => {
-    if (target instanceof Element && target.closest("a, button")) return;
-    go();
-  };
 }
 
 export function Dl({ items }: { items: [string, ReactNode][] }) {
@@ -248,9 +247,10 @@ export function Filters({
   onChange: (next: Record<string, string>) => void;
 }) {
   const [draft, setDraft] = useState(values);
-  const [seen, setSeen] = useState(values);
-  if (seen !== values) {
-    setSeen(values);
+  const key = JSON.stringify(values);
+  const [seen, setSeen] = useState(key);
+  if (seen !== key) {
+    setSeen(key);
     setDraft(values);
   }
   const apply = () => {
