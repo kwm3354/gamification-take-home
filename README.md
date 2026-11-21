@@ -1,6 +1,8 @@
 # Gamification service for casino operators: a working slice
 
-![Deposit, spin, coins, bonus: the main flow on the player page](docs/video/demo.gif)
+![The player wins coins and takes a bonus; the casino's answer is lost and one bonus is still issued once; the back office shows the audit trail](docs/video/demo.gif)
+
+*Real footage of the running system, 25 seconds: the player page, a casino whose answer is lost, the back office.*
 
 ## TL;DR
 
