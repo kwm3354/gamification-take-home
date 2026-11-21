@@ -474,12 +474,12 @@ describe("bad input", () => {
     expect((await (await fetch(`${fake.url}/control/faults`)).json()) as Json).toEqual([]);
   });
 
-  it("answers CORS and OPTIONS, and GET / says there is no page yet", async () => {
+  it("answers CORS and OPTIONS, and GET / serves the playground page", async () => {
     const pre = await fetch(`${fake.url}/control/state`, { method: "OPTIONS" });
     expect(pre.status).toBe(204);
     expect(pre.headers.get("access-control-allow-origin")).toBe("*");
     const page = await fetch(`${fake.url}/`);
-    expect(page.status).toBe(404);
+    expect(page.status).toBe(200);
     expect(page.headers.get("access-control-allow-origin")).toBe("*");
   });
 });
