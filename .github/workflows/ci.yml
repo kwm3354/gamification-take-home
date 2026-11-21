@@ -18,5 +18,8 @@ jobs:
       - run: npm run verify
         env:
           TB_ADDRESS: 127.0.0.1:30009
-      - if: always()
-        run: docker compose logs tigerbeetle | tail -n 50
+      # The reviewer's path: build the app image, start everything, ask the app if it is healthy.
+      - run: docker compose up -d --build --wait
+      - run: curl --fail --silent --show-error http://127.0.0.1:30080/health
+      - if: failure()
+        run: docker compose ps -a; docker compose logs --tail 200

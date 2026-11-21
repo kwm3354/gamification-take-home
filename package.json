@@ -10,21 +10,31 @@
     "lint": "biome check src test",
     "test": "vitest run",
     "verify": "npm run typecheck && npm run lint && npm test",
+    "build": "tsc -p tsconfig.build.json && cp src/schema.sql dist/",
+    "start": "node dist/main.js",
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down -v"
   },
   "dependencies": {
+    "@nestjs/common": "^12.6.0",
+    "@nestjs/core": "^12.6.0",
+    "@nestjs/platform-express": "^12.6.0",
     "pg": "^8.13.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
     "tigerbeetle-node": "0.17.9"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "@nestjs/testing": "^12.6.0",
+    "@swc/core": "^1.16.22",
     "@testcontainers/postgresql": "^10.16.0",
     "@types/node": "^22.10.2",
     "@types/pg": "^8.11.10",
     "fast-check": "^3.23.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
+    "unplugin-swc": "^2.0.0",
     "vitest": "^2.1.8"
   }
 }

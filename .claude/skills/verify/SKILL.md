@@ -11,7 +11,8 @@ stop at the first failure. Docker must be running: the tests start their own Pos
 1. `npm run typecheck` and `npm run lint`. Seconds.
 2. `npm test`. Flow tests and property tests on a clock that only moves when the test moves it.
 
-`npm run verify` runs both. Update this file when a slower suite (real processes, real HTTP) is added.
+`npm run verify` runs both. Tests that need the ledger are skipped unless `TB_ADDRESS` or `TB_BIN` is set.
+`test/app.ts` boots the whole app in the test process; `test/health.test.ts` calls it over HTTP. Update this file when a slower suite (real processes, real HTTP) is added.
 
 ## Reading a failure
 

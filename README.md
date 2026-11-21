@@ -8,10 +8,34 @@
 
 ## Run it
 
+Needs Docker with Compose. Start PostgreSQL, TigerBeetle and the app, then ask the app if it is healthy:
+
 ```
-npm install
-npm run verify
+docker compose up -d --build --wait
+curl http://127.0.0.1:30080/health
 ```
+
+The answer is `{"ok":true,"postgres":"ok","ledger":"ok"}`. Stop and delete the data:
+
+```
+docker compose down -v
+```
+
+Run the checks (typecheck, lint, tests). Needs Node.js 22. The tests start their own PostgreSQL
+in Docker and use the TigerBeetle from Compose:
+
+```
+npm ci
+docker compose up -d --wait tigerbeetle
+TB_ADDRESS=127.0.0.1:30009 npm run verify
+```
+
+These commands are the ones CI runs on every push (`.github/workflows/ci.yml`), on a GitHub
+runner with the official images.
+
+The TigerBeetle server and its Node.js client need a CPU with AVX2 and Docker that allows
+io_uring (hence `seccomp=unconfined` in `docker-compose.yml`). On a CPU without AVX2 see
+`scripts/tb-old-cpu.sh`.
 
 ## Design
 
